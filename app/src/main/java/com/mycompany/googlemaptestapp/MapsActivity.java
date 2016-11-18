@@ -34,7 +34,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private GoogleMap mMap;
     Polygon polygon;
     Document doc = null;
-    HashMap<String, String> hmap = new HashMap<String, String>();
+    HashMap<String, String> hmap = new HashMap<String, String>();// 행정구역 , 미세먼지 지수
+    HashMap<Integer, String> namehmap = new HashMap<Integer, String>();// 이름, 해쉬코드
     int clkclr;
 
     @Override
@@ -53,7 +54,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         mMap = googleMap;
 
         // Add a marker in Sydney and move the camera
-        LatLng seoul = new LatLng(37.56, 126.97);  //서울의 위도, 경도
+        LatLng seoul = new LatLng(37.56, 126.990786);  //서울의 위도, 경도
 //        mMap.addMarker(new MarkerOptions().position(seoul).title("Marker in Seoul!!!!")); // 마커추가, 타이틀설정
         mMap.moveCamera(CameraUpdateFactory.newLatLng(seoul));  // 초기위치 설정
 
@@ -64,16 +65,14 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         mMap.setOnPolygonClickListener(new GoogleMap.OnPolygonClickListener() {
             public void onPolygonClick(Polygon polygon) {
-//                Toast.makeText(MapsActivity.this, "Clicked...", Toast.LENGTH_SHORT).show();
                 if (polygon.getFillColor() == Color.TRANSPARENT) {
                     polygon.setFillColor(clkclr);
-                    Toast.makeText(MapsActivity.this, "Clicked White...", Toast.LENGTH_SHORT).show();
-//                    Log.d("tag","kbc"+polygon.getId());
+                    Toast.makeText(MapsActivity.this, "Clicked "+namehmap.get(polygon.hashCode()), Toast.LENGTH_SHORT).show();
+                    Log.d("log","kbc -------- "+polygon.hashCode());//폴리곤 구분
                 } else {
                     clkclr = polygon.getFillColor();
                     polygon.setFillColor(Color.TRANSPARENT); //Color.TRANSPARENT
                     Toast.makeText(MapsActivity.this, "Clicked Transparent...", Toast.LENGTH_SHORT).show();
-//                    Log.d("tag","kbc2");
                 }
             }
         });
@@ -140,6 +139,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .strokeColor(Color.RED)
                 .fillColor(clr));
         polygon.setClickable(true);
+        namehmap.put(polygon.hashCode(),"구");
     }//template
 
     //서울시
@@ -189,6 +189,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .strokeColor(Color.RED)
                 .fillColor(clr));
         polygon.setClickable(true);
+        namehmap.put(polygon.hashCode(),"성동구");
     }//서울 성동구
     public void drawPolygon145(GoogleMap googlemap) { //서울 용산
         String name = "용산구";
@@ -239,6 +240,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .strokeColor(Color.RED)
                 .fillColor(clr));
         polygon.setClickable(true);
+        namehmap.put(polygon.hashCode(),"용산구");
     }//서울 용산구
     public void drawPolygon151(GoogleMap googlemap) { //서울 강남구
         String name = "강남구";
@@ -313,6 +315,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .strokeColor(Color.RED)
                 .fillColor(clr));
         polygon.setClickable(true);
+        namehmap.put(polygon.hashCode(),"강남구");
     }//서울 강남구
     public void drawPolygon158(GoogleMap googlemap) { //서울 동대문구
         String name = "동대문구";
@@ -364,6 +367,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .strokeColor(Color.RED)
                 .fillColor(clr));
         polygon.setClickable(true);
+        namehmap.put(polygon.hashCode(),"동대문구");
     }//서울 동대문구
     public void drawPolygon155(GoogleMap googlemap) { //서울 중구
         String name = "중구";
@@ -507,6 +511,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .strokeColor(Color.RED)
                 .fillColor(clr));
         polygon.setClickable(true);
+        namehmap.put(polygon.hashCode(),"중구");
+        Log.d("log","kbc  ++++  "+polygon.hashCode());//
     }//서울 중구
     public void drawPolygon160(GoogleMap googlemap) { //서울 종로구
         String name = "종로구";
@@ -811,6 +817,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .strokeColor(Color.RED)
                 .fillColor(clr));
         polygon.setClickable(true);
+        namehmap.put(polygon.hashCode(),"종로구");
     }//서울 종로구
     public void drawPolygon164(GoogleMap googlemap) { //서울 성북구
         String name = "성북구";
@@ -1608,6 +1615,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .strokeColor(Color.RED)
                 .fillColor(clr));
         polygon.setClickable(true);
+        namehmap.put(polygon.hashCode(),"성북구");
     }//서울 성북구
     public void drawPolygon156(GoogleMap googlemap) { //서울 서대문구
         String name = "서대문구";
@@ -1657,6 +1665,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .strokeColor(Color.RED)
                 .fillColor(clr));
         polygon.setClickable(true);
+        namehmap.put(polygon.hashCode(),"서대문구");
     }//서울 서대문구
     public void drawPolygon153(GoogleMap googlemap) { //서울 마포구
         String name = "마포구";
@@ -1847,6 +1856,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .strokeColor(Color.RED)
                 .fillColor(clr));
         polygon.setClickable(true);
+        namehmap.put(polygon.hashCode(),"마포구");
     }//서울 마포구
     public void drawPolygon152(GoogleMap googlemap) { //서울 영등포구
         String name = "영등포구";
@@ -2177,6 +2187,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .strokeColor(Color.RED)
                 .fillColor(clr));
         polygon.setClickable(true);
+        namehmap.put(polygon.hashCode(),"영등포구");
     }//서울 영등포구
     public void drawPolygon144(GoogleMap googlemap) { //서울 동작구
         String name = "동작구";
@@ -2330,6 +2341,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .strokeColor(Color.RED)
                 .fillColor(clr));
         polygon.setClickable(true);
+        namehmap.put(polygon.hashCode(),"동작구");
     }//서울 동작구
     public void drawPolygon157(GoogleMap googlemap) { //서울 서초구
         String name = "서초구";
@@ -2433,6 +2445,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .strokeColor(Color.RED)
                 .fillColor(clr));
         polygon.setClickable(true);
+        namehmap.put(polygon.hashCode(),"서초구");
     }//서울 서초구
     public void drawPolygon161(GoogleMap googlemap) { //서울 송파구
         String name = "송파구";
@@ -2515,6 +2528,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .strokeColor(Color.RED)
                 .fillColor(clr));
         polygon.setClickable(true);
+        namehmap.put(polygon.hashCode(),"송파구");
     }//서울 송파구
     public void drawPolygon154(GoogleMap googlemap) { //서울 광진구
         String name = "광진구";
@@ -2636,6 +2650,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .strokeColor(Color.RED)
                 .fillColor(clr));
         polygon.setClickable(true);
+        namehmap.put(polygon.hashCode(),"광진구");
     }//서울 광진구
     public void drawPolygon146(GoogleMap googlemap) { //서울 강동구
         String name = "강동구";
@@ -2724,6 +2739,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .strokeColor(Color.RED)
                 .fillColor(clr));
         polygon.setClickable(true);
+        namehmap.put(polygon.hashCode(),"강동구");
     }//서울 강동구
     public void drawPolygon150(GoogleMap googlemap) { //서울 중랑구
         String name = "중랑구";
@@ -3097,6 +3113,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .strokeColor(Color.RED)
                 .fillColor(clr));
         polygon.setClickable(true);
+        namehmap.put(polygon.hashCode(),"중랑구");
     }//서울 중랑구
     public void drawPolygon163(GoogleMap googlemap) { //서울 노원구
         String name = "노원구";
@@ -3623,6 +3640,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .strokeColor(Color.RED)
                 .fillColor(clr));
         polygon.setClickable(true);
+        namehmap.put(polygon.hashCode(),"노원구");
     }//서울 노원구
     public void drawPolygon147(GoogleMap googlemap) { //서울 도봉구
         String name = "도봉구";
@@ -3885,6 +3903,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .strokeColor(Color.RED)
                 .fillColor(clr));
         polygon.setClickable(true);
+        namehmap.put(polygon.hashCode(),"도봉구");
     }//서울 도봉구
     public void drawPolygon169(GoogleMap googlemap) { //서울 강북구
         String name = "강북구";
@@ -4295,6 +4314,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .strokeColor(Color.RED)
                 .fillColor(clr));
         polygon.setClickable(true);
+        namehmap.put(polygon.hashCode(),"강북구");
     }//서울 강북구
     public void drawPolygon166(GoogleMap googlemap) { //서울 관악구
         String name = "관악구";
@@ -4496,6 +4516,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .strokeColor(Color.RED)
                 .fillColor(clr));
         polygon.setClickable(true);
+        namehmap.put(polygon.hashCode(),"관악구");
     }//서울 관악구
     public void drawPolygon148(GoogleMap googlemap) { //서울 금천구
         String name = "금천구";
@@ -4637,6 +4658,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .strokeColor(Color.RED)
                 .fillColor(clr));
         polygon.setClickable(true);
+        namehmap.put(polygon.hashCode(),"금천구");
     }//서울 금천구
     public void drawPolygon142(GoogleMap googlemap) { //서울 강서구
         String name = "강서구";
@@ -4712,6 +4734,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .strokeColor(Color.RED)
                 .fillColor(clr));
         polygon.setClickable(true);
+        namehmap.put(polygon.hashCode(),"강서구");
     }//서울 강서구
     public void drawPolygon162(GoogleMap googlemap) { //서울 양천구
         String name = "양천구";
@@ -4970,6 +4993,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .strokeColor(Color.RED)
                 .fillColor(clr));
         polygon.setClickable(true);
+        namehmap.put(polygon.hashCode(),"양천구");
     }//서울 양천구
     public void drawPolygon159(GoogleMap googlemap) { //서울 구로구
         String name = "구로구";
@@ -5124,6 +5148,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .strokeColor(Color.RED)
                 .fillColor(clr));
         polygon.setClickable(true);
+        namehmap.put(polygon.hashCode(),"구로구");
     }//서울 구로구
 
     //private inner class extending AsyncTask
