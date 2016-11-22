@@ -52,7 +52,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         super.onCreate(savedInstanceState);//상위클래스의 onCreate 함수 먼저 수행
         //추가 수행할 코드
         setContentView(R.layout.activity_maps);//인자로 받은 레이아웃 혹은 View 객체를 액티비티의 화면에 표시해주는 역할을 수행인자로 받은 레이아웃 혹은 View 객체를 액티비티의 화면에 표시해주는 역할을 수행
-        //
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);//getMap 메서드는 프래그먼트에 내장된 맵 객체를 동기적으로 구해 리턴 그러나 네터워크에러나 여러사항으로인해 null 이 리턴될수있어 위험하여 폐기됨 비동기적으로 구하는 getMapAsync사용
     }
@@ -86,10 +85,26 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             }
         });
 
-        mMap.setOnCameraChangeListener(new GoogleMap.OnCameraChangeListener() {
+//        mMap.setOnCameraChangeListener(new GoogleMap.OnCameraChangeListener() {
+//            @Override
+//            public void onCameraChange(CameraPosition arg0) {
+//                if(arg0.zoom > 11){ //줌 레벨이 11보다 클 경우 마커 보이기
+//                    Log.d("log","kbc -----zoom level if   "+mMap.getCameraPosition().zoom);
+//                    for(int i =0; i< mList.size(); i++){
+//                        mList.get(i).setVisible(true);
+//                    }
+//                }else{
+//                    Log.d("log","kbc -----zoom level else   "+mMap.getCameraPosition().zoom);
+//                    for(int i =0; i< mList.size(); i++){
+//                        mList.get(i).setVisible(false);
+//                    }
+//                }
+//            }
+//        });
+        mMap.setOnCameraMoveListener(new GoogleMap.OnCameraMoveListener(){
             @Override
-            public void onCameraChange(CameraPosition arg0) {
-                if(arg0.zoom > 11){ //줌 레벨이 11보다 클 경우 마커 보이기
+            public void onCameraMove() {
+                if(mMap.getCameraPosition().zoom > 11){ //줌 레벨이 11보다 클 경우 마커 보이기
                     Log.d("log","kbc -----zoom level if   "+mMap.getCameraPosition().zoom);
                     for(int i =0; i< mList.size(); i++){
                         mList.get(i).setVisible(true);
@@ -21682,19 +21697,18 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }
 
         public void onPostExecute(Document doc) {
-            Log.d("tag","kbc +++++++ in onPostExecute");//12
             String s = "";
             //data태그가 있는 노드를 찾아서 리스트 형태로 만들어서 반환
-            NodeList nodeList = doc.getElementsByTagName("item");
+            NodeList nodeList = doc.getElementsByTagName("item"); // item태그이름을 가진 엘리먼트를 받아 노드리스트에 넣음
             //data 태그를 가지는 노드를 찾음, 계층적인 노드 구조를 반환
-            for(int i = 0; i < nodeList.getLength(); i++){ // 원래 i < nodeList.getLength()
+            for(int i = 0; i < nodeList.getLength(); i++){ //nodeList 의 길이만큼
                 s +=i+". ";
                 //날씨 데이터를 추출
-                Node node = nodeList.item(i); //item 엘리먼트 노드
-                Element fstElmnt = (Element) node; // type casting
+                Node node = nodeList.item(i); //item 엘리먼트 노드 한개
+                Element fstElmnt = (Element) node; // type casting Element 로 캐스팅
                 Node ch = node.getFirstChild();
 
-                Log.d("log", ch.getNextSibling().getNodeName());
+                Log.d("log", "kbc   +++   "+ch.getNextSibling().getNodeName());
                 NodeList nameList  = fstElmnt.getElementsByTagName("stationName"); //지역명
                 NodeList pm10Value = fstElmnt.getElementsByTagName("pm10Value");   //미세먼지 지수
                 Element nameElement = (Element) nameList.item(0);
