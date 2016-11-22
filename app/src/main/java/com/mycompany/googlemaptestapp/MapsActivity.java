@@ -1,10 +1,9 @@
 package com.mycompany.googlemaptestapp;
+
 import android.graphics.Color;
 import android.os.AsyncTask;
-import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
-import android.text.SpannableStringBuilder;
-import android.text.style.StyleSpan;
+import android.support.v4.app.FragmentActivity;
 import android.util.Log;
 import android.widget.Toast;
 
@@ -35,73 +34,62 @@ import java.util.HashMap;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 
-import static android.graphics.Typeface.BOLD;
-import static android.graphics.Typeface.ITALIC;
-import static android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE;
-
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
-
-    private GoogleMap mMap;
-    Polygon polygon;
-    Document doc = null;
+    private GoogleMap mMap; // 구글맵 객체
+    Document doc = null; // XML 객체
     HashMap<String, String> hmap = new HashMap<String, String>();// 행정구역 , 미세먼지 지수
-    HashMap<Integer, String> namehmap = new HashMap<Integer, String>();// 해쉬코드, 이름
-    HashMap<Integer, Integer> colorhmap = new HashMap<Integer, Integer>();// 해쉬코드, color
-    int clkclr;
-    ArrayList<Marker> mList = new ArrayList<Marker>(); // 마커의 집합
+    HashMap<Integer, String> namehmap = new HashMap<Integer, String>();// 폴리곤 해쉬코드, 이름
+    HashMap<Integer, Integer> colorhmap = new HashMap<Integer, Integer>();// 폴리곤 해쉬코드, color
+    ArrayList<Marker> mList = new ArrayList<Marker>(); // 마커의 집합(특정 레벨부터 마커가 보이게 하기위해 만듬)
 
-    public MapsActivity(){
-        Log.d("log","kbc 생성자 시작");
-        airAPI("서울");
-        airAPIcity("경기");
-        Log.d("log","kbc 생성자 끝");
-    }
+//    public MapsActivity(){
+//        Log.d("log","kbc 생성자 시작");
+//        Log.d("log","kbc 생성자 끝");
+//    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_maps);
-        // Obtain the SupportMapFragment and get notified when the map is ready to be used.
+        super.onCreate(savedInstanceState);//상위클래스의 onCreate 함수 먼저 수행
+        //추가 수행할 코드
+        setContentView(R.layout.activity_maps);//인자로 받은 레이아웃 혹은 View 객체를 액티비티의 화면에 표시해주는 역할을 수행인자로 받은 레이아웃 혹은 View 객체를 액티비티의 화면에 표시해주는 역할을 수행
+        //
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
-        mapFragment.getMapAsync(this);
+        mapFragment.getMapAsync(this);//getMap 메서드는 프래그먼트에 내장된 맵 객체를 동기적으로 구해 리턴 그러나 네터워크에러나 여러사항으로인해 null 이 리턴될수있어 위험하여 폐기됨 비동기적으로 구하는 getMapAsync사용
     }
-
 
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
-
-        // Add a marker in Sydney and move the camera
         LatLng seoul = new LatLng(37.56, 126.990786);  //서울의 위도, 경도
-//        mMap.addMarker(new MarkerOptions().position(seoul).title("Marker in Seoul!!!!")); // 마커추가, 타이틀설정
-        mMap.moveCamera(CameraUpdateFactory.newLatLng(seoul));  // 초기위치 설정
+        mMap.moveCamera(CameraUpdateFactory.newLatLng(seoul));  // 카메라 이동 초기위치 설정
 
-        UiSettings mapSettings;
+        UiSettings mapSettings;//UI 세팅변수
         mapSettings = mMap.getUiSettings();
-        mapSettings.setZoomControlsEnabled(true);
+        mapSettings.setZoomControlsEnabled(true);// 줌 컨트롤 표시
         mMap.animateCamera(CameraUpdateFactory.zoomTo(10), 2000, null);  // 줌 설정
 
-//        Log.d("log","kbc -----zoom level    "+mMap.getCameraPosition().zoom);
+        //XML 호출 후 폴리곤 그리기
+        airAPI("서울");
+        airAPIcity("경기");
 
         mMap.setOnPolygonClickListener(new GoogleMap.OnPolygonClickListener() {
             public void onPolygonClick(Polygon polygon) {
-                if (polygon.getFillColor() == Color.TRANSPARENT) {
-                    polygon.setFillColor(colorhmap.get(polygon.hashCode()));
-                    Toast.makeText(MapsActivity.this, "Clicked "+namehmap.get(polygon.hashCode()), Toast.LENGTH_SHORT).show();
-//                    Log.d("log","kbc -------- "+polygon.hashCode());//폴리곤 구분
-                    Log.d("log","kbc -----zoom level    "+mMap.getCameraPosition().zoom);
-                } else {
-                    clkclr = polygon.getFillColor();
-                    polygon.setFillColor(Color.TRANSPARENT); //Color.TRANSPARENT
-                    Toast.makeText(MapsActivity.this, "Clicked Transparent...", Toast.LENGTH_SHORT).show();
-                }
+                Toast.makeText(MapsActivity.this, "Clicked "+namehmap.get(polygon.hashCode()), Toast.LENGTH_SHORT).show();
+//                if (polygon.getFillColor() == Color.TRANSPARENT) {
+//                    polygon.setFillColor(colorhmap.get(polygon.hashCode()));
+//                    Toast.makeText(MapsActivity.this, "Clicked "+namehmap.get(polygon.hashCode()), Toast.LENGTH_SHORT).show();
+//                    Log.d("log","kbc -----zoom level    "+mMap.getCameraPosition().zoom);
+//                } else {
+//                    polygon.setFillColor(Color.TRANSPARENT); //Color.TRANSPARENT
+//                    Toast.makeText(MapsActivity.this, "Clicked Transparent...", Toast.LENGTH_SHORT).show();
+//                }
             }
         });
 
         mMap.setOnCameraChangeListener(new GoogleMap.OnCameraChangeListener() {
             @Override
             public void onCameraChange(CameraPosition arg0) {
-                if(arg0.zoom > 11){
+                if(arg0.zoom > 11){ //줌 레벨이 11보다 클 경우 마커 보이기
                     Log.d("log","kbc -----zoom level if   "+mMap.getCameraPosition().zoom);
                     for(int i =0; i< mList.size(); i++){
                         mList.get(i).setVisible(true);
@@ -117,20 +105,16 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     }
 
-
     //미세먼지 API 연동 서울시
     public void airAPI(String input){
-        Log.d("tag","kbc +++++++airAPI");//7
         String addr;
         String serviceKey = "jENXI1lavhLBnweHBWDKwAfCcvSEqooh5DshJSNDLGNa%2Bpsd3WMuAuswxdQydH8mbvffg3rWCcYfa5tIo7DVbw%3D%3D";
         addr = "http://openapi.airkorea.or.kr/openapi/services/rest/ArpltnInforInqireSvc/getCtprvnRltmMesureDnsty?sidoName="+input+"&pageNo=1&numOfRows=99&ServiceKey="+serviceKey+"&ver=1.3";
         GetXMLTask task = new GetXMLTask();
         task.execute(addr);
-        task.getStatus();
     }
     //미세먼지 시도명(경기
     public void airAPIcity(String input){
-        Log.d("tag","kbc +++++++airAPIcity");//7
         String addr;
         String serviceKey = "jENXI1lavhLBnweHBWDKwAfCcvSEqooh5DshJSNDLGNa%2Bpsd3WMuAuswxdQydH8mbvffg3rWCcYfa5tIo7DVbw%3D%3D";
         addr = "http://openapi.airkorea.or.kr/openapi/services/rest/ArpltnInforInqireSvc/getCtprvnMesureSidoLIst?sidoName="+input+"&searchCondition=DAILY&pageNo=1&numOfRows=31&ServiceKey="+serviceKey;
@@ -166,7 +150,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         drawPolygon162(mMap);
         drawPolygon148(mMap);
         drawPolygon166(mMap);
-    }
+        drawPolygon149(mMap);
+    }//서울시
     public void draw2(){
         drawPolygon41(mMap);
         drawPolygon57(mMap);
@@ -182,8 +167,31 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         drawPolygon40(mMap);
         drawPolygon46(mMap);
         drawPolygon50(mMap);
-    }
-
+        drawPolygon56(mMap);
+        drawPolygon61(mMap);//안산시 단원구
+        drawPolygon612(mMap);//안산시 단원구
+        drawPolygon34(mMap);
+        drawPolygon23(mMap);
+        drawPolygon19(mMap);
+        drawPolygon21(mMap);
+        drawPolygon20(mMap);//수원시 영통구
+        drawPolygon44(mMap);
+        drawPolygon31(mMap);
+        drawPolygon38(mMap);
+        drawPolygon52(mMap);
+        drawPolygon49(mMap);//파주
+        drawPolygon43(mMap);
+        drawPolygon29(mMap);
+        drawPolygon30(mMap);
+        drawPolygon28(mMap);
+        drawPolygon53(mMap);
+        drawPolygon55(mMap);
+        drawPolygon27(mMap);
+        drawPolygon36(mMap);
+        drawPolygon37(mMap);
+        drawPolygon48(mMap);//화성시 큼
+        drawPolygon26(mMap);//여주시 큼
+    }//경기도
 
     //서울시
     public void drawPolygon143(GoogleMap googlemap) { //서울 성동구
@@ -197,20 +205,20 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         } else if(hmap.get(name).equals("-")){
             clr = Color.argb(100,140,140,140);
             mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>151){
+        }else if(Integer.parseInt(hmap.get(name))>150){
             clr = Color.argb(100,255,0,0);
             mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>81){
+        }else if(Integer.parseInt(hmap.get(name))>80){
             clr = Color.argb(100,255,255,0);
             mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>31){
+        }else if(Integer.parseInt(hmap.get(name))>30){
             clr = Color.argb(100,0,255,0);
             mclr = 5;
         }else {
             clr = Color.argb(100,0,0,255);
             mclr = 4;
         }
-
+        Log.d("log","kbc   ++))++))++  "+clr);
         Polygon polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
                         new LatLng(37.57275246810175, 127.04241813085706),
@@ -242,7 +250,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
                 .fillColor(clr));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),"성동구");
+        namehmap.put(polygon.hashCode(),name);
         colorhmap.put(polygon.hashCode(),clr);
 
         IconGenerator iconFactory = new IconGenerator(this);
@@ -258,7 +266,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }else {
             iconFactory.setStyle(IconGenerator.STYLE_BLUE);
         }
-        addIcon(iconFactory, "성동구\n   "+hmap.get(name), new LatLng(37.551220, 127.041004));
+        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.551220, 127.041004));
 
     }//서울 성동구
     public void drawPolygon145(GoogleMap googlemap) { //서울 용산
@@ -273,15 +281,15 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             clr = Color.argb(100,140,140,140);
             mclr = 2;
             Log.d("log","kbc   white");
-        }else if(Integer.parseInt(hmap.get(name))>151){
+        }else if(Integer.parseInt(hmap.get(name))>150){
             clr = Color.argb(100,255,0,0);
             mclr = 3;
             Log.d("log","kbc   red");
-        }else if(Integer.parseInt(hmap.get(name))>81){
+        }else if(Integer.parseInt(hmap.get(name))>80){
             clr = Color.argb(100,255,255,0);
             mclr = 7;
             Log.d("log","kbc   yellow");
-        }else if(Integer.parseInt(hmap.get(name))>31){
+        }else if(Integer.parseInt(hmap.get(name))>30){
             clr = Color.argb(100,0,255,0);
             mclr = 5;
             Log.d("log","kbc   green");
@@ -324,7 +332,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
                 .fillColor(clr));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),"용산구");
+        namehmap.put(polygon.hashCode(),name);
         colorhmap.put(polygon.hashCode(),clr);
 
         IconGenerator iconFactory = new IconGenerator(this);
@@ -340,7 +348,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }else {
             iconFactory.setStyle(IconGenerator.STYLE_BLUE);
         }
-        addIcon(iconFactory, "용산구\n   "+hmap.get(name), new LatLng(37.531597, 126.979828));
+        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.531597, 126.979828));
     }//서울 용산구
     public void drawPolygon151(GoogleMap googlemap) { //서울 강남구
         String name = "강남구";
@@ -354,15 +362,15 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             clr = Color.argb(100,140,140,140);
             mclr = 2;
             Log.d("log","kbc   white");
-        }else if(Integer.parseInt(hmap.get(name))>151){
+        }else if(Integer.parseInt(hmap.get(name))>150){
             clr = Color.argb(100,255,0,0);
             mclr = 3;
             Log.d("log","kbc   red");
-        }else if(Integer.parseInt(hmap.get(name))>81){
+        }else if(Integer.parseInt(hmap.get(name))>80){
             clr = Color.argb(100,255,255,0);
             mclr = 7;
             Log.d("log","kbc   yellow");
-        }else if(Integer.parseInt(hmap.get(name))>31){
+        }else if(Integer.parseInt(hmap.get(name))>30){
             clr = Color.argb(100,0,255,0);
             mclr = 5;
             Log.d("log","kbc   green");
@@ -429,7 +437,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
                 .fillColor(clr));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),"강남구");
+        namehmap.put(polygon.hashCode(),name);
         colorhmap.put(polygon.hashCode(),clr);
 
         IconGenerator iconFactory = new IconGenerator(this);
@@ -445,7 +453,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }else {
             iconFactory.setStyle(IconGenerator.STYLE_BLUE);
         }
-        addIcon(iconFactory, "강남구\n   "+hmap.get(name), new LatLng(37.496918, 127.063319));
+        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.496918, 127.063319));
     }//서울 강남구
     public void drawPolygon158(GoogleMap googlemap) { //서울 동대문구
         String name = "동대문구";
@@ -459,15 +467,15 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             clr = Color.argb(100,140,140,140);
             mclr = 2;
             Log.d("log","kbc   white");
-        }else if(Integer.parseInt(hmap.get(name))>151){
+        }else if(Integer.parseInt(hmap.get(name))>150){
             clr = Color.argb(100,255,0,0);
             mclr = 3;
             Log.d("log","kbc   red");
-        }else if(Integer.parseInt(hmap.get(name))>81){
+        }else if(Integer.parseInt(hmap.get(name))>80){
             clr = Color.argb(100,255,255,0);
             mclr = 7;
             Log.d("log","kbc   yellow");
-        }else if(Integer.parseInt(hmap.get(name))>31){
+        }else if(Integer.parseInt(hmap.get(name))>30){
             clr = Color.argb(100,0,255,0);
             mclr = 5;
             Log.d("log","kbc   green");
@@ -511,7 +519,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
                 .fillColor(clr));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),"동대문구");
+        namehmap.put(polygon.hashCode(),name);
         colorhmap.put(polygon.hashCode(),clr);
 
         IconGenerator iconFactory = new IconGenerator(this);
@@ -527,7 +535,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }else {
             iconFactory.setStyle(IconGenerator.STYLE_BLUE);
         }
-        addIcon(iconFactory, "동대문구\n    "+hmap.get(name), new LatLng(37.582350, 127.055016));
+        addIcon(iconFactory, name+"\n     "+hmap.get(name), new LatLng(37.582350, 127.055016));
     }//서울 동대문구
     public void drawPolygon155(GoogleMap googlemap) { //서울 중구
         String name = "중구";
@@ -541,15 +549,15 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             clr = Color.argb(100,140,140,140);
             mclr = 2;
             Log.d("log","kbc   white");
-        }else if(Integer.parseInt(hmap.get(name))>151){
+        }else if(Integer.parseInt(hmap.get(name))>150){
             clr = Color.argb(100,255,0,0);
             mclr = 3;
             Log.d("log","kbc   red");
-        }else if(Integer.parseInt(hmap.get(name))>81){
+        }else if(Integer.parseInt(hmap.get(name))>80){
             clr = Color.argb(100,255,255,0);
             mclr = 7;
             Log.d("log","kbc   yellow");
-        }else if(Integer.parseInt(hmap.get(name))>31){
+        }else if(Integer.parseInt(hmap.get(name))>30){
             clr = Color.argb(100,0,255,0);
             mclr = 5;
             Log.d("log","kbc   green");
@@ -684,7 +692,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
                 .fillColor(clr));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),"중구");
+        namehmap.put(polygon.hashCode(),name);
         colorhmap.put(polygon.hashCode(),clr);
 
         IconGenerator iconFactory = new IconGenerator(this);
@@ -700,7 +708,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }else {
             iconFactory.setStyle(IconGenerator.STYLE_BLUE);
         }
-        addIcon(iconFactory, "중구\n "+hmap.get(name), new LatLng(37.560041, 126.995786));
+        addIcon(iconFactory, name+"\n "+hmap.get(name), new LatLng(37.560041, 126.995786));
 
 
     }//서울 중구
@@ -715,13 +723,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         } else if(hmap.get(name).equals("-")){
             clr = Color.argb(100,140,140,140);
             mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>151){
+        }else if(Integer.parseInt(hmap.get(name))>150){
             clr = Color.argb(100,255,0,0);
             mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>81){
+        }else if(Integer.parseInt(hmap.get(name))>80){
             clr = Color.argb(100,255,255,0);
             mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>31){
+        }else if(Integer.parseInt(hmap.get(name))>30){
             clr = Color.argb(100,0,255,0);
             mclr = 5;
         }else {
@@ -1016,7 +1024,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
                 .fillColor(clr));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),"종로구");
+        namehmap.put(polygon.hashCode(),name);
         colorhmap.put(polygon.hashCode(),clr);
 
         IconGenerator iconFactory = new IconGenerator(this);
@@ -1032,7 +1040,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }else {
             iconFactory.setStyle(IconGenerator.STYLE_BLUE);
         }
-        addIcon(iconFactory, "종로구\n   "+hmap.get(name), new LatLng(37.595601, 126.977230));
+        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.595601, 126.977230));
     }//서울 종로구
     public void drawPolygon164(GoogleMap googlemap) { //서울 성북구
         String name = "성북구";
@@ -1045,13 +1053,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         } else if(hmap.get(name).equals("-")){
             clr = Color.argb(100,140,140,140);
             mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>151){
+        }else if(Integer.parseInt(hmap.get(name))>150){
             clr = Color.argb(100,255,0,0);
             mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>81){
+        }else if(Integer.parseInt(hmap.get(name))>80){
             clr = Color.argb(100,255,255,0);
             mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>31){
+        }else if(Integer.parseInt(hmap.get(name))>30){
             clr = Color.argb(100,0,255,0);
             mclr = 5;
         }else {
@@ -1839,7 +1847,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
                 .fillColor(clr));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),"성북구");
+        namehmap.put(polygon.hashCode(),name);
         colorhmap.put(polygon.hashCode(),clr);
 
         IconGenerator iconFactory = new IconGenerator(this);
@@ -1855,7 +1863,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }else {
             iconFactory.setStyle(IconGenerator.STYLE_BLUE);
         }
-        addIcon(iconFactory, "성북구\n   "+hmap.get(name), new LatLng(37.606220, 127.017533));
+        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.606220, 127.017533));
     }//서울 성북구
     public void drawPolygon156(GoogleMap googlemap) { //서울 서대문구
         String name = "서대문구";
@@ -1868,13 +1876,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         } else if(hmap.get(name).equals("-")){
             clr = Color.argb(100,140,140,140);
             mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>151){
+        }else if(Integer.parseInt(hmap.get(name))>150){
             clr = Color.argb(100,255,0,0);
             mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>81){
+        }else if(Integer.parseInt(hmap.get(name))>80){
             clr = Color.argb(100,255,255,0);
             mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>31){
+        }else if(Integer.parseInt(hmap.get(name))>30){
             clr = Color.argb(100,0,255,0);
             mclr = 5;
         }else {
@@ -1914,7 +1922,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
                 .fillColor(clr));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),"서대문구");
+        namehmap.put(polygon.hashCode(),name);
         colorhmap.put(polygon.hashCode(),clr);
 
         IconGenerator iconFactory = new IconGenerator(this);
@@ -1930,7 +1938,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }else {
             iconFactory.setStyle(IconGenerator.STYLE_BLUE);
         }
-        addIcon(iconFactory, "서대문구\n   "+hmap.get(name), new LatLng(37.578481, 126.939437));
+        addIcon(iconFactory, name+"\n    "+hmap.get(name), new LatLng(37.578481, 126.939437));
     }//서울 서대문구
     public void drawPolygon153(GoogleMap googlemap) { //서울 마포구
         String name = "마포구";
@@ -1943,13 +1951,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         } else if(hmap.get(name).equals("-")){
             clr = Color.argb(100,140,140,140);
             mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>151){
+        }else if(Integer.parseInt(hmap.get(name))>150){
             clr = Color.argb(100,255,0,0);
             mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>81){
+        }else if(Integer.parseInt(hmap.get(name))>80){
             clr = Color.argb(100,255,255,0);
             mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>31){
+        }else if(Integer.parseInt(hmap.get(name))>30){
             clr = Color.argb(100,0,255,0);
             mclr = 5;
         }else {
@@ -2130,7 +2138,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
                 .fillColor(clr));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),"마포구");
+        namehmap.put(polygon.hashCode(),name);
         colorhmap.put(polygon.hashCode(),clr);
 
         IconGenerator iconFactory = new IconGenerator(this);
@@ -2146,7 +2154,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }else {
             iconFactory.setStyle(IconGenerator.STYLE_BLUE);
         }
-        addIcon(iconFactory, "마포구\n  "+hmap.get(name), new LatLng(37.560098, 126.908128));
+        addIcon(iconFactory, name+"\n  "+hmap.get(name), new LatLng(37.560098, 126.908128));
     }//서울 마포구
     public void drawPolygon152(GoogleMap googlemap) { //서울 영등포구
         String name = "영등포구";
@@ -2159,13 +2167,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         } else if(hmap.get(name).equals("-")){
             clr = Color.argb(100,140,140,140);
             mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>151){
+        }else if(Integer.parseInt(hmap.get(name))>150){
             clr = Color.argb(100,255,0,0);
             mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>81){
+        }else if(Integer.parseInt(hmap.get(name))>80){
             clr = Color.argb(100,255,255,0);
             mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>31){
+        }else if(Integer.parseInt(hmap.get(name))>30){
             clr = Color.argb(100,0,255,0);
             mclr = 5;
         }else {
@@ -2486,7 +2494,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
                 .fillColor(clr));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),"영등포구");
+        namehmap.put(polygon.hashCode(),name);
         colorhmap.put(polygon.hashCode(),clr);
 
         IconGenerator iconFactory = new IconGenerator(this);
@@ -2502,7 +2510,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }else {
             iconFactory.setStyle(IconGenerator.STYLE_BLUE);
         }
-        addIcon(iconFactory, "영등포구\n   "+hmap.get(name), new LatLng(37.523416, 126.910407));
+        addIcon(iconFactory, name+"\n    "+hmap.get(name), new LatLng(37.523416, 126.910407));
     }//서울 영등포구
     public void drawPolygon144(GoogleMap googlemap) { //서울 동작구
         String name = "동작구";
@@ -2515,13 +2523,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         } else if(hmap.get(name).equals("-")){
             clr = Color.argb(100,140,140,140);
             mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>151){
+        }else if(Integer.parseInt(hmap.get(name))>150){
             clr = Color.argb(100,255,0,0);
             mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>81){
+        }else if(Integer.parseInt(hmap.get(name))>80){
             clr = Color.argb(100,255,255,0);
             mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>31){
+        }else if(Integer.parseInt(hmap.get(name))>30){
             clr = Color.argb(100,0,255,0);
             mclr = 5;
         }else {
@@ -2665,7 +2673,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
                 .fillColor(clr));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),"동작구");
+        namehmap.put(polygon.hashCode(),name);
         colorhmap.put(polygon.hashCode(),clr);
 
         IconGenerator iconFactory = new IconGenerator(this);
@@ -2681,7 +2689,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }else {
             iconFactory.setStyle(IconGenerator.STYLE_BLUE);
         }
-        addIcon(iconFactory, "동작구\n   "+hmap.get(name), new LatLng(37.499630, 126.951588));
+        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.499630, 126.951588));
     }//서울 동작구
     public void drawPolygon157(GoogleMap googlemap) { //서울 서초구
         String name = "서초구";
@@ -2694,13 +2702,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         } else if(hmap.get(name).equals("-")){
             clr = Color.argb(100,140,140,140);
             mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>151){
+        }else if(Integer.parseInt(hmap.get(name))>150){
             clr = Color.argb(100,255,0,0);
             mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>81){
+        }else if(Integer.parseInt(hmap.get(name))>80){
             clr = Color.argb(100,255,255,0);
             mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>31){
+        }else if(Integer.parseInt(hmap.get(name))>30){
             clr = Color.argb(100,0,255,0);
             mclr = 5;
         }else {
@@ -2794,7 +2802,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
                 .fillColor(clr));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),"서초구");
+        namehmap.put(polygon.hashCode(),name);
         colorhmap.put(polygon.hashCode(),clr);
 
         IconGenerator iconFactory = new IconGenerator(this);
@@ -2810,7 +2818,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }else {
             iconFactory.setStyle(IconGenerator.STYLE_BLUE);
         }
-        addIcon(iconFactory, "서초구\n   "+hmap.get(name), new LatLng(37.474795, 127.030850));
+        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.474795, 127.030850));
     }//서울 서초구
     public void drawPolygon161(GoogleMap googlemap) { //서울 송파구
         String name = "송파구";
@@ -2823,13 +2831,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         } else if(hmap.get(name).equals("-")){
             clr = Color.argb(100,140,140,140);
             mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>151){
+        }else if(Integer.parseInt(hmap.get(name))>150){
             clr = Color.argb(100,255,0,0);
             mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>81){
+        }else if(Integer.parseInt(hmap.get(name))>80){
             clr = Color.argb(100,255,255,0);
             mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>31){
+        }else if(Integer.parseInt(hmap.get(name))>30){
             clr = Color.argb(100,0,255,0);
             mclr = 5;
         }else {
@@ -2902,7 +2910,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
                 .fillColor(clr));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),"송파구");
+        namehmap.put(polygon.hashCode(),name);
         colorhmap.put(polygon.hashCode(),clr);
 
         IconGenerator iconFactory = new IconGenerator(this);
@@ -2918,7 +2926,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }else {
             iconFactory.setStyle(IconGenerator.STYLE_BLUE);
         }
-        addIcon(iconFactory, "송파구\n   "+hmap.get(name), new LatLng(37.506098, 127.115838));
+        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.506098, 127.115838));
     }//서울 송파구
     public void drawPolygon154(GoogleMap googlemap) { //서울 광진구
         String name = "광진구";
@@ -2931,13 +2939,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         } else if(hmap.get(name).equals("-")){
             clr = Color.argb(100,140,140,140);
             mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>151){
+        }else if(Integer.parseInt(hmap.get(name))>150){
             clr = Color.argb(100,255,0,0);
             mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>81){
+        }else if(Integer.parseInt(hmap.get(name))>80){
             clr = Color.argb(100,255,255,0);
             mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>31){
+        }else if(Integer.parseInt(hmap.get(name))>30){
             clr = Color.argb(100,0,255,0);
             mclr = 5;
         }else {
@@ -3049,7 +3057,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
                 .fillColor(clr));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),"광진구");
+        namehmap.put(polygon.hashCode(),name);
         colorhmap.put(polygon.hashCode(),clr);
 
         IconGenerator iconFactory = new IconGenerator(this);
@@ -3065,7 +3073,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }else {
             iconFactory.setStyle(IconGenerator.STYLE_BLUE);
         }
-        addIcon(iconFactory, "광진구\n   "+hmap.get(name), new LatLng(37.546406, 127.086471));
+        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.546406, 127.086471));
     }//서울 광진구
     public void drawPolygon146(GoogleMap googlemap) { //서울 강동구
         String name = "강동구";
@@ -3078,13 +3086,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         } else if(hmap.get(name).equals("-")){
             clr = Color.argb(100,140,140,140);
             mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>151){
+        }else if(Integer.parseInt(hmap.get(name))>150){
             clr = Color.argb(100,255,0,0);
             mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>81){
+        }else if(Integer.parseInt(hmap.get(name))>80){
             clr = Color.argb(100,255,255,0);
             mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>31){
+        }else if(Integer.parseInt(hmap.get(name))>30){
             clr = Color.argb(100,0,255,0);
             mclr = 5;
         }else {
@@ -3163,7 +3171,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
                 .fillColor(clr));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),"강동구");
+        namehmap.put(polygon.hashCode(),name);
         colorhmap.put(polygon.hashCode(),clr);
 
         IconGenerator iconFactory = new IconGenerator(this);
@@ -3179,7 +3187,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }else {
             iconFactory.setStyle(IconGenerator.STYLE_BLUE);
         }
-        addIcon(iconFactory, "강동구\n   "+hmap.get(name), new LatLng(37.550795, 127.147114));
+        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.550795, 127.147114));
     }//서울 강동구
     public void drawPolygon150(GoogleMap googlemap) { //서울 중랑구
         String name = "중랑구";
@@ -3192,13 +3200,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         } else if(hmap.get(name).equals("-")){
             clr = Color.argb(100,140,140,140);
             mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>151){
+        }else if(Integer.parseInt(hmap.get(name))>150){
             clr = Color.argb(100,255,0,0);
             mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>81){
+        }else if(Integer.parseInt(hmap.get(name))>80){
             clr = Color.argb(100,255,255,0);
             mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>31){
+        }else if(Integer.parseInt(hmap.get(name))>30){
             clr = Color.argb(100,0,255,0);
             mclr = 5;
         }else {
@@ -3562,7 +3570,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
                 .fillColor(clr));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),"중랑구");
+        namehmap.put(polygon.hashCode(),name);
         colorhmap.put(polygon.hashCode(),clr);
 
         IconGenerator iconFactory = new IconGenerator(this);
@@ -3578,7 +3586,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }else {
             iconFactory.setStyle(IconGenerator.STYLE_BLUE);
         }
-        addIcon(iconFactory, "중랑구\n   "+hmap.get(name), new LatLng(37.598449, 127.092959));
+        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.598449, 127.092959));
     }//서울 중랑구
     public void drawPolygon163(GoogleMap googlemap) { //서울 노원구
         String name = "노원구";
@@ -3591,13 +3599,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         } else if(hmap.get(name).equals("-")){
             clr = Color.argb(100,140,140,140);
             mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>151){
+        }else if(Integer.parseInt(hmap.get(name))>150){
             clr = Color.argb(100,255,0,0);
             mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>81){
+        }else if(Integer.parseInt(hmap.get(name))>80){
             clr = Color.argb(100,255,255,0);
             mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>31){
+        }else if(Integer.parseInt(hmap.get(name))>30){
             clr = Color.argb(100,0,255,0);
             mclr = 5;
         }else {
@@ -4114,7 +4122,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
                 .fillColor(clr));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),"노원구");
+        namehmap.put(polygon.hashCode(),name);
         colorhmap.put(polygon.hashCode(),clr);
 
         IconGenerator iconFactory = new IconGenerator(this);
@@ -4130,7 +4138,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }else {
             iconFactory.setStyle(IconGenerator.STYLE_BLUE);
         }
-        addIcon(iconFactory, "노원구\n   "+hmap.get(name), new LatLng(37.653511, 127.075081));
+        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.653511, 127.075081));
     }//서울 노원구
     public void drawPolygon147(GoogleMap googlemap) { //서울 도봉구
         String name = "도봉구";
@@ -4143,13 +4151,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         } else if(hmap.get(name).equals("-")){
             clr = Color.argb(100,140,140,140);
             mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>151){
+        }else if(Integer.parseInt(hmap.get(name))>150){
             clr = Color.argb(100,255,0,0);
             mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>81){
+        }else if(Integer.parseInt(hmap.get(name))>80){
             clr = Color.argb(100,255,255,0);
             mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>31){
+        }else if(Integer.parseInt(hmap.get(name))>30){
             clr = Color.argb(100,0,255,0);
             mclr = 5;
         }else {
@@ -4402,7 +4410,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
                 .fillColor(clr));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),"도봉구");
+        namehmap.put(polygon.hashCode(),name);
         colorhmap.put(polygon.hashCode(),clr);
 
         IconGenerator iconFactory = new IconGenerator(this);
@@ -4418,7 +4426,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }else {
             iconFactory.setStyle(IconGenerator.STYLE_BLUE);
         }
-        addIcon(iconFactory, "도봉구\n   "+hmap.get(name), new LatLng(37.669760, 127.032619));
+        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.669760, 127.032619));
     }//서울 도봉구
     public void drawPolygon169(GoogleMap googlemap) { //서울 강북구
         String name = "강북구";
@@ -4431,13 +4439,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         } else if(hmap.get(name).equals("-")){
             clr = Color.argb(100,140,140,140);
             mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>151){
+        }else if(Integer.parseInt(hmap.get(name))>150){
             clr = Color.argb(100,255,0,0);
             mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>81){
+        }else if(Integer.parseInt(hmap.get(name))>80){
             clr = Color.argb(100,255,255,0);
             mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>31){
+        }else if(Integer.parseInt(hmap.get(name))>30){
             clr = Color.argb(100,0,255,0);
             mclr = 5;
         }else {
@@ -4838,7 +4846,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
                 .fillColor(clr));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),"강북구");
+        namehmap.put(polygon.hashCode(),name);
         colorhmap.put(polygon.hashCode(),clr);
 
         IconGenerator iconFactory = new IconGenerator(this);
@@ -4854,7 +4862,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }else {
             iconFactory.setStyle(IconGenerator.STYLE_BLUE);
         }
-        addIcon(iconFactory, "강북구\n   "+hmap.get(name), new LatLng(37.644060, 127.011241));
+        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.644060, 127.011241));
     }//서울 강북구
     public void drawPolygon166(GoogleMap googlemap) { //서울 관악구
         String name = "관악구";
@@ -4867,13 +4875,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         } else if(hmap.get(name).equals("-")){
             clr = Color.argb(100,140,140,140);
             mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>151){
+        }else if(Integer.parseInt(hmap.get(name))>150){
             clr = Color.argb(100,255,0,0);
             mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>81){
+        }else if(Integer.parseInt(hmap.get(name))>80){
             clr = Color.argb(100,255,255,0);
             mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>31){
+        }else if(Integer.parseInt(hmap.get(name))>30){
             clr = Color.argb(100,0,255,0);
             mclr = 5;
         }else {
@@ -5065,7 +5073,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
                 .fillColor(clr));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),"관악구");
+        namehmap.put(polygon.hashCode(),name);
         colorhmap.put(polygon.hashCode(),clr);
 
         IconGenerator iconFactory = new IconGenerator(this);
@@ -5081,7 +5089,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }else {
             iconFactory.setStyle(IconGenerator.STYLE_BLUE);
         }
-        addIcon(iconFactory, "관악구\n   "+hmap.get(name), new LatLng(37.467836, 126.945449));
+        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.467836, 126.945449));
     }//서울 관악구
     public void drawPolygon148(GoogleMap googlemap) { //서울 금천구
         String name = "금천구";
@@ -5094,13 +5102,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         } else if(hmap.get(name).equals("-")){
             clr = Color.argb(100,140,140,140);
             mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>151){
+        }else if(Integer.parseInt(hmap.get(name))>150){
             clr = Color.argb(100,255,0,0);
             mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>81){
+        }else if(Integer.parseInt(hmap.get(name))>80){
             clr = Color.argb(100,255,255,0);
             mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>31){
+        }else if(Integer.parseInt(hmap.get(name))>30){
             clr = Color.argb(100,0,255,0);
             mclr = 5;
         }else {
@@ -5232,7 +5240,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
                 .fillColor(clr));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),"금천구");
+        namehmap.put(polygon.hashCode(),name);
         colorhmap.put(polygon.hashCode(),clr);
 
         IconGenerator iconFactory = new IconGenerator(this);
@@ -5248,7 +5256,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }else {
             iconFactory.setStyle(IconGenerator.STYLE_BLUE);
         }
-        addIcon(iconFactory, "금천구\n   "+hmap.get(name), new LatLng(37.461215, 126.900751));
+        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.461215, 126.900751));
     }//서울 금천구
     public void drawPolygon142(GoogleMap googlemap) { //서울 강서구
         String name = "강서구";
@@ -5261,13 +5269,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         } else if(hmap.get(name).equals("-")){
             clr = Color.argb(100,140,140,140);
             mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>151){
+        }else if(Integer.parseInt(hmap.get(name))>150){
             clr = Color.argb(100,255,0,0);
             mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>81){
+        }else if(Integer.parseInt(hmap.get(name))>80){
             clr = Color.argb(100,255,255,0);
             mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>31){
+        }else if(Integer.parseInt(hmap.get(name))>30){
             clr = Color.argb(100,0,255,0);
             mclr = 5;
         }else {
@@ -5333,7 +5341,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
                 .fillColor(clr));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),"강서구");
+        namehmap.put(polygon.hashCode(),name);
         colorhmap.put(polygon.hashCode(),clr);
 
         IconGenerator iconFactory = new IconGenerator(this);
@@ -5349,7 +5357,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }else {
             iconFactory.setStyle(IconGenerator.STYLE_BLUE);
         }
-        addIcon(iconFactory, "강서구\n   "+hmap.get(name), new LatLng(37.562385, 126.823067));
+        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.562385, 126.823067));
     }//서울 강서구
     public void drawPolygon162(GoogleMap googlemap) { //서울 양천구
         String name = "양천구";
@@ -5362,13 +5370,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         } else if(hmap.get(name).equals("-")){
             clr = Color.argb(100,140,140,140);
             mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>151){
+        }else if(Integer.parseInt(hmap.get(name))>150){
             clr = Color.argb(100,255,0,0);
             mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>81){
+        }else if(Integer.parseInt(hmap.get(name))>80){
             clr = Color.argb(100,255,255,0);
             mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>31){
+        }else if(Integer.parseInt(hmap.get(name))>30){
             clr = Color.argb(100,0,255,0);
             mclr = 5;
         }else {
@@ -5617,7 +5625,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
                 .fillColor(clr));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),"양천구");
+        namehmap.put(polygon.hashCode(),name);
         colorhmap.put(polygon.hashCode(),clr);
 
         IconGenerator iconFactory = new IconGenerator(this);
@@ -5633,7 +5641,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }else {
             iconFactory.setStyle(IconGenerator.STYLE_BLUE);
         }
-        addIcon(iconFactory, "양천구\n   "+hmap.get(name), new LatLng(37.525320, 126.855535));
+        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.525320, 126.855535));
     }//서울 양천구
     public void drawPolygon159(GoogleMap googlemap) { //서울 구로구
         String name = "구로구";
@@ -5646,13 +5654,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         } else if(hmap.get(name).equals("-")){
             clr = Color.argb(100,140,140,140);
             mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>151){
+        }else if(Integer.parseInt(hmap.get(name))>150){
             clr = Color.argb(100,255,0,0);
             mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>81){
+        }else if(Integer.parseInt(hmap.get(name))>80){
             clr = Color.argb(100,255,255,0);
             mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>31){
+        }else if(Integer.parseInt(hmap.get(name))>30){
             clr = Color.argb(100,0,255,0);
             mclr = 5;
         }else {
@@ -5797,7 +5805,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
                 .fillColor(clr));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),"구로구");
+        namehmap.put(polygon.hashCode(),name);
         colorhmap.put(polygon.hashCode(),clr);
 
         IconGenerator iconFactory = new IconGenerator(this);
@@ -5813,8 +5821,115 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }else {
             iconFactory.setStyle(IconGenerator.STYLE_BLUE);
         }
-        addIcon(iconFactory, "구로구\n   "+hmap.get(name), new LatLng(37.494959, 126.856236));
+        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.494959, 126.856236));
     }//서울 구로구
+    public void drawPolygon149(GoogleMap googlemap) { //서울 성동구
+        String name = "은평구";
+        int clr = Color.argb(100,255,0,0);
+        int mclr;
+        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
+        if(hmap.get(name)==null){
+            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
+            mclr = 1;
+        } else if(hmap.get(name).equals("-")){
+            clr = Color.argb(100,140,140,140);
+            mclr = 2;
+        }else if(Integer.parseInt(hmap.get(name))>150){
+            clr = Color.argb(100,255,0,0);
+            mclr = 3;
+        }else if(Integer.parseInt(hmap.get(name))>80){
+            clr = Color.argb(100,255,255,0);
+            mclr = 7;
+        }else if(Integer.parseInt(hmap.get(name))>30){
+            clr = Color.argb(100,0,255,0);
+            mclr = 5;
+        }else {
+            clr = Color.argb(100,0,0,255);
+            mclr = 4;
+        }
+        Log.d("log","kbc   ++))++))++  "+clr);
+        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+                .add(
+                        new LatLng(37.633245	,126.963329	),
+                        new LatLng(37.62947 	,126.958418	),
+                        new LatLng(37.624335	,126.949002	),
+                        new LatLng(37.610617	,126.950362	),
+                        new LatLng(37.603076	,126.939957	),
+                        new LatLng(37.598716	,126.940878	),
+                        new LatLng(37.59455 	,126.930246	),
+                        new LatLng(37.588387	,126.927997	),
+                        new LatLng(37.583456	,126.92175	),
+                        new LatLng(37.583095	,126.915939	),
+                        new LatLng(37.585881	,126.916373	),
+                        new LatLng(37.587225	,126.912845	),
+                        new LatLng(37.576005	,126.902081	),
+                        new LatLng(37.590793	,126.882056	),
+                        new LatLng(37.59392 	,126.887338	),
+                        new LatLng(37.591667	,126.885715	),
+                        new LatLng(37.591523	,126.885612	),
+                        new LatLng(37.591105	,126.885467	),
+                        new LatLng(37.591001	,126.885485	),
+                        new LatLng(37.588533	,126.887159	),
+                        new LatLng(37.589817	,126.899644	),
+                        new LatLng(37.598208	,126.901171	),
+                        new LatLng(37.598489	,126.901261	),
+                        new LatLng(37.611191	,126.900304	),
+                        new LatLng(37.619075	,126.905231	),
+                        new LatLng(37.619219	,126.905223	),
+                        new LatLng(37.624496	,126.906627	),
+                        new LatLng(37.625094	,126.90744	),
+                        new LatLng(37.629328	,126.90877	),
+                        new LatLng(37.63322 	,126.906202	),
+                        new LatLng(37.635906	,126.91121	),
+                        new LatLng(37.644315	,126.91228	),
+                        new LatLng(37.647788	,126.906385	),
+                        new LatLng(37.647822	,126.906349	),
+                        new LatLng(37.649201	,126.904802	),
+                        new LatLng(37.646759	,126.909858	),
+                        new LatLng(37.646662	,126.909967	),
+                        new LatLng(37.646286	,126.910439	),
+                        new LatLng(37.646279	,126.910436	),
+                        new LatLng(37.645938	,126.911033	),
+                        new LatLng(37.645935	,126.911042	),
+                        new LatLng(37.645116	,126.915189	),
+                        new LatLng(37.645144	,126.915806	),
+                        new LatLng(37.646106	,126.924123	),
+                        new LatLng(37.64884 	,126.927937	),
+                        new LatLng(37.648873	,126.927973	),
+                        new LatLng(37.648888	,126.927992	),
+                        new LatLng(37.650496	,126.932823	),
+                        new LatLng(37.650614	,126.933349	),
+                        new LatLng(37.656241	,126.939666	),
+                        new LatLng(37.656445	,126.939905	),
+                        new LatLng(37.656673	,126.940186	),
+                        new LatLng(37.656768	,126.940335	),
+                        new LatLng(37.659215	,126.947565	),
+                        new LatLng(37.653876	,126.955444	),
+                        new LatLng(37.65386 	,126.955459	),
+                        new LatLng(37.633245	,126.963329	)
+                )
+                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .fillColor(clr));
+        polygon.setClickable(true);
+        namehmap.put(polygon.hashCode(),name);
+        colorhmap.put(polygon.hashCode(),clr);
+
+        IconGenerator iconFactory = new IconGenerator(this);
+        iconFactory.setColor(clr);
+        if(mclr == 2){
+            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
+        }else if(mclr == 3){
+            iconFactory.setStyle(IconGenerator.STYLE_RED);
+        }else if(mclr == 7){
+            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
+        }else if(mclr == 5){
+            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
+        }else {
+            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
+        }
+        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.619817, 126.927319));
+
+    }//서울 은평구
     //경기
     public void drawPolygon41(GoogleMap googlemap) { //과천시
         String name = "과천시";
@@ -5827,13 +5942,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         } else if(hmap.get(name).equals("-")){
             clr = Color.argb(100,140,140,140);
             mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>151){
+        }else if(Integer.parseInt(hmap.get(name))>150){
             clr = Color.argb(100,255,0,0);
             mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>81){
+        }else if(Integer.parseInt(hmap.get(name))>80){
             clr = Color.argb(100,255,255,0);
             mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>31){
+        }else if(Integer.parseInt(hmap.get(name))>30){
             clr = Color.argb(100,0,255,0);
             mclr = 5;
         }else {
@@ -6077,7 +6192,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
                 .fillColor(clr));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),"과천시");
+        namehmap.put(polygon.hashCode(),name);
         colorhmap.put(polygon.hashCode(),clr);
 
         IconGenerator iconFactory = new IconGenerator(this);
@@ -6093,7 +6208,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }else {
             iconFactory.setStyle(IconGenerator.STYLE_BLUE);
         }
-        addIcon(iconFactory, "과천시\n   "+hmap.get(name), new LatLng(37.434498, 127.002946));
+        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.434498, 127.002946));
     }//과천시
     public void drawPolygon57(GoogleMap googlemap) { //구리시
         String name = "구리시";
@@ -6106,13 +6221,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         } else if(hmap.get(name).equals("-")){
             clr = Color.argb(100,140,140,140);
             mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>151){
+        }else if(Integer.parseInt(hmap.get(name))>150){
             clr = Color.argb(100,255,0,0);
             mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>81){
+        }else if(Integer.parseInt(hmap.get(name))>80){
             clr = Color.argb(100,255,255,0);
             mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>31){
+        }else if(Integer.parseInt(hmap.get(name))>30){
             clr = Color.argb(100,0,255,0);
             mclr = 5;
         }else {
@@ -6337,7 +6452,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
                 .fillColor(clr));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),"구리시");
+        namehmap.put(polygon.hashCode(),name);
         colorhmap.put(polygon.hashCode(),clr);
 
         IconGenerator iconFactory = new IconGenerator(this);
@@ -6353,7 +6468,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }else {
             iconFactory.setStyle(IconGenerator.STYLE_BLUE);
         }
-        addIcon(iconFactory, "구리시\n   "+hmap.get(name), new LatLng(37.599407, 127.131271));
+        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.599407, 127.131271));
     }//구리시
     public void drawPolygon33(GoogleMap googlemap) { //
     String name = "광명시";
@@ -6366,13 +6481,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         } else if(hmap.get(name).equals("-")){
             clr = Color.argb(100,140,140,140);
             mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>151){
+        }else if(Integer.parseInt(hmap.get(name))>150){
             clr = Color.argb(100,255,0,0);
             mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>81){
+        }else if(Integer.parseInt(hmap.get(name))>80){
             clr = Color.argb(100,255,255,0);
             mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>31){
+        }else if(Integer.parseInt(hmap.get(name))>30){
             clr = Color.argb(100,0,255,0);
             mclr = 5;
         }else {
@@ -6600,7 +6715,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             .strokeColor(Color.WHITE)             .strokeWidth(2)
             .fillColor(clr));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),"광명시");
+        namehmap.put(polygon.hashCode(),name);
         colorhmap.put(polygon.hashCode(),clr);
 
         IconGenerator iconFactory = new IconGenerator(this);
@@ -6616,7 +6731,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }else {
             iconFactory.setStyle(IconGenerator.STYLE_BLUE);
         }
-        addIcon(iconFactory, "광명시\n   "+hmap.get(name), new LatLng(37.445600, 126.865055));
+        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.445600, 126.865055));
 }//광명시
     public void drawPolygon47(GoogleMap googlemap) { //
         String name = "하남시";
@@ -6629,13 +6744,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         } else if(hmap.get(name).equals("-")){
             clr = Color.argb(100,140,140,140);
             mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>151){
+        }else if(Integer.parseInt(hmap.get(name))>150){
             clr = Color.argb(100,255,0,0);
             mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>81){
+        }else if(Integer.parseInt(hmap.get(name))>80){
             clr = Color.argb(100,255,255,0);
             mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>31){
+        }else if(Integer.parseInt(hmap.get(name))>30){
             clr = Color.argb(100,0,255,0);
             mclr = 5;
         }else {
@@ -6820,7 +6935,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
                 .fillColor(clr));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),"하남시");
+        namehmap.put(polygon.hashCode(),name);
         colorhmap.put(polygon.hashCode(),clr);
 
         IconGenerator iconFactory = new IconGenerator(this);
@@ -6836,7 +6951,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }else {
             iconFactory.setStyle(IconGenerator.STYLE_BLUE);
         }
-        addIcon(iconFactory, "하남시\n   "+hmap.get(name), new LatLng(37.523546, 127.205783));
+        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.523546, 127.205783));
     }//하남시
     public void drawPolygon22(GoogleMap googlemap) { //
     String name = "의왕시";
@@ -6849,13 +6964,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         } else if(hmap.get(name).equals("-")){
             clr = Color.argb(100,140,140,140);
             mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>151){
+        }else if(Integer.parseInt(hmap.get(name))>150){
             clr = Color.argb(100,255,0,0);
             mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>81){
+        }else if(Integer.parseInt(hmap.get(name))>80){
             clr = Color.argb(100,255,255,0);
             mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>31){
+        }else if(Integer.parseInt(hmap.get(name))>30){
             clr = Color.argb(100,0,255,0);
             mclr = 5;
         }else {
@@ -7380,7 +7495,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             .strokeColor(Color.WHITE)             .strokeWidth(2)
             .fillColor(clr));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),"의왕시");
+        namehmap.put(polygon.hashCode(),name);
         colorhmap.put(polygon.hashCode(),clr);
 
         IconGenerator iconFactory = new IconGenerator(this);
@@ -7396,7 +7511,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }else {
             iconFactory.setStyle(IconGenerator.STYLE_BLUE);
         }
-        addIcon(iconFactory, "의왕시\n   "+hmap.get(name), new LatLng(37.363525, 126.990049));
+        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.363525, 126.990049));
 }//의왕시
     public void drawPolygon32(GoogleMap googlemap) { //
         String name = "군포시";
@@ -7409,13 +7524,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         } else if(hmap.get(name).equals("-")){
             clr = Color.argb(100,140,140,140);
             mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>151){
+        }else if(Integer.parseInt(hmap.get(name))>150){
             clr = Color.argb(100,255,0,0);
             mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>81){
+        }else if(Integer.parseInt(hmap.get(name))>80){
             clr = Color.argb(100,255,255,0);
             mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>31){
+        }else if(Integer.parseInt(hmap.get(name))>30){
             clr = Color.argb(100,0,255,0);
             mclr = 5;
         }else {
@@ -7813,13 +7928,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         } else if(hmap.get(name).equals("-")){
             clr = Color.argb(100,140,140,140);
             mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>151){
+        }else if(Integer.parseInt(hmap.get(name))>150){
             clr = Color.argb(100,255,0,0);
             mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>81){
+        }else if(Integer.parseInt(hmap.get(name))>80){
             clr = Color.argb(100,255,255,0);
             mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>31){
+        }else if(Integer.parseInt(hmap.get(name))>30){
             clr = Color.argb(100,0,255,0);
             mclr = 5;
         }else {
@@ -8687,13 +8802,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         } else if(hmap.get(name).equals("-")){
             clr = Color.argb(100,140,140,140);
             mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>151){
+        }else if(Integer.parseInt(hmap.get(name))>150){
             clr = Color.argb(100,255,0,0);
             mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>81){
+        }else if(Integer.parseInt(hmap.get(name))>80){
             clr = Color.argb(100,255,255,0);
             mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>31){
+        }else if(Integer.parseInt(hmap.get(name))>30){
             clr = Color.argb(100,0,255,0);
             mclr = 5;
         }else {
@@ -8933,13 +9048,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         } else if(hmap.get(name).equals("-")){
             clr = Color.argb(100,140,140,140);
             mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>151){
+        }else if(Integer.parseInt(hmap.get(name))>150){
             clr = Color.argb(100,255,0,0);
             mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>81){
+        }else if(Integer.parseInt(hmap.get(name))>80){
             clr = Color.argb(100,255,255,0);
             mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>31){
+        }else if(Integer.parseInt(hmap.get(name))>30){
             clr = Color.argb(100,0,255,0);
             mclr = 5;
         }else {
@@ -9348,13 +9463,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         } else if(hmap.get(name).equals("-")){
             clr = Color.argb(100,140,140,140);
             mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>151){
+        }else if(Integer.parseInt(hmap.get(name))>150){
             clr = Color.argb(100,255,0,0);
             mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>81){
+        }else if(Integer.parseInt(hmap.get(name))>80){
             clr = Color.argb(100,255,255,0);
             mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>31){
+        }else if(Integer.parseInt(hmap.get(name))>30){
             clr = Color.argb(100,0,255,0);
             mclr = 5;
         }else {
@@ -9824,13 +9939,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         } else if(hmap.get(name).equals("-")){
             clr = Color.argb(100,140,140,140);
             mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>151){
+        }else if(Integer.parseInt(hmap.get(name))>150){
             clr = Color.argb(100,255,0,0);
             mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>81){
+        }else if(Integer.parseInt(hmap.get(name))>80){
             clr = Color.argb(100,255,255,0);
             mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>31){
+        }else if(Integer.parseInt(hmap.get(name))>30){
             clr = Color.argb(100,0,255,0);
             mclr = 5;
         }else {
@@ -10031,13 +10146,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         } else if(hmap.get(name).equals("-")){
             clr = Color.argb(100,140,140,140);
             mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>151){
+        }else if(Integer.parseInt(hmap.get(name))>150){
             clr = Color.argb(100,255,0,0);
             mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>81){
+        }else if(Integer.parseInt(hmap.get(name))>80){
             clr = Color.argb(100,255,255,0);
             mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>31){
+        }else if(Integer.parseInt(hmap.get(name))>30){
             clr = Color.argb(100,0,255,0);
             mclr = 5;
         }else {
@@ -10141,13 +10256,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         } else if(hmap.get(name).equals("-")){
             clr = Color.argb(100,140,140,140);
             mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>151){
+        }else if(Integer.parseInt(hmap.get(name))>150){
             clr = Color.argb(100,255,0,0);
             mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>81){
+        }else if(Integer.parseInt(hmap.get(name))>80){
             clr = Color.argb(100,255,255,0);
             mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>31){
+        }else if(Integer.parseInt(hmap.get(name))>30){
             clr = Color.argb(100,0,255,0);
             mclr = 5;
         }else {
@@ -10225,13 +10340,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         } else if(hmap.get(name).equals("-")){
             clr = Color.argb(100,140,140,140);
             mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>151){
+        }else if(Integer.parseInt(hmap.get(name))>150){
             clr = Color.argb(100,255,0,0);
             mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>81){
+        }else if(Integer.parseInt(hmap.get(name))>80){
             clr = Color.argb(100,255,255,0);
             mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>31){
+        }else if(Integer.parseInt(hmap.get(name))>30){
             clr = Color.argb(100,0,255,0);
             mclr = 5;
         }else {
@@ -10479,10 +10594,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }
         addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.736893, 127.068307));
     }//의정부시
-
-
-    public void drawPolygon402(GoogleMap googlemap) { //
-        String name = "성남시";
+    public void drawPolygon56(GoogleMap googlemap) { //
+        String name = "광주시";
         int clr = Color.argb(100,255,0,0);
         int mclr;
         Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
@@ -10492,13 +10605,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         } else if(hmap.get(name).equals("-")){
             clr = Color.argb(100,140,140,140);
             mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>151){
+        }else if(Integer.parseInt(hmap.get(name))>150){
             clr = Color.argb(100,255,0,0);
             mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>81){
+        }else if(Integer.parseInt(hmap.get(name))>80){
             clr = Color.argb(100,255,255,0);
             mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>31){
+        }else if(Integer.parseInt(hmap.get(name))>30){
             clr = Color.argb(100,0,255,0);
             mclr = 5;
         }else {
@@ -10508,41 +10621,708 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         Polygon polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
-                        new LatLng(37.451171	,127.194842	),
-                        new LatLng(37.437378	,127.193759	),
-                        new LatLng(37.43678 	,127.193923	),
-                        new LatLng(37.424675	,127.194336	),
-                        new LatLng(37.419852	,127.187783	),
-                        new LatLng(37.419738	,127.18772	),
-                        new LatLng(37.415516	,127.184719	),
-                        new LatLng(37.415486	,127.181087	),
-                        new LatLng(37.415771	,127.180501	),
-                        new LatLng(37.415499	,127.178614	),
-                        new LatLng(37.415312	,127.178374	),
-                        new LatLng(37.415069	,127.17712	),
-                        new LatLng(37.414807	,127.177228	),
+                        new LatLng(37.380456	,127.446638	),
+                        new LatLng(37.380222	,127.446546	),
+                        new LatLng(37.379872	,127.446036	),
+                        new LatLng(37.379496	,127.44556	),
+                        new LatLng(37.378769	,127.44481	),
+                        new LatLng(37.378437	,127.444345	),
+                        new LatLng(37.3768  	,127.443771	),
+                        new LatLng(37.37655 	,127.44366	),
+                        new LatLng(37.375547	,127.443719	),
+                        new LatLng(37.375529	,127.443673	),
+                        new LatLng(37.375283	,127.443787	),
+                        new LatLng(37.374671	,127.444267	),
+                        new LatLng(37.374531	,127.4443	),
+                        new LatLng(37.373843	,127.444217	),
+                        new LatLng(37.372204	,127.443936	),
+                        new LatLng(37.371664	,127.443628	),
+                        new LatLng(37.369276	,127.443716	),
+                        new LatLng(37.368032	,127.444002	),
+                        new LatLng(37.366454	,127.444365	),
+                        new LatLng(37.365608	,127.443999	),
+                        new LatLng(37.363734	,127.443898	),
+                        new LatLng(37.363129	,127.444233	),
+                        new LatLng(37.363532	,127.445003	),
+                        new LatLng(37.363556	,127.445531	),
+                        new LatLng(37.363425	,127.445858	),
+                        new LatLng(37.362844	,127.445845	),
+                        new LatLng(37.360886	,127.445679	),
+                        new LatLng(37.36056 	,127.445204	),
+                        new LatLng(37.360352	,127.444567	),
+                        new LatLng(37.359456	,127.443471	),
+                        new LatLng(37.35898	    ,127.443102	),
+                        new LatLng(37.358639	,127.442728	),
+                        new LatLng(37.358371	,127.442514	),
+                        new LatLng(37.358361	,127.442497	),
+                        new LatLng(37.358354	,127.442486	),
+                        new LatLng(37.354266	,127.435109	),
+                        new LatLng(37.346405	,127.429696	),
+                        new LatLng(37.34294 	,127.421434	),
+                        new LatLng(37.334641	,127.416507	),
+                        new LatLng(37.331195	,127.407298	),
+                        new LatLng(37.32731 	,127.405094	),
+                        new LatLng(37.327408	,127.400057	),
+                        new LatLng(37.319771	,127.390935	),
+                        new LatLng(37.320648	,127.375945	),
+                        new LatLng(37.315175	,127.36986	),
+                        new LatLng(37.31593 	,127.363327	),
+                        new LatLng(37.3086  	,127.364812	),
+                        new LatLng(37.305842	,127.35781	),
+                        new LatLng(37.301459	,127.354384	),
+                        new LatLng(37.294329	,127.356922	),
+                        new LatLng(37.290115	,127.348517	),
+                        new LatLng(37.291167	,127.342985	),
+                        new LatLng(37.288054	,127.340027	),
+                        new LatLng(37.27694 	,127.349116	),
+                        new LatLng(37.270548	,127.338689	),
+                        new LatLng(37.270542	,127.338393	),
+                        new LatLng(37.270687	,127.33814	),
+                        new LatLng(37.270698	,127.337328	),
+                        new LatLng(37.271151	,127.336704	),
+                        new LatLng(37.270808	,127.335119	),
+                        new LatLng(37.270918	,127.33446	),
+                        new LatLng(37.270744	,127.333873	),
+                        new LatLng(37.270718	,127.333768	),
+                        new LatLng(37.2704  	,127.331267	),
+                        new LatLng(37.27024 	,127.330393	),
+                        new LatLng(37.270254	,127.330325	),
+                        new LatLng(37.270571	,127.329633	),
+                        new LatLng(37.270986	,127.328734	),
+                        new LatLng(37.271918	,127.327046	),
+                        new LatLng(37.271894	,127.326978	),
+                        new LatLng(37.272533	,127.325763	),
+                        new LatLng(37.272607	,127.324588	),
+                        new LatLng(37.272543	,127.324366	),
+                        new LatLng(37.272601	,127.32388	),
+                        new LatLng(37.273085	,127.323262	),
+                        new LatLng(37.274125	,127.321716	),
+                        new LatLng(37.274338	,127.321272	),
+                        new LatLng(37.274339	,127.320984	),
+                        new LatLng(37.274515	,127.320754	),
+                        new LatLng(37.274512	,127.320536	),
+                        new LatLng(37.274422	,127.320026	),
+                        new LatLng(37.274574	,127.318962	),
+                        new LatLng(37.274013	,127.318305	),
+                        new LatLng(37.273779	,127.317898	),
+                        new LatLng(37.27369 	,127.317503	),
+                        new LatLng(37.273519	,127.317412	),
+                        new LatLng(37.273561	,127.317001	),
+                        new LatLng(37.273978	,127.31618	),
+                        new LatLng(37.273676	,127.312813	),
+                        new LatLng(37.273793	,127.312638	),
+                        new LatLng(37.273721	,127.311924	),
+                        new LatLng(37.273549	,127.311504	),
+                        new LatLng(37.27357 	,127.310989	),
+                        new LatLng(37.273487	,127.310912	),
+                        new LatLng(37.27284 	,127.310149	),
+                        new LatLng(37.272937	,127.309805	),
+                        new LatLng(37.272819	,127.309754	),
+                        new LatLng(37.272451	,127.309256	),
+                        new LatLng(37.27211 	,127.308629	),
+                        new LatLng(37.271269	,127.306371	),
+                        new LatLng(37.27092 	,127.305282	),
+                        new LatLng(37.271052	,127.304887	),
+                        new LatLng(37.270878	,127.304182	),
+                        new LatLng(37.270658	,127.30373	),
+                        new LatLng(37.270106	,127.303323	),
+                        new LatLng(37.269917	,127.303011	),
+                        new LatLng(37.269531	,127.302727	),
+                        new LatLng(37.266184	,127.302185	),
+                        new LatLng(37.265731	,127.301332	),
+                        new LatLng(37.265387	,127.300535	),
+                        new LatLng(37.265185	,127.299909	),
+                        new LatLng(37.265231	,127.299537	),
+                        new LatLng(37.265018	,127.298358	),
+                        new LatLng(37.265274	,127.296978	),
+                        new LatLng(37.266606	,127.295839	),
+                        new LatLng(37.267067	,127.295193	),
+                        new LatLng(37.267548	,127.295296	),
+                        new LatLng(37.268386	,127.295446	),
+                        new LatLng(37.268963	,127.295223	),
+                        new LatLng(37.269573	,127.294688	),
+                        new LatLng(37.269794	,127.294437	),
+                        new LatLng(37.270604	,127.293222	),
+                        new LatLng(37.271235	,127.292836	),
+                        new LatLng(37.271164	,127.292604	),
+                        new LatLng(37.271219	,127.292532	),
+                        new LatLng(37.271277	,127.292464	),
+                        new LatLng(37.271398	,127.292402	),
+                        new LatLng(37.271551	,127.292182	),
+                        new LatLng(37.271605	,127.292114	),
+                        new LatLng(37.271638	,127.292071	),
+                        new LatLng(37.271517	,127.291946	),
+                        new LatLng(37.271564	,127.291129	),
+                        new LatLng(37.271394	,127.29075	),
+                        new LatLng(37.271448	,127.290316	),
+                        new LatLng(37.271385	,127.289919	),
+                        new LatLng(37.271185	,127.289233	),
+                        new LatLng(37.270967	,127.288286	),
+                        new LatLng(37.271008	,127.288128	),
+                        new LatLng(37.270856	,127.287428	),
+                        new LatLng(37.27061 	,127.286948	),
+                        new LatLng(37.269245	,127.285071	),
+                        new LatLng(37.269047	,127.284693	),
+                        new LatLng(37.269107	,127.284175	),
+                        new LatLng(37.268929	,127.283469	),
+                        new LatLng(37.269057	,127.282664	),
+                        new LatLng(37.268672	,127.281665	),
+                        new LatLng(37.269504	,127.280365	),
+                        new LatLng(37.269741	,127.279239	),
+                        new LatLng(37.270124	,127.279295	),
+                        new LatLng(37.270259	,127.279323	),
+                        new LatLng(37.271271	,127.27969	),
+                        new LatLng(37.272106	,127.279061	),
+                        new LatLng(37.27203 	,127.278746	),
+                        new LatLng(37.272368	,127.278115	),
+                        new LatLng(37.272732	,127.277429	),
+                        new LatLng(37.274285	,127.275845	),
+                        new LatLng(37.274776	,127.276004	),
+                        new LatLng(37.275778	,127.277209	),
+                        new LatLng(37.276136	,127.278349	),
+                        new LatLng(37.27644 	,127.278959	),
+                        new LatLng(37.276413	,127.279167	),
+                        new LatLng(37.276817	,127.279817	),
+                        new LatLng(37.277852	,127.281686	),
+                        new LatLng(37.278125	,127.281659	),
+                        new LatLng(37.278801	,127.281045	),
+                        new LatLng(37.279437	,127.281048	),
+                        new LatLng(37.280482	,127.280879	),
+                        new LatLng(37.281145	,127.280577	),
+                        new LatLng(37.28114 	,127.280397	),
+                        new LatLng(37.281709	,127.279897	),
+                        new LatLng(37.28367 	,127.2799	),
+                        new LatLng(37.283949	,127.279708	),
+                        new LatLng(37.284125	,127.27965	),
+                        new LatLng(37.284521	,127.279744	),
+                        new LatLng(37.285589	,127.279652	),
+                        new LatLng(37.285819	,127.279343	),
+                        new LatLng(37.285919	,127.279005	),
+                        new LatLng(37.28647 	,127.278466	),
+                        new LatLng(37.287749	,127.278769	),
+                        new LatLng(37.288028	,127.278836	),
+                        new LatLng(37.288037	,127.278836	),
+                        new LatLng(37.288421	,127.278826	),
+                        new LatLng(37.289666	,127.277739	),
+                        new LatLng(37.290396	,127.277753	),
+                        new LatLng(37.293415	,127.279057	),
+                        new LatLng(37.293666	,127.279095	),
+                        new LatLng(37.295465	,127.280508	),
+                        new LatLng(37.295705	,127.280614	),
+                        new LatLng(37.296539	,127.281152	),
+                        new LatLng(37.296852	,127.281301	),
+                        new LatLng(37.29787 	,127.281457	),
+                        new LatLng(37.300378	,127.280447	),
+                        new LatLng(37.30086 	,127.280399	),
+                        new LatLng(37.306446	,127.278511	),
+                        new LatLng(37.307159	,127.277983	),
+                        new LatLng(37.308467	,127.277221	),
+                        new LatLng(37.30934 	,127.277709	),
+                        new LatLng(37.310717	,127.278391	),
+                        new LatLng(37.312786	,127.279673	),
+                        new LatLng(37.31401 	,127.28049	),
+                        new LatLng(37.318445	,127.283327	),
+                        new LatLng(37.320825	,127.282625	),
+                        new LatLng(37.322053	,127.281885	),
+                        new LatLng(37.322486	,127.281582	),
+                        new LatLng(37.324145	,127.281227	),
+                        new LatLng(37.326558	,127.281766	),
+                        new LatLng(37.327451	,127.281544	),
+                        new LatLng(37.329942	,127.279364	),
+                        new LatLng(37.331554	,127.279833	),
+                        new LatLng(37.332113	,127.279846	),
+                        new LatLng(37.33348 	,127.280641	),
+                        new LatLng(37.334902	,127.281594	),
+                        new LatLng(37.33599 	,127.282546	),
+                        new LatLng(37.336295	,127.282965	),
+                        new LatLng(37.338466	,127.283379	),
+                        new LatLng(37.339511	,127.283191	),
+                        new LatLng(37.343025	,127.283193	),
+                        new LatLng(37.345145	,127.282264	),
+                        new LatLng(37.345879	,127.280552	),
+                        new LatLng(37.34543 	,127.279794	),
+                        new LatLng(37.344229	,127.277261	),
+                        new LatLng(37.343097	,127.275779	),
+                        new LatLng(37.342723	,127.273656	),
+                        new LatLng(37.342365	,127.272785	),
+                        new LatLng(37.342468	,127.27089	),
+                        new LatLng(37.34222 	,127.269208	),
+                        new LatLng(37.342176	,127.268576	),
+                        new LatLng(37.342456	,127.268351	),
+                        new LatLng(37.342668	,127.26614	),
+                        new LatLng(37.342462	,127.265721	),
+                        new LatLng(37.344016	,127.263628	),
+                        new LatLng(37.34453 	,127.263415	),
+                        new LatLng(37.344702	,127.263314	),
+                        new LatLng(37.345847	,127.263025	),
+                        new LatLng(37.346325	,127.262744	),
+                        new LatLng(37.346821	,127.262464	),
+                        new LatLng(37.348871	,127.26027	),
+                        new LatLng(37.34888 	,127.260168	),
+                        new LatLng(37.349252	,127.259233	),
+                        new LatLng(37.349587	,127.258444	),
+                        new LatLng(37.349777	,127.257836	),
+                        new LatLng(37.3495  	,127.257146	),
+                        new LatLng(37.349582	,127.256616	),
+                        new LatLng(37.350359	,127.255422	),
+                        new LatLng(37.350377	,127.255388	),
+                        new LatLng(37.350704	,127.254554	),
+                        new LatLng(37.350732	,127.254126	),
+                        new LatLng(37.350615	,127.253967	),
+                        new LatLng(37.351772	,127.252199	),
+                        new LatLng(37.352557	,127.251366	),
+                        new LatLng(37.352532	,127.250791	),
+                        new LatLng(37.35264 	,127.250588	),
+                        new LatLng(37.352686	,127.250306	),
+                        new LatLng(37.352858	,127.250024	),
+                        new LatLng(37.353783	,127.249568	),
+                        new LatLng(37.354008	,127.249142	),
+                        new LatLng(37.354374	,127.248912	),
+                        new LatLng(37.354604	,127.248675	),
+                        new LatLng(37.354876	,127.247841	),
+                        new LatLng(37.35553 	,127.247251	),
+                        new LatLng(37.355643	,127.247211	),
+                        new LatLng(37.355371	,127.246048	),
+                        new LatLng(37.355471	,127.245563	),
+                        new LatLng(37.355232	,127.244836	),
+                        new LatLng(37.354744	,127.244285	),
+                        new LatLng(37.354134	,127.242906	),
+                        new LatLng(37.353653	,127.242405	),
+                        new LatLng(37.353599	,127.242211	),
+                        new LatLng(37.353744	,127.242025	),
+                        new LatLng(37.3542  	,127.241293	),
+                        new LatLng(37.354191	,127.24114	),
+                        new LatLng(37.354214	,127.241095	),
+                        new LatLng(37.355099	,127.240336	),
+                        new LatLng(37.35546 	,127.239908	),
+                        new LatLng(37.356512	,127.238856	),
+                        new LatLng(37.358521	,127.238687	),
+                        new LatLng(37.360347	,127.238177	),
+                        new LatLng(37.360134	,127.237721	),
+                        new LatLng(37.359987	,127.237754	),
+                        new LatLng(37.35973 	,127.237631	),
+                        new LatLng(37.3596  	,127.237562	),
+                        new LatLng(37.359575	,127.237532	),
+                        new LatLng(37.359459	,127.237419	),
+                        new LatLng(37.359366	,127.237281	),
+                        new LatLng(37.359328	,127.237065	),
+                        new LatLng(37.359268	,127.236844	),
+                        new LatLng(37.359208	,127.236659	),
+                        new LatLng(37.359175	,127.236082	),
+                        new LatLng(37.359329	,127.23597	),
+                        new LatLng(37.359428	,127.235891	),
+                        new LatLng(37.359166	,127.236037	),
+                        new LatLng(37.359085	,127.236116	),
+                        new LatLng(37.358988	,127.236092	),
+                        new LatLng(37.358954	,127.236076	),
+                        new LatLng(37.358905	,127.235991	),
+                        new LatLng(37.358635	,127.235646	),
+                        new LatLng(37.358398	,127.235374	),
+                        new LatLng(37.358064	,127.235215	),
+                        new LatLng(37.357852	,127.234363	),
+                        new LatLng(37.357877	,127.23421	),
+                        new LatLng(37.357886	,127.234058	),
+                        new LatLng(37.357905	,127.233933	),
+                        new LatLng(37.357896	,127.23381	),
+                        new LatLng(37.357905	,127.233753	),
+                        new LatLng(37.358241	,127.232292	),
+                        new LatLng(37.358246	,127.232258	),
+                        new LatLng(37.358201	,127.231818	),
+                        new LatLng(37.35852 	,127.230391	),
+                        new LatLng(37.359103	,127.230108	),
+                        new LatLng(37.359205	,127.230009	),
+                        new LatLng(37.359176	,127.229853	),
+                        new LatLng(37.359215	,127.229507	),
+                        new LatLng(37.359351	,127.229197	),
+                        new LatLng(37.359432	,127.229163	),
+                        new LatLng(37.359432	,127.229141	),
+                        new LatLng(37.359189	,127.229225	),
+                        new LatLng(37.35869 	,127.228319	),
+                        new LatLng(37.358245	,127.228161	),
+                        new LatLng(37.358227	,127.227727	),
+                        new LatLng(37.358164	,127.22767	),
+                        new LatLng(37.357979	,127.227827	),
+                        new LatLng(37.357417	,127.227481	),
+                        new LatLng(37.35721 	,127.227114	),
+                        new LatLng(37.356757	,127.22626	),
+                        new LatLng(37.356771	,127.226006	),
+                        new LatLng(37.356332	,127.225585	),
+                        new LatLng(37.356056	,127.225248	),
+                        new LatLng(37.354478	,127.221417	),
+                        new LatLng(37.354405	,127.220626	),
+                        new LatLng(37.354428	,127.220401	),
+                        new LatLng(37.355735	,127.218475	),
+                        new LatLng(37.355531	,127.217979	),
+                        new LatLng(37.355489	,127.217881	),
+                        new LatLng(37.354873	,127.21692	),
+                        new LatLng(37.35467 	,127.216931	),
+                        new LatLng(37.354282	,127.217257	),
+                        new LatLng(37.354012	,127.217104	),
+                        new LatLng(37.352571	,127.217622	),
+                        new LatLng(37.352427	,127.217725	),
+                        new LatLng(37.351969	,127.218234	),
+                        new LatLng(37.351739	,127.218565	),
+                        new LatLng(37.35168 	,127.218638	),
+                        new LatLng(37.350559	,127.219964	),
+                        new LatLng(37.350312	,127.220485	),
+                        new LatLng(37.349816	,127.220867	),
+                        new LatLng(37.349391	,127.22156	),
+                        new LatLng(37.348517	,127.222181	),
+                        new LatLng(37.34843 	,127.222232	),
+                        new LatLng(37.347605	,127.222627	),
+                        new LatLng(37.346903	,127.2226	),
+                        new LatLng(37.346488	,127.222398	),
+                        new LatLng(37.346363	,127.222338	),
+                        new LatLng(37.346138	,127.222199	),
+                        new LatLng(37.346402	,127.221981	),
+                        new LatLng(37.346877	,127.22141	),
+                        new LatLng(37.347051	,127.221072	),
+                        new LatLng(37.345664	,127.218938	),
+                        new LatLng(37.345453	,127.218865	),
+                        new LatLng(37.344729	,127.218906	),
+                        new LatLng(37.342604	,127.217878	),
+                        new LatLng(37.342056	,127.217284	),
+                        new LatLng(37.341001	,127.217225	),
+                        new LatLng(37.340269	,127.216235	),
+                        new LatLng(37.339927	,127.216116	),
+                        new LatLng(37.338999	,127.215854	),
+                        new LatLng(37.33882 	,127.215199	),
+                        new LatLng(37.339024	,127.214793	),
+                        new LatLng(37.338622	,127.214483	),
+                        new LatLng(37.338425	,127.214453	),
+                        new LatLng(37.338043	,127.214045	),
+                        new LatLng(37.338206	,127.213606	),
+                        new LatLng(37.338   	,127.213996	),
+                        new LatLng(37.337638	,127.213413	),
+                        new LatLng(37.337633	,127.213408	),
+                        new LatLng(37.337633	,127.213398	),
+                        new LatLng(37.33758 	,127.213295	),
+                        new LatLng(37.336651	,127.211553	),
+                        new LatLng(37.336024	,127.211625	),
+                        new LatLng(37.335501	,127.211279	),
+                        new LatLng(37.334755	,127.211199	),
+                        new LatLng(37.334287	,127.210712	),
+                        new LatLng(37.333833	,127.210073	),
+                        new LatLng(37.332574	,127.208569	),
+                        new LatLng(37.331412	,127.208814	),
+                        new LatLng(37.33075 	,127.208287	),
+                        new LatLng(37.330616	,127.207678	),
+                        new LatLng(37.330561	,127.207335	),
+                        new LatLng(37.330061	,127.205871	),
+                        new LatLng(37.329153	,127.204209	),
+                        new LatLng(37.329145	,127.204209	),
+                        new LatLng(37.328769	,127.202488	),
+                        new LatLng(37.328324	,127.201928	),
+                        new LatLng(37.328908	,127.200322	),
+                        new LatLng(37.330733	,127.199678	),
+                        new LatLng(37.332687	,127.197923	),
+                        new LatLng(37.333617	,127.197296	),
+                        new LatLng(37.334666	,127.197155	),
+                        new LatLng(37.335315	,127.197055	),
+                        new LatLng(37.335775	,127.197045	),
+                        new LatLng(37.336153	,127.196798	),
+                        new LatLng(37.336676	,127.197081	),
+                        new LatLng(37.336901	,127.197206	),
+                        new LatLng(37.337305	,127.197557	),
+                        new LatLng(37.33744 	,127.197659	),
+                        new LatLng(37.337801	,127.197739	),
+                        new LatLng(37.33826 	,127.197751	),
+                        new LatLng(37.338323	,127.197751	),
+                        new LatLng(37.338612	,127.197797	),
+                        new LatLng(37.33881 	,127.197877	),
+                        new LatLng(37.338855	,127.197877	),
+                        new LatLng(37.338999	,127.198035	),
+                        new LatLng(37.339341	,127.198205	),
+                        new LatLng(37.339908	,127.198207	),
+                        new LatLng(37.340575	,127.198107	),
+                        new LatLng(37.340755	,127.198096	),
+                        new LatLng(37.341062	,127.198198	),
+                        new LatLng(37.341107	,127.198199	),
+                        new LatLng(37.341404	,127.197974	),
+                        new LatLng(37.341909	,127.197682	),
+                        new LatLng(37.341955	,127.197648	),
+                        new LatLng(37.342279	,127.197502	),
+                        new LatLng(37.342484	,127.19736	),
+                        new LatLng(37.342712	,127.197255	),
+                        new LatLng(37.342965	,127.197007	),
+                        new LatLng(37.343127	,127.19685	),
+                        new LatLng(37.343804	,127.196152	),
+                        new LatLng(37.344336	,127.196018	),
+                        new LatLng(37.346134	,127.19302	),
+                        new LatLng(37.347082	,127.192007	),
+                        new LatLng(37.347235	,127.191815	),
+                        new LatLng(37.346679	,127.190099	),
+                        new LatLng(37.346464	,127.189624	),
+                        new LatLng(37.346239	,127.189127	),
+                        new LatLng(37.345782	,127.187704	),
+                        new LatLng(37.345701	,127.187568	),
+                        new LatLng(37.345459	,127.186936	),
+                        new LatLng(37.345315	,127.186506	),
+                        new LatLng(37.345515	,127.185695	),
+                        new LatLng(37.345488	,127.185593	),
+                        new LatLng(37.345389	,127.185412	),
+                        new LatLng(37.3452  	,127.185186	),
+                        new LatLng(37.344975	,127.185005	),
+                        new LatLng(37.34494 	,127.184779	),
+                        new LatLng(37.344805	,127.184327	),
+                        new LatLng(37.344456	,127.182927	),
+                        new LatLng(37.344276	,127.18252	),
+                        new LatLng(37.344115	,127.182226	),
+                        new LatLng(37.343881	,127.181786	),
+                        new LatLng(37.343773	,127.181402	),
+                        new LatLng(37.343711	,127.181243	),
+                        new LatLng(37.343693	,127.181232	),
+                        new LatLng(37.343631	,127.180205	),
+                        new LatLng(37.343604	,127.179934	),
+                        new LatLng(37.343407	,127.179482	),
+                        new LatLng(37.343353	,127.179313	),
+                        new LatLng(37.343272	,127.179019	),
+                        new LatLng(37.343237	,127.178579	),
+                        new LatLng(37.343436	,127.178365	),
+                        new LatLng(37.343833	,127.177847	),
+                        new LatLng(37.344365	,127.177408	),
+                        new LatLng(37.344473	,127.177261	),
+                        new LatLng(37.344393	,127.177036	),
+                        new LatLng(37.344249	,127.176798	),
+                        new LatLng(37.344276	,127.176674	),
+                        new LatLng(37.344367	,127.176031	),
+                        new LatLng(37.344458	,127.175535	),
+                        new LatLng(37.344467	,127.175253	),
+                        new LatLng(37.344378	,127.174711	),
+                        new LatLng(37.344379	,127.174271	),
+                        new LatLng(37.344614	,127.173921	),
+                        new LatLng(37.344524	,127.173188	),
+                        new LatLng(37.344606	,127.17286	),
+                        new LatLng(37.344204	,127.170817	),
+                        new LatLng(37.344186	,127.170681	),
+                        new LatLng(37.344025	,127.169891	),
+                        new LatLng(37.34389 	,127.169462	),
+                        new LatLng(37.343584	,127.169044	),
+                        new LatLng(37.343387	,127.168659	),
+                        new LatLng(37.343398	,127.166933	),
+                        new LatLng(37.343589	,127.166008	),
+                        new LatLng(37.3434  	,127.16541	),
+                        new LatLng(37.343563	,127.164631	),
+                        new LatLng(37.343475	,127.163435	),
+                        new LatLng(37.343376	,127.163197	),
+                        new LatLng(37.343405	,127.162103	),
+                        new LatLng(37.342784	,127.161481	),
+                        new LatLng(37.34211 	,127.159809	),
+                        new LatLng(37.34131 	,127.158916	),
+                        new LatLng(37.340986	,127.158272	),
+                        new LatLng(37.34079 	,127.156906	),
+                        new LatLng(37.34018 	,127.154975	),
+                        new LatLng(37.34037 	,127.154299	),
+                        new LatLng(37.340172	,127.153847	),
+                        new LatLng(37.338133	,127.148911	),
+                        new LatLng(37.337881	,127.148437	),
+                        new LatLng(37.33762 	,127.147996	),
+                        new LatLng(37.33718 	,127.146957	),
+                        new LatLng(37.337109	,127.146111	),
+                        new LatLng(37.336912	,127.145445	),
+                        new LatLng(37.337138	,127.144734	),
+                        new LatLng(37.33667 	,127.144033	),
+                        new LatLng(37.336618	,127.142262	),
+                        new LatLng(37.337304	,127.141293	),
+                        new LatLng(37.337638	,127.140887	),
+                        new LatLng(37.339316	,127.139344	),
+                        new LatLng(37.339813	,127.137935	),
+                        new LatLng(37.339722	,127.137872	),
+                        new LatLng(37.344508	,127.137373	),
+                        new LatLng(37.349184	,127.132727	),
+                        new LatLng(37.349282	,127.132693	),
+                        new LatLng(37.353268	,127.13437	),
+                        new LatLng(37.353828	,127.134258	),
+                        new LatLng(37.358982	,127.136246	),
+                        new LatLng(37.359541	,127.145053	),
+                        new LatLng(37.36342 	,127.152746	),
+                        new LatLng(37.372682	,127.160592	),
+                        new LatLng(37.37969 	,127.161822	),
+                        new LatLng(37.380299	,127.167921	),
+                        new LatLng(37.385206	,127.176557	),
+                        new LatLng(37.387099	,127.177235	),
+                        new LatLng(37.392633	,127.168245	),
                         new LatLng(37.4055  	,127.173875	),
-                        new LatLng(37.406477	,127.165071	),
-                        new LatLng(37.411099	,127.155638	),
-                        new LatLng(37.410798	,127.149256	),
-                        new LatLng(37.41509 	,127.143369	),
-                        new LatLng(37.416998	,127.134435	),
-                        new LatLng(37.415661	,127.119206	),
-                        new LatLng(37.420336	,127.119705	),
-                        new LatLng(37.421987	,127.116979	),
-                        new LatLng(37.432344	,127.118454	),
-                        new LatLng(37.43533 	,127.136399	),
-                        new LatLng(37.444612	,127.156433	),
-                        new LatLng(37.454178	,127.160933	),
-                        new LatLng(37.465668	,127.173935	),
-                        new LatLng(37.471958	,127.175615	),
-                        new LatLng(37.474808	,127.178754	),
-                        new LatLng(37.467112	,127.181996	),
-                        new LatLng(37.46649 	,127.182005	),
-                        new LatLng(37.45931 	,127.184651	),
-                        new LatLng(37.459006	,127.184729	),
+                        new LatLng(37.414807	,127.177228	),
+                        new LatLng(37.415069	,127.17712	),
+                        new LatLng(37.415312	,127.178374	),
+                        new LatLng(37.415499	,127.178614	),
+                        new LatLng(37.415771	,127.180501	),
+                        new LatLng(37.415486	,127.181087	),
+                        new LatLng(37.415516	,127.184719	),
+                        new LatLng(37.419738	,127.18772	),
+                        new LatLng(37.419852	,127.187783	),
+                        new LatLng(37.424675	,127.194336	),
+                        new LatLng(37.43678 	,127.193923	),
+                        new LatLng(37.437378	,127.193759	),
+                        new LatLng(37.451171	,127.194842	),
                         new LatLng(37.457033	,127.191664	),
-                        new LatLng(37.451171	,127.194842	)
+                        new LatLng(37.459006	,127.184729	),
+                        new LatLng(37.45931 	,127.184651	),
+                        new LatLng(37.46649 	,127.182005	),
+                        new LatLng(37.467112	,127.181996	),
+                        new LatLng(37.474808	,127.178754	),
+                        new LatLng(37.47842 	,127.175438	),
+                        new LatLng(37.478502	,127.17546	),
+                        new LatLng(37.487206	,127.17772	),
+                        new LatLng(37.480339	,127.188584	),
+                        new LatLng(37.479601	,127.198403	),
+                        new LatLng(37.4841  	,127.201863	),
+                        new LatLng(37.480301	,127.205019	),
+                        new LatLng(37.481992	,127.219297	),
+                        new LatLng(37.477479	,127.228391	),
+                        new LatLng(37.47665 	,127.2446	),
+                        new LatLng(37.480523	,127.247015	),
+                        new LatLng(37.485097	,127.24443	),
+                        new LatLng(37.485037	,127.253605	),
+                        new LatLng(37.491053	,127.259188	),
+                        new LatLng(37.496986	,127.255081	),
+                        new LatLng(37.506312	,127.254621	),
+                        new LatLng(37.506363	,127.2683	),
+                        new LatLng(37.514398	,127.285701	),
+                        new LatLng(37.514232	,127.285762	),
+                        new LatLng(37.513413	,127.28592	),
+                        new LatLng(37.512793	,127.286054	),
+                        new LatLng(37.511569	,127.286311	),
+                        new LatLng(37.510334	,127.286566	),
+                        new LatLng(37.510197	,127.28659	),
+                        new LatLng(37.507089	,127.287156	),
+                        new LatLng(37.506291	,127.288282	),
+                        new LatLng(37.505602	,127.290671	),
+                        new LatLng(37.505509	,127.292081	),
+                        new LatLng(37.505499	,127.292604	),
+                        new LatLng(37.505618	,127.29405	),
+                        new LatLng(37.506072	,127.29596	),
+                        new LatLng(37.506233	,127.296413	),
+                        new LatLng(37.506375	,127.29681	),
+                        new LatLng(37.506598	,127.297422	),
+                        new LatLng(37.506683	,127.297651	),
+                        new LatLng(37.506843	,127.298082	),
+                        new LatLng(37.507047	,127.298638	),
+                        new LatLng(37.507516	,127.299927	),
+                        new LatLng(37.507723	,127.300504	),
+                        new LatLng(37.508496	,127.301908	),
+                        new LatLng(37.508739	,127.302247	),
+                        new LatLng(37.509016	,127.302499	),
+                        new LatLng(37.509287	,127.302746	),
+                        new LatLng(37.509644	,127.303057	),
+                        new LatLng(37.510083	,127.303446	),
+                        new LatLng(37.510587	,127.303887	),
+                        new LatLng(37.511748	,127.304966	),
+                        new LatLng(37.512233	,127.305403	),
+                        new LatLng(37.512974	,127.3058	),
+                        new LatLng(37.51459 	,127.306697	),
+                        new LatLng(37.514717	,127.306764	),
+                        new LatLng(37.515834	,127.30665	),
+                        new LatLng(37.517249	,127.306662	),
+                        new LatLng(37.51951 	,127.306761	),
+                        new LatLng(37.520702	,127.309323	),
+                        new LatLng(37.527127	,127.308931	),
+                        new LatLng(37.531918	,127.319936	),
+                        new LatLng(37.532411	,127.320696	),
+                        new LatLng(37.535666	,127.326412	),
+                        new LatLng(37.535612	,127.343424	),
+                        new LatLng(37.535707	,127.343814	),
+                        new LatLng(37.535356	,127.353146	),
+                        new LatLng(37.531153	,127.363286	),
+                        new LatLng(37.519287	,127.372946	),
+                        new LatLng(37.518653	,127.373259	),
+                        new LatLng(37.50859 	,127.378355	),
+                        new LatLng(37.508208	,127.37848	),
+                        new LatLng(37.500318	,127.384251	),
+                        new LatLng(37.500119	,127.384521	),
+                        new LatLng(37.497256	,127.386644	),
+                        new LatLng(37.490996	,127.380653	),
+                        new LatLng(37.490564	,127.380492	),
+                        new LatLng(37.483724	,127.383782	),
+                        new LatLng(37.483534	,127.38377	),
+                        new LatLng(37.475851	,127.388761	),
+                        new LatLng(37.466395	,127.387311	),
+                        new LatLng(37.466052	,127.387512	),
+                        new LatLng(37.458498	,127.383122	),
+                        new LatLng(37.456591	,127.367821	),
+                        new LatLng(37.451846	,127.372465	),
+                        new LatLng(37.444972	,127.372386	),
+                        new LatLng(37.443237	,127.382525	),
+                        new LatLng(37.442866	,127.382896	),
+                        new LatLng(37.434915	,127.384065	),
+                        new LatLng(37.421423	,127.400272	),
+                        new LatLng(37.421373	,127.400399	),
+                        new LatLng(37.420951	,127.400795	),
+                        new LatLng(37.418525	,127.400858	),
+                        new LatLng(37.416559	,127.398758	),
+                        new LatLng(37.415725	,127.398224	),
+                        new LatLng(37.415492	,127.398322	),
+                        new LatLng(37.414243	,127.398887	),
+                        new LatLng(37.412215	,127.4017	),
+                        new LatLng(37.410206	,127.404095	),
+                        new LatLng(37.409518	,127.405323	),
+                        new LatLng(37.409101	,127.406032	),
+                        new LatLng(37.408228	,127.408196	),
+                        new LatLng(37.407528	,127.410112	),
+                        new LatLng(37.404349	,127.412241	),
+                        new LatLng(37.403861	,127.412532	),
+                        new LatLng(37.402844	,127.412953	),
+                        new LatLng(37.402257	,127.41267	),
+                        new LatLng(37.40043 	,127.412197),
+                        new LatLng(37.399257	,127.412484),
+                        new LatLng(37.395259	,127.414518),
+                        new LatLng(37.394565	,127.414672),
+                        new LatLng(37.391787	,127.416551),
+                        new LatLng(37.391521	,127.416733),
+                        new LatLng(37.391295	,127.416845),
+                        new LatLng(37.391088	,127.416968),
+                        new LatLng(37.390695	,127.417345),
+                        new LatLng(37.390536	,127.417496),
+                        new LatLng(37.390094	,127.417764),
+                        new LatLng(37.389184	,127.418438),
+                        new LatLng(37.388416	,127.418971),
+                        new LatLng(37.388456	,127.419525),
+                        new LatLng(37.388465	,127.419607),
+                        new LatLng(37.387843	,127.419773),
+                        new LatLng(37.386872	,127.420237),
+                        new LatLng(37.386859	,127.420242),
+                        new LatLng(37.386071	,127.421581),
+                        new LatLng(37.385758	,127.42342),
+                        new LatLng(37.385991	,127.423862),
+                        new LatLng(37.386371	,127.425727),
+                        new LatLng(37.38725 	,127.427956	),
+                        new LatLng(37.387282	,127.428171	),
+                        new LatLng(37.387072	,127.428701	),
+                        new LatLng(37.387319	,127.429297	),
+                        new LatLng(37.387375	,127.429594	),
+                        new LatLng(37.387601	,127.429528	),
+                        new LatLng(37.387817	,127.429552	),
+                        new LatLng(37.386855	,127.433837	),
+                        new LatLng(37.38659 	,127.434954	),
+                        new LatLng(37.386727	,127.435419	),
+                        new LatLng(37.38702 	,127.435554	),
+                        new LatLng(37.387015	,127.435595	),
+                        new LatLng(37.38672 	,127.436275	),
+                        new LatLng(37.386828	,127.436752	),
+                        new LatLng(37.386961	,127.436909	),
+                        new LatLng(37.386843	,127.437349	),
+                        new LatLng(37.386995	,127.437643	),
+                        new LatLng(37.387052	,127.437754	),
+                        new LatLng(37.387129	,127.437904	),
+                        new LatLng(37.387019	,127.438389	),
+                        new LatLng(37.387092	,127.438932	),
+                        new LatLng(37.387178	,127.439191	),
+                        new LatLng(37.387292	,127.440039	),
+                        new LatLng(37.387301	,127.440129	),
+                        new LatLng(37.386993	,127.440579	),
+                        new LatLng(37.387374	,127.442331	),
+                        new LatLng(37.387334	,127.44243	),
+                        new LatLng(37.38716 	,127.443282	),
+                        new LatLng(37.386821	,127.443299	),
+                        new LatLng(37.386656	,127.443818	),
+                        new LatLng(37.386341	,127.443884	),
+                        new LatLng(37.385953	,127.444292	),
+                        new LatLng(37.384418	,127.444832	),
+                        new LatLng(37.383753	,127.444399	),
+                        new LatLng(37.383082	,127.444763	),
+                        new LatLng(37.380674	,127.446154	),
+                        new LatLng(37.380456	,127.446638	)
                 )
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
                 .fillColor(clr));
@@ -10563,10 +11343,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }else {
             iconFactory.setStyle(IconGenerator.STYLE_BLUE);
         }
-        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.408563, 127.116230));
-    }//
-    public void drawPolygon403(GoogleMap googlemap) { //
-        String name = "성남시";
+        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.403843, 127.301297));
+    }//광주시
+    public void drawPolygon61(GoogleMap googlemap) { //
+        String name = "안산시";
         int clr = Color.argb(100,255,0,0);
         int mclr;
         Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
@@ -10576,13 +11356,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         } else if(hmap.get(name).equals("-")){
             clr = Color.argb(100,140,140,140);
             mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>151){
+        }else if(Integer.parseInt(hmap.get(name))>150){
             clr = Color.argb(100,255,0,0);
             mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>81){
+        }else if(Integer.parseInt(hmap.get(name))>80){
             clr = Color.argb(100,255,255,0);
             mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>31){
+        }else if(Integer.parseInt(hmap.get(name))>30){
             clr = Color.argb(100,0,255,0);
             mclr = 5;
         }else {
@@ -10592,41 +11372,140 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         Polygon polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
-                        new LatLng(37.451171	,127.194842	),
-                        new LatLng(37.437378	,127.193759	),
-                        new LatLng(37.43678 	,127.193923	),
-                        new LatLng(37.424675	,127.194336	),
-                        new LatLng(37.419852	,127.187783	),
-                        new LatLng(37.419738	,127.18772	),
-                        new LatLng(37.415516	,127.184719	),
-                        new LatLng(37.415486	,127.181087	),
-                        new LatLng(37.415771	,127.180501	),
-                        new LatLng(37.415499	,127.178614	),
-                        new LatLng(37.415312	,127.178374	),
-                        new LatLng(37.415069	,127.17712	),
-                        new LatLng(37.414807	,127.177228	),
-                        new LatLng(37.4055  	,127.173875	),
-                        new LatLng(37.406477	,127.165071	),
-                        new LatLng(37.411099	,127.155638	),
-                        new LatLng(37.410798	,127.149256	),
-                        new LatLng(37.41509 	,127.143369	),
-                        new LatLng(37.416998	,127.134435	),
-                        new LatLng(37.415661	,127.119206	),
-                        new LatLng(37.420336	,127.119705	),
-                        new LatLng(37.421987	,127.116979	),
-                        new LatLng(37.432344	,127.118454	),
-                        new LatLng(37.43533 	,127.136399	),
-                        new LatLng(37.444612	,127.156433	),
-                        new LatLng(37.454178	,127.160933	),
-                        new LatLng(37.465668	,127.173935	),
-                        new LatLng(37.471958	,127.175615	),
-                        new LatLng(37.474808	,127.178754	),
-                        new LatLng(37.467112	,127.181996	),
-                        new LatLng(37.46649 	,127.182005	),
-                        new LatLng(37.45931 	,127.184651	),
-                        new LatLng(37.459006	,127.184729	),
-                        new LatLng(37.457033	,127.191664	),
-                        new LatLng(37.451171	,127.194842	)
+                        new LatLng(37.211753	,126.653752	),
+                        new LatLng(37.20984 	,126.653688	),
+                        new LatLng(37.207294	,126.651886	),
+                        new LatLng(37.205941	,126.646044	),
+                        new LatLng(37.203939	,126.645777	),
+                        new LatLng(37.202952	,126.648804	),
+                        new LatLng(37.199278	,126.649963	),
+                        new LatLng(37.208771	,126.653653	),
+                        new LatLng(37.20522 	,126.653535	),
+                        new LatLng(37.198822	,126.650107	),
+                        new LatLng(37.198231	,126.650293	),
+                        new LatLng(37.193691	,126.647791	),
+                        new LatLng(37.196642	,126.648938	),
+                        new LatLng(37.193046	,126.647011	),
+                        new LatLng(37.191457	,126.650664	),
+                        new LatLng(37.192199	,126.64725	),
+                        new LatLng(37.189684	,126.64556	),
+                        new LatLng(37.197135	,126.641466	),
+                        new LatLng(37.204372	,126.641884	),
+                        new LatLng(37.206889	,126.646171	),
+                        new LatLng(37.205945	,126.646045	),
+                        new LatLng(37.207328	,126.651683	),
+                        new LatLng(37.206685	,126.646639	),
+                        new LatLng(37.210916	,126.646914	),
+                        new LatLng(37.214427	,126.642061	),
+                        new LatLng(37.218691	,126.626966	),
+                        new LatLng(37.22101 	,126.626021	),
+                        new LatLng(37.2187  	,126.629016	),
+                        new LatLng(37.222033	,126.629264	),
+                        new LatLng(37.221355	,126.626385	),
+                        new LatLng(37.225938	,126.623721	),
+                        new LatLng(37.235503	,126.624349	),
+                        new LatLng(37.236453	,126.621564	),
+                        new LatLng(37.229587	,126.61893	),
+                        new LatLng(37.233942	,126.610962	),
+                        new LatLng(37.229441	,126.609778	),
+                        new LatLng(37.230476	,126.603596	),
+                        new LatLng(37.2327  	,126.604144	),
+                        new LatLng(37.228181	,126.600203	),
+                        new LatLng(37.231945	,126.59532	),
+                        new LatLng(37.235504	,126.597282	),
+                        new LatLng(37.232212	,126.5945	),
+                        new LatLng(37.236043	,126.592676	),
+                        new LatLng(37.233458	,126.590351	),
+                        new LatLng(37.233842	,126.587254	),
+                        new LatLng(37.237045	,126.587667	),
+                        new LatLng(37.233893	,126.587068	),
+                        new LatLng(37.234727	,126.584166	),
+                        new LatLng(37.220564	,126.609794	),
+                        new LatLng(37.207753	,126.614062	),
+                        new LatLng(37.214024	,126.601354	),
+                        new LatLng(37.217067	,126.601383	),
+                        new LatLng(37.213529	,126.590572	),
+                        new LatLng(37.2206  	,126.586776	),
+                        new LatLng(37.222101	,126.577072	),
+                        new LatLng(37.204697	,126.568216	),
+                        new LatLng(37.199556	,126.56937	),
+                        new LatLng(37.198464	,126.565395	),
+                        new LatLng(37.193252	,126.562483	),
+                        new LatLng(37.199125	,126.560354	),
+                        new LatLng(37.204673	,126.552413	),
+                        new LatLng(37.207459	,126.557324	),
+                        new LatLng(37.20477 	,126.552029	),
+                        new LatLng(37.206076	,126.541897	),
+                        new LatLng(37.205551	,126.548926	),
+                        new LatLng(37.20627 	,126.54521	),
+                        new LatLng(37.214684	,126.543221	),
+                        new LatLng(37.21496 	,126.555299	),
+                        new LatLng(37.217854	,126.557275	),
+                        new LatLng(37.221213	,126.553534	),
+                        new LatLng(37.223319	,126.557339	),
+                        new LatLng(37.221418	,126.553043	),
+                        new LatLng(37.22428 	,126.550039	),
+                        new LatLng(37.221084	,126.546748	),
+                        new LatLng(37.224496	,126.545269	),
+                        new LatLng(37.223009	,126.541602	),
+                        new LatLng(37.228795	,126.540859	),
+                        new LatLng(37.227871	,126.543067	),
+                        new LatLng(37.229995	,126.544755	),
+                        new LatLng(37.233607	,126.542098	),
+                        new LatLng(37.233248	,126.553886	),
+                        new LatLng(37.236574	,126.558242	),
+                        new LatLng(37.236838	,126.569267	),
+                        new LatLng(37.242405	,126.56103	),
+                        new LatLng(37.246151	,126.561571	),
+                        new LatLng(37.247938	,126.558261	),
+                        new LatLng(37.251343	,126.563036	),
+                        new LatLng(37.256304	,126.563613	),
+                        new LatLng(37.258165	,126.559349	),
+                        new LatLng(37.266362	,126.558898	),
+                        new LatLng(37.267811	,126.555846	),
+                        new LatLng(37.271833	,126.555336	),
+                        new LatLng(37.27372	    ,126.550616	),
+                        new LatLng(37.280171	,126.548816	),
+                        new LatLng(37.282661	,126.53889	),
+                        new LatLng(37.286734	,126.538095	),
+                        new LatLng(37.281302	,126.551872	),
+                        new LatLng(37.28331 	,126.555705	),
+                        new LatLng(37.275813	,126.55563	),
+                        new LatLng(37.277653	,126.56393	),
+                        new LatLng(37.280542	,126.567933	),
+                        new LatLng(37.283584	,126.566556	),
+                        new LatLng(37.290795	,126.578258	),
+                        new LatLng(37.297606	,126.571829	),
+                        new LatLng(37.293005	,126.577713	),
+                        new LatLng(37.294388	,126.579852	),
+                        new LatLng(37.295846	,126.57805	),
+                        new LatLng(37.294655	,126.5803	),
+                        new LatLng(37.313539	,126.61191	),
+                        new LatLng(37.315943	,126.621681	),
+                        new LatLng(37.292825	,126.578031	),
+                        new LatLng(37.290456	,126.582747	),
+                        new LatLng(37.287857	,126.576167	),
+                        new LatLng(37.280848	,126.57033	),
+                        new LatLng(37.271295	,126.568646	),
+                        new LatLng(37.27565 	,126.573822	),
+                        new LatLng(37.274647	,126.577713	),
+                        new LatLng(37.272076	,126.583997	),
+                        new LatLng(37.266649	,126.586374	),
+                        new LatLng(37.262149	,126.593503	),
+                        new LatLng(37.262851	,126.608426	),
+                        new LatLng(37.259618	,126.609497	),
+                        new LatLng(37.25803 	,126.616472	),
+                        new LatLng(37.249734	,126.613933	),
+                        new LatLng(37.248446	,126.620749	),
+                        new LatLng(37.245453	,126.619183	),
+                        new LatLng(37.242349	,126.623664	),
+                        new LatLng(37.236793	,126.621674	),
+                        new LatLng(37.225093	,126.65028	),
+                        new LatLng(37.22017 	,126.651162	),
+                        new LatLng(37.210968	,126.647443	),
+                        new LatLng(37.208579	,126.649787	),
+                        new LatLng(37.213177	,126.6517	),
+                        new LatLng(37.211753	,126.653752	)
                 )
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
                 .fillColor(clr));
@@ -10647,8 +11526,10142 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }else {
             iconFactory.setStyle(IconGenerator.STYLE_BLUE);
         }
-        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.408563, 127.116230));
-    }//
+        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.323148, 126.830889));
+    }//안산시 단원구
+    public void drawPolygon612(GoogleMap googlemap) { //
+        String name = "안산시";
+        int clr = Color.argb(100,255,0,0);
+        int mclr;
+        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
+        if(hmap.get(name)==null){
+            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
+            mclr = 1;
+        } else if(hmap.get(name).equals("-")){
+            clr = Color.argb(100,140,140,140);
+            mclr = 2;
+        }else if(Integer.parseInt(hmap.get(name))>150){
+            clr = Color.argb(100,255,0,0);
+            mclr = 3;
+        }else if(Integer.parseInt(hmap.get(name))>80){
+            clr = Color.argb(100,255,255,0);
+            mclr = 7;
+        }else if(Integer.parseInt(hmap.get(name))>30){
+            clr = Color.argb(100,0,255,0);
+            mclr = 5;
+        }else {
+            clr = Color.argb(100,0,0,255);
+            mclr = 4;
+        }
+
+        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+                .add(
+                        new LatLng(37.315989	,126.843011	),
+                        new LatLng(37.306112	,126.841611	),
+                        new LatLng(37.303625	,126.83451	),
+                        new LatLng(37.304169	,126.824402	),
+                        new LatLng(37.298043	,126.816802	),
+                        new LatLng(37.299516	,126.805251	),
+                        new LatLng(37.295617	,126.801257	),
+                        new LatLng(37.293407	,126.789365	),
+                        new LatLng(37.295415	,126.788773	),
+                        new LatLng(37.297352	,126.775579	),
+                        new LatLng(37.295157	,126.774472	),
+                        new LatLng(37.297413	,126.775367	),
+                        new LatLng(37.302549	,126.757347	),
+                        new LatLng(37.297788	,126.755039	),
+                        new LatLng(37.298993	,126.750815	),
+                        new LatLng(37.303821	,126.752927	),
+                        new LatLng(37.309365	,126.732366	),
+                        new LatLng(37.314594	,126.723924	),
+                        new LatLng(37.32967 	,126.738544	),
+                        new LatLng(37.324723	,126.74655	),
+                        new LatLng(37.329683	,126.748564	),
+                        new LatLng(37.333499	,126.749674	),
+                        new LatLng(37.335686	,126.753357	),
+                        new LatLng(37.336618	,126.755092	),
+                        new LatLng(37.336913	,126.755637	),
+                        new LatLng(37.338003	,126.757601	),
+                        new LatLng(37.340056	,126.75965	),
+                        new LatLng(37.341133	,126.760612	),
+                        new LatLng(37.342716	,126.767139	),
+                        new LatLng(37.342723	,126.767276	),
+                        new LatLng(37.340411	,126.783432	),
+                        new LatLng(37.336746	,126.784391	),
+                        new LatLng(37.343574	,126.793185	),
+                        new LatLng(37.350006	,126.790309	),
+                        new LatLng(37.350272	,126.790288	),
+                        new LatLng(37.355075	,126.79541	),
+                        new LatLng(37.352911	,126.805168	),
+                        new LatLng(37.35569 	,126.807542	),
+                        new LatLng(37.355615	,126.811504	),
+                        new LatLng(37.356084	,126.811898	),
+                        new LatLng(37.356449	,126.812093	),
+                        new LatLng(37.357014	,126.813047	),
+                        new LatLng(37.355451	,126.816279	),
+                        new LatLng(37.35849 	,126.817322	),
+                        new LatLng(37.358706	,126.817581	),
+                        new LatLng(37.361774	,126.820237	),
+                        new LatLng(37.361828	,126.820463	),
+                        new LatLng(37.36569 	,126.824066	),
+                        new LatLng(37.365907	,126.82428	),
+                        new LatLng(37.363175	,126.829298	),
+                        new LatLng(37.362968	,126.829524	),
+                        new LatLng(37.362786	,126.841468	),
+                        new LatLng(37.349982	,126.834407	),
+                        new LatLng(37.34701 	,126.835576	),
+                        new LatLng(37.343876	,126.842637	),
+                        new LatLng(37.338209	,126.836747	),
+                        new LatLng(37.333549	,126.841801	),
+                        new LatLng(37.315989	,126.843011	)
+                )
+                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .fillColor(clr));
+        polygon.setClickable(true);
+        namehmap.put(polygon.hashCode(),name);
+        colorhmap.put(polygon.hashCode(),clr);
+
+        IconGenerator iconFactory = new IconGenerator(this);
+        iconFactory.setColor(clr);
+        if(mclr == 2){
+            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
+        }else if(mclr == 3){
+            iconFactory.setStyle(IconGenerator.STYLE_RED);
+        }else if(mclr == 7){
+            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
+        }else if(mclr == 5){
+            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
+        }else {
+            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
+        }
+        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.323148, 126.830889));
+    }//안산시 단원구2
+    public void drawPolygon23(GoogleMap googlemap) { //서울 성동구
+        String name = "수원시";
+        int clr = Color.argb(100,255,0,0);
+        int mclr;
+        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
+        if(hmap.get(name)==null){
+            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
+            mclr = 1;
+        } else if(hmap.get(name).equals("-")){
+            clr = Color.argb(100,140,140,140);
+            mclr = 2;
+        }else if(Integer.parseInt(hmap.get(name))>150){
+            clr = Color.argb(100,255,0,0);
+            mclr = 3;
+        }else if(Integer.parseInt(hmap.get(name))>80){
+            clr = Color.argb(100,255,255,0);
+            mclr = 7;
+        }else if(Integer.parseInt(hmap.get(name))>30){
+            clr = Color.argb(100,0,255,0);
+            mclr = 5;
+        }else {
+            clr = Color.argb(100,0,0,255);
+            mclr = 4;
+        }
+        Log.d("log","kbc   ++))++))++  "+clr);
+        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+                .add(
+                        new LatLng(37.321097	,127.039754	),
+                        new LatLng(37.320937	,127.039696	),
+                        new LatLng(37.309641	,127.032391	),
+                        new LatLng(37.293362	,127.034083	),
+                        new LatLng(37.287381	,127.021336	),
+                        new LatLng(37.28936 	,127.01477	),
+                        new LatLng(37.285193	,127.007142	),
+                        new LatLng(37.289652	,127.000683	),
+                        new LatLng(37.286351	,126.990489	),
+                        new LatLng(37.291075	,126.984027	),
+                        new LatLng(37.288359	,126.977338	),
+                        new LatLng(37.286641	,126.978398	),
+                        new LatLng(37.286634	,126.969446	),
+                        new LatLng(37.294287	,126.968034	),
+                        new LatLng(37.30233 	,126.960791	),
+                        new LatLng(37.302347	,126.960868	),
+                        new LatLng(37.302364	,126.961292	),
+                        new LatLng(37.302373	,126.961428	),
+                        new LatLng(37.302393	,126.961939	),
+                        new LatLng(37.30241 	,126.962034	),
+                        new LatLng(37.307796	,126.966218	),
+                        new LatLng(37.317683	,126.966434	),
+                        new LatLng(37.319204	,126.968622	),
+                        new LatLng(37.319447	,126.968715	),
+                        new LatLng(37.323951	,126.966624	),
+                        new LatLng(37.32607 	,126.968382	),
+                        new LatLng(37.326164	,126.968413	),
+                        new LatLng(37.331779	,126.971261	),
+                        new LatLng(37.331569	,126.971922	),
+                        new LatLng(37.331438	,126.972335	),
+                        new LatLng(37.326578	,126.981604	),
+                        new LatLng(37.328321	,126.984491	),
+                        new LatLng(37.328389	,126.984563	),
+                        new LatLng(37.338381	,127.00048	),
+                        new LatLng(37.338728	,127.001323	),
+                        new LatLng(37.338792	,127.004404	),
+                        new LatLng(37.339214	,127.004863	),
+                        new LatLng(37.339304	,127.008901	),
+                        new LatLng(37.349428	,127.014283	),
+                        new LatLng(37.350952	,127.018191	),
+                        new LatLng(37.349341	,127.023577	),
+                        new LatLng(37.348679	,127.024164	),
+                        new LatLng(37.347971	,127.027166	),
+                        new LatLng(37.347707	,127.027999	),
+                        new LatLng(37.344519	,127.033456	),
+                        new LatLng(37.336588	,127.031685	),
+                        new LatLng(37.336428	,127.031715	),
+                        new LatLng(37.335204	,127.032742	),
+                        new LatLng(37.33467 	,127.033666	),
+                        new LatLng(37.328403	,127.037404	),
+                        new LatLng(37.328365	,127.037598	),
+                        new LatLng(37.322382	,127.039465	),
+                        new LatLng(37.321968	,127.039452	),
+                        new LatLng(37.321097	,127.039754	)
+                )
+                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .fillColor(clr));
+        polygon.setClickable(true);
+        namehmap.put(polygon.hashCode(),name);
+        colorhmap.put(polygon.hashCode(),clr);
+
+        IconGenerator iconFactory = new IconGenerator(this);
+        iconFactory.setColor(clr);
+        if(mclr == 2){
+            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
+        }else if(mclr == 3){
+            iconFactory.setStyle(IconGenerator.STYLE_RED);
+        }else if(mclr == 7){
+            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
+        }else if(mclr == 5){
+            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
+        }else {
+            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
+        }
+        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.281390, 127.008683));
+
+    }//수원시 장안구
+    public void drawPolygon19(GoogleMap googlemap) { //서울 성동구
+        String name = "수원시";
+        int clr = Color.argb(100,255,0,0);
+        int mclr;
+        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
+        if(hmap.get(name)==null){
+            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
+            mclr = 1;
+        } else if(hmap.get(name).equals("-")){
+            clr = Color.argb(100,140,140,140);
+            mclr = 2;
+        }else if(Integer.parseInt(hmap.get(name))>150){
+            clr = Color.argb(100,255,0,0);
+            mclr = 3;
+        }else if(Integer.parseInt(hmap.get(name))>80){
+            clr = Color.argb(100,255,255,0);
+            mclr = 7;
+        }else if(Integer.parseInt(hmap.get(name))>30){
+            clr = Color.argb(100,0,255,0);
+            mclr = 5;
+        }else {
+            clr = Color.argb(100,0,0,255);
+            mclr = 4;
+        }
+        Log.d("log","kbc   ++))++))++  "+clr);
+        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+                .add(
+                        new LatLng(37.27429 	,127.045965	),
+                        new LatLng(37.274966	,127.037258	),
+                        new LatLng(37.26947 	,127.038362	),
+                        new LatLng(37.266996	,127.033177	),
+                        new LatLng(37.265158	,127.040561	),
+                        new LatLng(37.256521	,127.036676	),
+                        new LatLng(37.25819 	,127.030478	),
+                        new LatLng(37.26166 	,127.031814	),
+                        new LatLng(37.264728	,127.020694	),
+                        new LatLng(37.263924	,127.013775	),
+                        new LatLng(37.267846	,127.009829	),
+                        new LatLng(37.263891	,127.007027	),
+                        new LatLng(37.263736	,127.00121	),
+                        new LatLng(37.269624	,126.998233	),
+                        new LatLng(37.270614	,126.994745	),
+                        new LatLng(37.270141	,126.997384	),
+                        new LatLng(37.277362	,126.993245	),
+                        new LatLng(37.27498 	,126.985803	),
+                        new LatLng(37.282617	,126.987031	),
+                        new LatLng(37.286641	,126.978398	),
+                        new LatLng(37.288359	,126.977338	),
+                        new LatLng(37.291075	,126.984027	),
+                        new LatLng(37.286351	,126.990489	),
+                        new LatLng(37.289652	,127.000683	),
+                        new LatLng(37.285193	,127.007142	),
+                        new LatLng(37.28936 	,127.01477	),
+                        new LatLng(37.287381	,127.021336	),
+                        new LatLng(37.293362	,127.034083	),
+                        new LatLng(37.290937	,127.041152	),
+                        new LatLng(37.29019 	,127.038223	),
+                        new LatLng(37.288411	,127.042503	),
+                        new LatLng(37.283534	,127.038673	),
+                        new LatLng(37.285829	,127.043411	),
+                        new LatLng(37.282717	,127.041816	),
+                        new LatLng(37.27429 	,127.045965	)
+                )
+                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .fillColor(clr));
+        polygon.setClickable(true);
+        namehmap.put(polygon.hashCode(),name);
+        colorhmap.put(polygon.hashCode(),clr);
+
+        IconGenerator iconFactory = new IconGenerator(this);
+        iconFactory.setColor(clr);
+        if(mclr == 2){
+            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
+        }else if(mclr == 3){
+            iconFactory.setStyle(IconGenerator.STYLE_RED);
+        }else if(mclr == 7){
+            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
+        }else if(mclr == 5){
+            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
+        }else {
+            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
+        }
+        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.281390, 127.008683));
+
+    }//수원시 팔달구
+    public void drawPolygon21(GoogleMap googlemap) { //
+        String name = "수원시";
+        int clr = Color.argb(100,255,0,0);
+        int mclr;
+        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
+        if(hmap.get(name)==null){
+            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
+            mclr = 1;
+        } else if(hmap.get(name).equals("-")){
+            clr = Color.argb(100,140,140,140);
+            mclr = 2;
+        }else if(Integer.parseInt(hmap.get(name))>150){
+            clr = Color.argb(100,255,0,0);
+            mclr = 3;
+        }else if(Integer.parseInt(hmap.get(name))>80){
+            clr = Color.argb(100,255,255,0);
+            mclr = 7;
+        }else if(Integer.parseInt(hmap.get(name))>30){
+            clr = Color.argb(100,0,255,0);
+            mclr = 5;
+        }else {
+            clr = Color.argb(100,0,0,255);
+            mclr = 4;
+        }
+        Log.d("log","kbc   ++))++))++  "+clr);
+        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+                .add(
+                        new LatLng(37.250981	,127.042171	),
+                        new LatLng(37.244441	,127.040202	),
+                        new LatLng(37.244253	,127.040228	),
+                        new LatLng(37.244252	,127.040228	),
+                        new LatLng(37.24425 	,127.040228	),
+                        new LatLng(37.244421	,127.040148	),
+                        new LatLng(37.24443 	,127.040148	),
+                        new LatLng(37.244569	,127.040125	),
+                        new LatLng(37.244547	,127.040111	),
+                        new LatLng(37.244315	,127.039963	),
+                        new LatLng(37.244252	,127.039918	),
+                        new LatLng(37.243921	,127.039635	),
+                        new LatLng(37.243637	,127.039398	),
+                        new LatLng(37.243561	,127.03933	),
+                        new LatLng(37.243563	,127.039264	),
+                        new LatLng(37.243565	,127.039223	),
+                        new LatLng(37.243678	,127.039082	),
+                        new LatLng(37.243552	,127.038947	),
+                        new LatLng(37.243421	,127.038933	),
+                        new LatLng(37.243314	,127.03893	),
+                        new LatLng(37.243223	,127.038913	),
+                        new LatLng(37.243047	,127.038941	),
+                        new LatLng(37.242768	,127.039037	),
+                        new LatLng(37.242669	,127.039116	),
+                        new LatLng(37.242457	,127.038885	),
+                        new LatLng(37.242358	,127.038676	),
+                        new LatLng(37.242219	,127.038507	),
+                        new LatLng(37.241926	,127.038208	),
+                        new LatLng(37.241775	,127.038218	),
+                        new LatLng(37.241642	,127.038276	),
+                        new LatLng(37.241552	,127.038315	),
+                        new LatLng(37.241547	,127.038439	),
+                        new LatLng(37.24152 	,127.038687	),
+                        new LatLng(37.241433	,127.038666	),
+                        new LatLng(37.241232	,127.038501	),
+                        new LatLng(37.241081	,127.038241	),
+                        new LatLng(37.240815	,127.038026	),
+                        new LatLng(37.240748	,127.03797	),
+                        new LatLng(37.240658	,127.037874	),
+                        new LatLng(37.2406  	,127.037736	),
+                        new LatLng(37.240577	,127.037643	),
+                        new LatLng(37.240565	,127.037593	),
+                        new LatLng(37.240678	,127.037289	),
+                        new LatLng(37.240786	,127.037143	),
+                        new LatLng(37.240904	,127.036979	),
+                        new LatLng(37.240765	,127.036765	),
+                        new LatLng(37.240732	,127.03672	),
+                        new LatLng(37.240682	,127.036665	),
+                        new LatLng(37.240467	,127.0365	),
+                        new LatLng(37.240345	,127.036505	),
+                        new LatLng(37.240162	,127.036564	),
+                        new LatLng(37.239994	,127.036556	),
+                        new LatLng(37.23991 	,127.03651	),
+                        new LatLng(37.239745	,127.03643	),
+                        new LatLng(37.239714	,127.0364	),
+                        new LatLng(37.239675	,127.036296	),
+                        new LatLng(37.239566	,127.036269	),
+                        new LatLng(37.239358	,127.036364	),
+                        new LatLng(37.239259	,127.036449	),
+                        new LatLng(37.239106	,127.036449	),
+                        new LatLng(37.23898 	,127.036471	),
+                        new LatLng(37.238882	,127.036776	),
+                        new LatLng(37.238881	,127.036809	),
+                        new LatLng(37.238872	,127.036956	),
+                        new LatLng(37.238894	,127.037131	),
+                        new LatLng(37.23889 	,127.037328	),
+                        new LatLng(37.238539	,127.03735	),
+                        new LatLng(37.238268	,127.03695	),
+                        new LatLng(37.238124	,127.036899	),
+                        new LatLng(37.238074	,127.036923	),
+                        new LatLng(37.238029	,127.036961	),
+                        new LatLng(37.237974	,127.037078	),
+                        new LatLng(37.237971	,127.037085	),
+                        new LatLng(37.237966	,127.037096	),
+                        new LatLng(37.237889	,127.037197	),
+                        new LatLng(37.237867	,127.037226	),
+                        new LatLng(37.237592	,127.036899	),
+                        new LatLng(37.237421	,127.036848	),
+                        new LatLng(37.237223	,127.037259	),
+                        new LatLng(37.237033	,127.037389	),
+                        new LatLng(37.236844	,127.037225	),
+                        new LatLng(37.236765	,127.036783	),
+                        new LatLng(37.236633	,127.036115	),
+                        new LatLng(37.236674	,127.035856	),
+                        new LatLng(37.236759	,127.035722	),
+                        new LatLng(37.23684 	,127.03558	),
+                        new LatLng(37.236845	,127.035276	),
+                        new LatLng(37.236656	,127.034673	),
+                        new LatLng(37.236494	,127.034633	),
+                        new LatLng(37.236483	,127.034639	),
+                        new LatLng(37.236214	,127.034825	),
+                        new LatLng(37.236142	,127.034847	),
+                        new LatLng(37.235913	,127.034576	),
+                        new LatLng(37.235943	,127.034092	),
+                        new LatLng(37.235944	,127.034075	),
+                        new LatLng(37.235498	,127.033478	),
+                        new LatLng(37.235255	,127.033106	),
+                        new LatLng(37.235091	,127.032837	),
+                        new LatLng(37.234769	,127.032497	),
+                        new LatLng(37.234643	,127.032407	),
+                        new LatLng(37.234417	,127.03235	),
+                        new LatLng(37.234224	,127.032333	),
+                        new LatLng(37.234102	,127.032164	),
+                        new LatLng(37.234055	,127.032016	),
+                        new LatLng(37.233881	,127.031629	),
+                        new LatLng(37.233629	,127.031516	),
+                        new LatLng(37.233569	,127.031359	),
+                        new LatLng(37.233566	,127.031352	),
+                        new LatLng(37.233519	,127.030482	),
+                        new LatLng(37.233017	,127.030124	),
+                        new LatLng(37.23271 	,127.030124	),
+                        new LatLng(37.23226 	,127.030135	),
+                        new LatLng(37.232071	,127.02991	),
+                        new LatLng(37.2319  	,127.029921	),
+                        new LatLng(37.231728	,127.029915	),
+                        new LatLng(37.231511	,127.029938	),
+                        new LatLng(37.23122 	,127.029991	),
+                        new LatLng(37.231173	,127.029706	),
+                        new LatLng(37.231226	,127.029335	),
+                        new LatLng(37.23112 	,127.028694	),
+                        new LatLng(37.231127	,127.028626	),
+                        new LatLng(37.231146	,127.028608	),
+                        new LatLng(37.231261	,127.028493	),
+                        new LatLng(37.231261	,127.028492	),
+                        new LatLng(37.231216	,127.028292	),
+                        new LatLng(37.231052	,127.028	),
+                        new LatLng(37.230873	,127.02752	),
+                        new LatLng(37.230702	,127.027171	),
+                        new LatLng(37.230603	,127.026855	),
+                        new LatLng(37.230602	,127.026844	),
+                        new LatLng(37.230603	,127.026675	),
+                        new LatLng(37.230648	,127.026528	),
+                        new LatLng(37.230639	,127.026326	),
+                        new LatLng(37.230747	,127.026247	),
+                        new LatLng(37.230949	,127.025741	),
+                        new LatLng(37.230962	,127.025662	),
+                        new LatLng(37.230995	,127.025335	),
+                        new LatLng(37.231013	,127.025211	),
+                        new LatLng(37.231013	,127.025109	),
+                        new LatLng(37.230986	,127.024905	),
+                        new LatLng(37.230941	,127.024668	),
+                        new LatLng(37.230889	,127.024428	),
+                        new LatLng(37.230859	,127.024263	),
+                        new LatLng(37.230824	,127.023802	),
+                        new LatLng(37.230923	,127.023442	),
+                        new LatLng(37.230923	,127.023361	),
+                        new LatLng(37.230896	,127.023237	),
+                        new LatLng(37.230896	,127.023232	),
+                        new LatLng(37.230894	,127.0232	),
+                        new LatLng(37.230816	,127.023247	),
+                        new LatLng(37.230019	,127.023526	),
+                        new LatLng(37.229765	,127.023447	),
+                        new LatLng(37.229675	,127.023531	),
+                        new LatLng(37.229653	,127.023597	),
+                        new LatLng(37.229653	,127.0237	),
+                        new LatLng(37.229658	,127.02377	),
+                        new LatLng(37.229672	,127.023798	),
+                        new LatLng(37.229536	,127.023813	),
+                        new LatLng(37.229608	,127.024016	),
+                        new LatLng(37.229537	,127.024215	),
+                        new LatLng(37.229353	,127.02427	),
+                        new LatLng(37.2293  	,127.024137	),
+                        new LatLng(37.229264	,127.024057	),
+                        new LatLng(37.228901	,127.023931	),
+                        new LatLng(37.228837	,127.02392	),
+                        new LatLng(37.228308	,127.023999	),
+                        new LatLng(37.227856	,127.023739	),
+                        new LatLng(37.227645	,127.023774	),
+                        new LatLng(37.227519	,127.024135	),
+                        new LatLng(37.227321	,127.024037	),
+                        new LatLng(37.22731 	,127.023957	),
+                        new LatLng(37.227246	,127.023798	),
+                        new LatLng(37.227044	,127.023474	),
+                        new LatLng(37.226999	,127.023485	),
+                        new LatLng(37.226954	,127.023406	),
+                        new LatLng(37.226215	,127.023102	),
+                        new LatLng(37.225882	,127.02328	),
+                        new LatLng(37.225667	,127.023053	),
+                        new LatLng(37.225092	,127.022705	),
+                        new LatLng(37.224774	,127.022301	),
+                        new LatLng(37.224544	,127.021871	),
+                        new LatLng(37.224699	,127.021523	),
+                        new LatLng(37.22472 	,127.021479	),
+                        new LatLng(37.225282	,127.021181	),
+                        new LatLng(37.225558	,127.020187	),
+                        new LatLng(37.225648	,127.019639	),
+                        new LatLng(37.225874	,127.018697	),
+                        new LatLng(37.225829	,127.018402	),
+                        new LatLng(37.225847	,127.017716	),
+                        new LatLng(37.225846	,127.017695	),
+                        new LatLng(37.225824	,127.017304	),
+                        new LatLng(37.22582 	,127.016995	),
+                        new LatLng(37.225789	,127.016373	),
+                        new LatLng(37.225787	,127.016308	),
+                        new LatLng(37.225806	,127.015778	),
+                        new LatLng(37.225981	,127.015247	),
+                        new LatLng(37.226684	,127.014131	),
+                        new LatLng(37.226713	,127.013907	),
+                        new LatLng(37.226686	,127.013795	),
+                        new LatLng(37.226687	,127.013791	),
+                        new LatLng(37.226704	,127.013702	),
+                        new LatLng(37.226504	,127.012986	),
+                        new LatLng(37.226433	,127.012676	),
+                        new LatLng(37.226433	,127.012566	),
+                        new LatLng(37.226397	,127.011934	),
+                        new LatLng(37.226376	,127.011607	),
+                        new LatLng(37.226361	,127.011383	),
+                        new LatLng(37.226406	,127.011063	),
+                        new LatLng(37.226514	,127.010771	),
+                        new LatLng(37.226555	,127.010718	),
+                        new LatLng(37.226577	,127.010666	),
+                        new LatLng(37.226605	,127.010611	),
+                        new LatLng(37.226616	,127.010403	),
+                        new LatLng(37.226641	,127.0102	),
+                        new LatLng(37.226663	,127.010104	),
+                        new LatLng(37.226785	,127.009693	),
+                        new LatLng(37.226888	,127.009162	),
+                        new LatLng(37.22693 	,127.008862	),
+                        new LatLng(37.227019	,127.008442	),
+                        new LatLng(37.227434	,127.007676	),
+                        new LatLng(37.227449	,127.007627	),
+                        new LatLng(37.227474	,127.007545	),
+                        new LatLng(37.227555	,127.007282	),
+                        new LatLng(37.227641	,127.00722	),
+                        new LatLng(37.228803	,127.006547	),
+                        new LatLng(37.22891 	,127.006538	),
+                        new LatLng(37.229056	,127.006482	),
+                        new LatLng(37.229074	,127.006347	),
+                        new LatLng(37.228984	,127.006162	),
+                        new LatLng(37.228934	,127.005135	),
+                        new LatLng(37.229006	,127.004617	),
+                        new LatLng(37.229177	,127.004079	),
+                        new LatLng(37.229168	,127.004059	),
+                        new LatLng(37.229209	,127.003997	),
+                        new LatLng(37.229679	,127.003819	),
+                        new LatLng(37.229997	,127.003732	),
+                        new LatLng(37.230119	,127.00358	),
+                        new LatLng(37.230196	,127.003327	),
+                        new LatLng(37.230005	,127.002841	),
+                        new LatLng(37.229998	,127.00282	),
+                        new LatLng(37.229966	,127.002718	),
+                        new LatLng(37.229945	,127.002704	),
+                        new LatLng(37.22979 	,127.002741	),
+                        new LatLng(37.229596	,127.002842	),
+                        new LatLng(37.229475	,127.003141	),
+                        new LatLng(37.229443	,127.003197	),
+                        new LatLng(37.229367	,127.003293	),
+                        new LatLng(37.229137	,127.003365	),
+                        new LatLng(37.229114	,127.003372	),
+                        new LatLng(37.228929	,127.003357	),
+                        new LatLng(37.228885	,127.00336	),
+                        new LatLng(37.228901	,127.003317	),
+                        new LatLng(37.228803	,127.003237	),
+                        new LatLng(37.228822	,127.003203	),
+                        new LatLng(37.228957	,127.00291	),
+                        new LatLng(37.228995	,127.002776	),
+                        new LatLng(37.229033	,127.002622	),
+                        new LatLng(37.22888 	,127.002301	),
+                        new LatLng(37.228553	,127.002234	),
+                        new LatLng(37.228416	,127.002166	),
+                        new LatLng(37.227763	,127.0014	),
+                        new LatLng(37.227637	,127.001242	),
+                        new LatLng(37.227537	,127.00127	),
+                        new LatLng(37.227402	,127.001298	),
+                        new LatLng(37.226983	,127.001186	),
+                        new LatLng(37.226853	,127.001186	),
+                        new LatLng(37.226609	,127.001163	),
+                        new LatLng(37.226447	,127.00056	),
+                        new LatLng(37.226623	,127.000431	),
+                        new LatLng(37.226808	,127.000278	),
+                        new LatLng(37.226799	,127.00025	),
+                        new LatLng(37.226799	,127.000217	),
+                        new LatLng(37.226781	,127.000125	),
+                        new LatLng(37.226159	,126.998961	),
+                        new LatLng(37.226118	,126.998932	),
+                        new LatLng(37.225807	,126.998791	),
+                        new LatLng(37.225641	,126.998707	),
+                        new LatLng(37.225591	,126.998481	),
+                        new LatLng(37.225807	,126.9982	),
+                        new LatLng(37.225866	,126.998194	),
+                        new LatLng(37.226033	,126.998177	),
+                        new LatLng(37.226064	,126.99816	),
+                        new LatLng(37.226294	,126.998031	),
+                        new LatLng(37.226582	,126.998245	),
+                        new LatLng(37.226862	,126.998222	),
+                        new LatLng(37.226938	,126.9982	),
+                        new LatLng(37.226979	,126.997896	),
+                        new LatLng(37.226988	,126.997845	),
+                        new LatLng(37.227006	,126.997749	),
+                        new LatLng(37.227019	,126.997642	),
+                        new LatLng(37.227154	,126.997535	),
+                        new LatLng(37.227371	,126.997642	),
+                        new LatLng(37.227416	,126.997681	),
+                        new LatLng(37.227718	,126.997659	),
+                        new LatLng(37.227736	,126.997625	),
+                        new LatLng(37.227745	,126.997231	),
+                        new LatLng(37.227705	,126.997111	),
+                        new LatLng(37.227618	,126.996825	),
+                        new LatLng(37.227614	,126.996808	),
+                        new LatLng(37.227638	,126.996773	),
+                        new LatLng(37.227691	,126.99669	),
+                        new LatLng(37.227826	,126.996611	),
+                        new LatLng(37.227848	,126.996605	),
+                        new LatLng(37.227943	,126.996594	),
+                        new LatLng(37.228055	,126.996588	),
+                        new LatLng(37.228186	,126.996611	),
+                        new LatLng(37.228438	,126.996813	),
+                        new LatLng(37.228433	,126.996818	),
+                        new LatLng(37.228425	,126.996825	),
+                        new LatLng(37.228303	,126.996921	),
+                        new LatLng(37.228285	,126.996938	),
+                        new LatLng(37.228767	,126.997811	),
+                        new LatLng(37.228904	,126.997854	),
+                        new LatLng(37.228966	,126.997873	),
+                        new LatLng(37.229179	,126.997686	),
+                        new LatLng(37.229195	,126.997664	),
+                        new LatLng(37.229236	,126.99758	),
+                        new LatLng(37.229267	,126.997355	),
+                        new LatLng(37.229248	,126.997084	),
+                        new LatLng(37.229254	,126.997005	),
+                        new LatLng(37.229267	,126.99696	),
+                        new LatLng(37.229312	,126.996842	),
+                        new LatLng(37.229475	,126.99656	),
+                        new LatLng(37.229473	,126.996555	),
+                        new LatLng(37.22952 	,126.996329	),
+                        new LatLng(37.229574	,126.99598	),
+                        new LatLng(37.22983 	,126.995557	),
+                        new LatLng(37.229931	,126.995418	),
+                        new LatLng(37.229952	,126.995394	),
+                        new LatLng(37.230001	,126.995326	),
+                        new LatLng(37.230119	,126.995208	),
+                        new LatLng(37.230565	,126.99443	),
+                        new LatLng(37.230508	,126.993896	),
+                        new LatLng(37.230533	,126.993844	),
+                        new LatLng(37.230623	,126.993332	),
+                        new LatLng(37.230819	,126.993158	),
+                        new LatLng(37.230883	,126.993092	),
+                        new LatLng(37.230894	,126.993078	),
+                        new LatLng(37.231272	,126.992689	),
+                        new LatLng(37.231285	,126.992453	),
+                        new LatLng(37.231252	,126.99225	),
+                        new LatLng(37.231218	,126.992024	),
+                        new LatLng(37.2312  	,126.991968	),
+                        new LatLng(37.23097 	,126.991596	),
+                        new LatLng(37.231321	,126.990942	),
+                        new LatLng(37.231312	,126.990559	),
+                        new LatLng(37.231438	,126.990368	),
+                        new LatLng(37.231628	,126.990334	),
+                        new LatLng(37.231898	,126.990565	),
+                        new LatLng(37.23215 	,126.990559	),
+                        new LatLng(37.232286	,126.990198	),
+                        new LatLng(37.232285	,126.990154	),
+                        new LatLng(37.23229 	,126.990131	),
+                        new LatLng(37.23229 	,126.99013	),
+                        new LatLng(37.232285	,126.990086	),
+                        new LatLng(37.232276	,126.990008	),
+                        new LatLng(37.232218	,126.989979	),
+                        new LatLng(37.2322  	,126.989973	),
+                        new LatLng(37.231979	,126.989951	),
+                        new LatLng(37.231875	,126.989934	),
+                        new LatLng(37.231614	,126.989759	),
+                        new LatLng(37.231601	,126.989737	),
+                        new LatLng(37.231686	,126.989466	),
+                        new LatLng(37.231812	,126.989297	),
+                        new LatLng(37.231947	,126.989252	),
+                        new LatLng(37.232074	,126.989224	),
+                        new LatLng(37.232222	,126.989252	),
+                        new LatLng(37.232402	,126.989342	),
+                        new LatLng(37.232754	,126.989579	),
+                        new LatLng(37.233051	,126.98959	),
+                        new LatLng(37.233585	,126.98933	),
+                        new LatLng(37.23415 	,126.988018	),
+                        new LatLng(37.23424 	,126.987674	),
+                        new LatLng(37.23415 	,126.98746	),
+                        new LatLng(37.234042	,126.987381	),
+                        new LatLng(37.233853	,126.987336	),
+                        new LatLng(37.233736	,126.987342	),
+                        new LatLng(37.233659	,126.987438	),
+                        new LatLng(37.233637	,126.987477	),
+                        new LatLng(37.233551	,126.98764	),
+                        new LatLng(37.233537	,126.987653	),
+                        new LatLng(37.233498	,126.98767	),
+                        new LatLng(37.233442	,126.987683	),
+                        new LatLng(37.233434	,126.987691	),
+                        new LatLng(37.233411	,126.987663	),
+                        new LatLng(37.23356 	,126.986688	),
+                        new LatLng(37.233601	,126.986649	),
+                        new LatLng(37.233609	,126.986643	),
+                        new LatLng(37.233646	,126.986626	),
+                        new LatLng(37.233682	,126.986615	),
+                        new LatLng(37.233767	,126.986615	),
+                        new LatLng(37.234125	,126.986804	),
+                        new LatLng(37.234209	,126.986829	),
+                        new LatLng(37.234263	,126.986795	),
+                        new LatLng(37.234192	,126.986429	),
+                        new LatLng(37.234042	,126.986192	),
+                        new LatLng(37.233561	,126.986035	),
+                        new LatLng(37.23356 	,126.986029	),
+                        new LatLng(37.23347 	,126.986068	),
+                        new LatLng(37.233272	,126.986142	),
+                        new LatLng(37.233207	,126.986169	),
+                        new LatLng(37.233127	,126.986198	),
+                        new LatLng(37.233112	,126.986218	),
+                        new LatLng(37.233087	,126.986226	),
+                        new LatLng(37.233046	,126.986232	),
+                        new LatLng(37.232974	,126.986243	),
+                        new LatLng(37.232901	,126.986295	),
+                        new LatLng(37.232857	,126.986311	),
+                        new LatLng(37.232794	,126.986159	),
+                        new LatLng(37.232704	,126.98586	),
+                        new LatLng(37.232668	,126.98568	),
+                        new LatLng(37.232533	,126.985404	),
+                        new LatLng(37.232421	,126.985247	),
+                        new LatLng(37.232312	,126.985178	),
+                        new LatLng(37.23224 	,126.985009	),
+                        new LatLng(37.232064	,126.985105	),
+                        new LatLng(37.231911	,126.985119	),
+                        new LatLng(37.231695	,126.985083	),
+                        new LatLng(37.231429	,126.984925	),
+                        new LatLng(37.231109	,126.984896	),
+                        new LatLng(37.231077	,126.984897	),
+                        new LatLng(37.230911	,126.984829	),
+                        new LatLng(37.230812	,126.984739	),
+                        new LatLng(37.230803	,126.984672	),
+                        new LatLng(37.230903	,126.984385	),
+                        new LatLng(37.230924	,126.984328	),
+                        new LatLng(37.230927	,126.984293	),
+                        new LatLng(37.230938	,126.984159	),
+                        new LatLng(37.230947	,126.98408	),
+                        new LatLng(37.231397	,126.983556	),
+                        new LatLng(37.231456	,126.983218	),
+                        new LatLng(37.231494	,126.983087	),
+                        new LatLng(37.231555	,126.982902	),
+                        new LatLng(37.231879	,126.982598	),
+                        new LatLng(37.2321  	,126.982632	),
+                        new LatLng(37.232167	,126.982592	),
+                        new LatLng(37.232253	,126.982378	),
+                        new LatLng(37.232244	,126.982327	),
+                        new LatLng(37.230617	,126.97906	),
+                        new LatLng(37.230365	,126.978953	),
+                        new LatLng(37.229842	,126.979021	),
+                        new LatLng(37.229455	,126.978964	),
+                        new LatLng(37.22954 	,126.97817	),
+                        new LatLng(37.230215	,126.976536	),
+                        new LatLng(37.229413	,126.974964	),
+                        new LatLng(37.2293  	,126.974637	),
+                        new LatLng(37.228795	,126.972649	),
+                        new LatLng(37.228819	,126.972616	),
+                        new LatLng(37.228815	,126.972613	),
+                        new LatLng(37.228803	,126.972608	),
+                        new LatLng(37.2288  	,126.972593	),
+                        new LatLng(37.228813	,126.972581	),
+                        new LatLng(37.229013	,126.971428	),
+                        new LatLng(37.229124	,126.971133	),
+                        new LatLng(37.229372	,126.970581	),
+                        new LatLng(37.229322	,126.970536	),
+                        new LatLng(37.229402	,126.97041	),
+                        new LatLng(37.229584	,126.970162	),
+                        new LatLng(37.229684	,126.969975	),
+                        new LatLng(37.229745	,126.969865	),
+                        new LatLng(37.229826	,126.969803	),
+                        new LatLng(37.23043 	,126.96942	),
+                        new LatLng(37.230628	,126.969395	),
+                        new LatLng(37.231007	,126.96932	),
+                        new LatLng(37.231475	,126.969287	),
+                        new LatLng(37.231881	,126.968991	),
+                        new LatLng(37.232005	,126.968967	),
+                        new LatLng(37.232183	,126.968922	),
+                        new LatLng(37.232511	,126.968811	),
+                        new LatLng(37.232507	,126.968838	),
+                        new LatLng(37.232691	,126.968751	),
+                        new LatLng(37.232908	,126.968664	),
+                        new LatLng(37.23301 	,126.968588	),
+                        new LatLng(37.233579	,126.96819	),
+                        new LatLng(37.233601	,126.968196	),
+                        new LatLng(37.233683	,126.968189	),
+                        new LatLng(37.233781	,126.96819	),
+                        new LatLng(37.233916	,126.968169	),
+                        new LatLng(37.233999	,126.968142	),
+                        new LatLng(37.23416 	,126.968129	),
+                        new LatLng(37.234331	,126.968143	),
+                        new LatLng(37.234376	,126.96814	),
+                        new LatLng(37.234588	,126.968055	),
+                        new LatLng(37.234655	,126.968004	),
+                        new LatLng(37.234818	,126.96788	),
+                        new LatLng(37.234962	,126.967694	),
+                        new LatLng(37.235115	,126.967491	),
+                        new LatLng(37.235105	,126.967475	),
+                        new LatLng(37.235489	,126.96695	),
+                        new LatLng(37.235799	,126.966437	),
+                        new LatLng(37.236146	,126.965738	),
+                        new LatLng(37.236182	,126.965659	),
+                        new LatLng(37.236565	,126.96505	),
+                        new LatLng(37.236806	,126.964738	),
+                        new LatLng(37.236857	,126.964667	),
+                        new LatLng(37.23687 	,126.964673	),
+                        new LatLng(37.237078	,126.964346	),
+                        new LatLng(37.237222	,126.964058	),
+                        new LatLng(37.237367	,126.963687	),
+                        new LatLng(37.237524	,126.963185	),
+                        new LatLng(37.237627	,126.962813	),
+                        new LatLng(37.237753	,126.962159	),
+                        new LatLng(37.23788 	,126.961731	),
+                        new LatLng(37.23805 	,126.961319	),
+                        new LatLng(37.238284	,126.960722	),
+                        new LatLng(37.238563	,126.960181	),
+                        new LatLng(37.239036	,126.959324	),
+                        new LatLng(37.239806	,126.957763	),
+                        new LatLng(37.240126	,126.957526	),
+                        new LatLng(37.24027 	,126.957492	),
+                        new LatLng(37.240392	,126.957548	),
+                        new LatLng(37.240599	,126.957655	),
+                        new LatLng(37.240964	,126.957869	),
+                        new LatLng(37.241186	,126.957947	),
+                        new LatLng(37.242086	,126.957976	),
+                        new LatLng(37.242338	,126.957994	),
+                        new LatLng(37.24246 	,126.957998	),
+                        new LatLng(37.242806	,126.957981	),
+                        new LatLng(37.242933	,126.957975	),
+                        new LatLng(37.243195	,126.957853	),
+                        new LatLng(37.243311	,126.957805	),
+                        new LatLng(37.243368	,126.957784	),
+                        new LatLng(37.243425	,126.957761	),
+                        new LatLng(37.243478	,126.957721	),
+                        new LatLng(37.244168	,126.957352	),
+                        new LatLng(37.244218	,126.957325	),
+                        new LatLng(37.244433	,126.957146	),
+                        new LatLng(37.244788	,126.956766	),
+                        new LatLng(37.245082	,126.956707	),
+                        new LatLng(37.245117	,126.9567	),
+                        new LatLng(37.24618 	,126.956294	),
+                        new LatLng(37.246694	,126.956192	),
+                        new LatLng(37.246761	,126.956175	),
+                        new LatLng(37.246802	,126.956057	),
+                        new LatLng(37.247027	,126.95564	),
+                        new LatLng(37.247086	,126.955448	),
+                        new LatLng(37.247194	,126.955341	),
+                        new LatLng(37.247383	,126.955138	),
+                        new LatLng(37.247802	,126.954307	),
+                        new LatLng(37.248225	,126.953424	),
+                        new LatLng(37.248211	,126.95339	),
+                        new LatLng(37.248576	,126.953035	),
+                        new LatLng(37.249058	,126.952826	),
+                        new LatLng(37.249468	,126.952736	),
+                        new LatLng(37.249544	,126.95273	),
+                        new LatLng(37.249603	,126.952736	),
+                        new LatLng(37.249673	,126.952723	),
+                        new LatLng(37.249695	,126.952719	),
+                        new LatLng(37.249824	,126.952709	),
+                        new LatLng(37.250149	,126.952712	),
+                        new LatLng(37.2505  	,126.952698	),
+                        new LatLng(37.250644	,126.952662	),
+                        new LatLng(37.251236	,126.952561	),
+                        new LatLng(37.251536	,126.952504	),
+                        new LatLng(37.251599	,126.952505	),
+                        new LatLng(37.251744	,126.952449	),
+                        new LatLng(37.251747	,126.952441	),
+                        new LatLng(37.252107	,126.951697	),
+                        new LatLng(37.252385	,126.950825	),
+                        new LatLng(37.252463	,126.950592	),
+                        new LatLng(37.25312 	,126.950372	),
+                        new LatLng(37.253643	,126.950191	),
+                        new LatLng(37.253715	,126.9501	),
+                        new LatLng(37.254013	,126.949855	),
+                        new LatLng(37.254323	,126.949768	),
+                        new LatLng(37.25435 	,126.949858	),
+                        new LatLng(37.254499	,126.949878	),
+                        new LatLng(37.254671	,126.949916	),
+                        new LatLng(37.254769	,126.949931	),
+                        new LatLng(37.255026	,126.949999	),
+                        new LatLng(37.255121	,126.950066	),
+                        new LatLng(37.255301	,126.950032	),
+                        new LatLng(37.255482	,126.950096	),
+                        new LatLng(37.255504	,126.9501	),
+                        new LatLng(37.255711	,126.950083	),
+                        new LatLng(37.255989	,126.949509	),
+                        new LatLng(37.256044	,126.949378	),
+                        new LatLng(37.256073	,126.94934	),
+                        new LatLng(37.256146	,126.949253	),
+                        new LatLng(37.256368	,126.949006	),
+                        new LatLng(37.256384	,126.948951	),
+                        new LatLng(37.256481	,126.948679	),
+                        new LatLng(37.256779	,126.948386	),
+                        new LatLng(37.256859	,126.948228	),
+                        new LatLng(37.25703 	,126.947884	),
+                        new LatLng(37.257158	,126.947373	),
+                        new LatLng(37.257439	,126.946345	),
+                        new LatLng(37.257254	,126.945789	),
+                        new LatLng(37.257155	,126.945494	),
+                        new LatLng(37.257031	,126.944465	),
+                        new LatLng(37.256967	,126.943719	),
+                        new LatLng(37.257077	,126.9432	),
+                        new LatLng(37.25696 	,126.942665	),
+                        new LatLng(37.256716	,126.94156	),
+                        new LatLng(37.256874	,126.941402	),
+                        new LatLng(37.256927	,126.940811	),
+                        new LatLng(37.256878	,126.940664	),
+                        new LatLng(37.256896	,126.940501	),
+                        new LatLng(37.256844	,126.940354	),
+                        new LatLng(37.256778	,126.939492	),
+                        new LatLng(37.25667 	,126.939075	),
+                        new LatLng(37.25683 	,126.936583	),
+                        new LatLng(37.256821	,126.936487	),
+                        new LatLng(37.256799	,126.936223	),
+                        new LatLng(37.256862	,126.935794	),
+                        new LatLng(37.256974	,126.935574	),
+                        new LatLng(37.258091	,126.935173	),
+                        new LatLng(37.258816	,126.934293	),
+                        new LatLng(37.260306	,126.93286	),
+                        new LatLng(37.260811	,126.932296	),
+                        new LatLng(37.260927	,126.930814	),
+                        new LatLng(37.261075	,126.930639	),
+                        new LatLng(37.262328	,126.930322	),
+                        new LatLng(37.263084	,126.930247	),
+                        new LatLng(37.264494	,126.929593	),
+                        new LatLng(37.26512 	,126.929653	),
+                        new LatLng(37.265684	,126.929507	),
+                        new LatLng(37.265701	,126.929516	),
+                        new LatLng(37.265859	,126.929597	),
+                        new LatLng(37.265989	,126.929549	),
+                        new LatLng(37.266193	,126.929422	),
+                        new LatLng(37.266788	,126.929608	),
+                        new LatLng(37.267091	,126.92916	),
+                        new LatLng(37.267999	,126.928907	),
+                        new LatLng(37.268293	,126.928668	),
+                        new LatLng(37.269287	,126.928754	),
+                        new LatLng(37.269522	,126.928962	),
+                        new LatLng(37.270599	,126.929587	),
+                        new LatLng(37.270576	,126.928488	),
+                        new LatLng(37.270823	,126.928623	),
+                        new LatLng(37.271121	,126.928589	),
+                        new LatLng(37.271274	,126.928115	),
+                        new LatLng(37.27126 	,126.927467	),
+                        new LatLng(37.271336	,126.927061	),
+                        new LatLng(37.272061	,126.926981	),
+                        new LatLng(37.273418	,126.927346	),
+                        new LatLng(37.27362 	,126.927622	),
+                        new LatLng(37.273995	,126.928096	),
+                        new LatLng(37.275049	,126.927993	),
+                        new LatLng(37.275792	,126.928364	),
+                        new LatLng(37.276504	,126.928538	),
+                        new LatLng(37.276779	,126.928448	),
+                        new LatLng(37.277662	,126.927688	),
+                        new LatLng(37.27818 	,126.927781	),
+                        new LatLng(37.278598	,126.92733	),
+                        new LatLng(37.278806	,126.927287	),
+                        new LatLng(37.279422	,126.927516	),
+                        new LatLng(37.282258	,126.928036	),
+                        new LatLng(37.283169	,126.928393	),
+                        new LatLng(37.284208	,126.928815	),
+                        new LatLng(37.286382	,126.930601	),
+                        new LatLng(37.286719	,126.930938	),
+                        new LatLng(37.287866	,126.931837	),
+                        new LatLng(37.288318	,126.932051	),
+                        new LatLng(37.28916 	,126.932188	),
+                        new LatLng(37.290022	,126.932542	),
+                        new LatLng(37.291005	,126.932851	),
+                        new LatLng(37.291576	,126.933037	),
+                        new LatLng(37.291996	,126.933451	),
+                        new LatLng(37.292079	,126.933788	),
+                        new LatLng(37.292424	,126.934302	),
+                        new LatLng(37.292501	,126.934679	),
+                        new LatLng(37.292743	,126.935374	),
+                        new LatLng(37.292841	,126.935817	),
+                        new LatLng(37.293213	,126.936794	),
+                        new LatLng(37.293371	,126.937133	),
+                        new LatLng(37.293756	,126.937506	),
+                        new LatLng(37.294175	,126.93788	),
+                        new LatLng(37.294278	,126.938103	),
+                        new LatLng(37.294293	,126.938091	),
+                        new LatLng(37.294506	,126.938481	),
+                        new LatLng(37.294577	,126.938602	),
+                        new LatLng(37.294632	,126.938742	),
+                        new LatLng(37.294761	,126.938903	),
+                        new LatLng(37.294858	,126.939018	),
+                        new LatLng(37.294915	,126.939125	),
+                        new LatLng(37.295131	,126.939395	),
+                        new LatLng(37.295315	,126.939586	),
+                        new LatLng(37.295446	,126.939607	),
+                        new LatLng(37.295567	,126.939596	),
+                        new LatLng(37.295686	,126.939535	),
+                        new LatLng(37.296129	,126.939447	),
+                        new LatLng(37.296868	,126.937967	),
+                        new LatLng(37.297568	,126.93665	),
+                        new LatLng(37.297878	,126.935813	),
+                        new LatLng(37.298036	,126.935436	),
+                        new LatLng(37.299397	,126.933883	),
+                        new LatLng(37.300061	,126.933595	),
+                        new LatLng(37.300302	,126.933411	),
+                        new LatLng(37.300706	,126.932865	),
+                        new LatLng(37.30231 	,126.932606	),
+                        new LatLng(37.303042	,126.932933	),
+                        new LatLng(37.302861	,126.935723	),
+                        new LatLng(37.302837	,126.93656	),
+                        new LatLng(37.300564	,126.946765	),
+                        new LatLng(37.300555	,126.946912	),
+                        new LatLng(37.300537	,126.947331	),
+                        new LatLng(37.300522	,126.947773	),
+                        new LatLng(37.303142	,126.954363	),
+                        new LatLng(37.302223	,126.9596	),
+                        new LatLng(37.302235	,126.960112	),
+                        new LatLng(37.302264	,126.960475	),
+                        new LatLng(37.30233 	,126.960791	),
+                        new LatLng(37.294287	,126.968034	),
+                        new LatLng(37.286634	,126.969446	),
+                        new LatLng(37.286641	,126.978398	),
+                        new LatLng(37.282617	,126.987031	),
+                        new LatLng(37.27498 	,126.985803	),
+                        new LatLng(37.277362	,126.993245	),
+                        new LatLng(37.270141	,126.997384	),
+                        new LatLng(37.270614	,126.994745	),
+                        new LatLng(37.269624	,126.998233	),
+                        new LatLng(37.263736	,127.00121	),
+                        new LatLng(37.263891	,127.007027	),
+                        new LatLng(37.267846	,127.009829	),
+                        new LatLng(37.263924	,127.013775	),
+                        new LatLng(37.264728	,127.020694	),
+                        new LatLng(37.26166 	,127.031814	),
+                        new LatLng(37.25819 	,127.030478	),
+                        new LatLng(37.256521	,127.036676	),
+                        new LatLng(37.250981	,127.042171	)
+                )
+                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .fillColor(clr));
+        polygon.setClickable(true);
+        namehmap.put(polygon.hashCode(),name);
+        colorhmap.put(polygon.hashCode(),clr);
+
+        IconGenerator iconFactory = new IconGenerator(this);
+        iconFactory.setColor(clr);
+        if(mclr == 2){
+            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
+        }else if(mclr == 3){
+            iconFactory.setStyle(IconGenerator.STYLE_RED);
+        }else if(mclr == 7){
+            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
+        }else if(mclr == 5){
+            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
+        }else {
+            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
+        }
+        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.281390, 127.008683));
+
+    }//수원시 권선구
+    public void drawPolygon20(GoogleMap googlemap) { //
+        String name = "수원시";
+        int clr = Color.argb(100,255,0,0);
+        int mclr;
+        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
+        if(hmap.get(name)==null){
+            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
+            mclr = 1;
+        } else if(hmap.get(name).equals("-")){
+            clr = Color.argb(100,140,140,140);
+            mclr = 2;
+        }else if(Integer.parseInt(hmap.get(name))>150){
+            clr = Color.argb(100,255,0,0);
+            mclr = 3;
+        }else if(Integer.parseInt(hmap.get(name))>80){
+            clr = Color.argb(100,255,255,0);
+            mclr = 7;
+        }else if(Integer.parseInt(hmap.get(name))>30){
+            clr = Color.argb(100,0,255,0);
+            mclr = 5;
+        }else {
+            clr = Color.argb(100,0,0,255);
+            mclr = 4;
+        }
+        Log.d("log","kbc   ++))++))++  "+clr);
+        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+                .add(
+                        new LatLng(37.298258	,127.089632	),
+                        new LatLng(37.288052	,127.088812	),
+                        new LatLng(37.287917	,127.088839	),
+                        new LatLng(37.285689	,127.087625	),
+                        new LatLng(37.280594	,127.071287	),
+                        new LatLng(37.27633 	,127.068641	),
+                        new LatLng(37.275841	,127.068219	),
+                        new LatLng(37.270382	,127.064725	),
+                        new LatLng(37.270323	,127.064747	),
+                        new LatLng(37.270203	,127.064908	),
+                        new LatLng(37.270233	,127.06527	),
+                        new LatLng(37.269733	,127.067574	),
+                        new LatLng(37.269656	,127.067918	),
+                        new LatLng(37.268214	,127.068798	),
+                        new LatLng(37.268092	,127.068858	),
+                        new LatLng(37.266631	,127.070577	),
+                        new LatLng(37.266601	,127.070581	),
+                        new LatLng(37.266046	,127.074848	),
+                        new LatLng(37.261277	,127.075695	),
+                        new LatLng(37.263726	,127.077416	),
+                        new LatLng(37.263879	,127.077287	),
+                        new LatLng(37.266623	,127.077195	),
+                        new LatLng(37.266794	,127.077176	),
+                        new LatLng(37.268174	,127.082393	),
+                        new LatLng(37.268503	,127.082842	),
+                        new LatLng(37.269094	,127.083681	),
+                        new LatLng(37.269464	,127.084222	),
+                        new LatLng(37.264873	,127.086228	),
+                        new LatLng(37.262084	,127.08208	),
+                        new LatLng(37.260833	,127.081322	),
+                        new LatLng(37.258493	,127.08096	),
+                        new LatLng(37.258793	,127.083685	),
+                        new LatLng(37.25649 	,127.084685	),
+                        new LatLng(37.252645	,127.081765	),
+                        new LatLng(37.25227 	,127.08215	),
+                        new LatLng(37.247402	,127.08006	),
+                        new LatLng(37.243788	,127.0655	),
+                        new LatLng(37.240185	,127.066917	),
+                        new LatLng(37.240103	,127.066675	),
+                        new LatLng(37.240078	,127.066505	),
+                        new LatLng(37.240088	,127.066469	),
+                        new LatLng(37.240171	,127.066251	),
+                        new LatLng(37.240178	,127.066178	),
+                        new LatLng(37.240204	,127.065943	),
+                        new LatLng(37.24016 	,127.065429	),
+                        new LatLng(37.240127	,127.065147	),
+                        new LatLng(37.239997	,127.065051	),
+                        new LatLng(37.239963	,127.065026	),
+                        new LatLng(37.239886	,127.06498	),
+                        new LatLng(37.239784	,127.064877	),
+                        new LatLng(37.239708	,127.064836	),
+                        new LatLng(37.239327	,127.064559	),
+                        new LatLng(37.238813	,127.063174	),
+                        new LatLng(37.238733	,127.063109	),
+                        new LatLng(37.238483	,127.062702	),
+                        new LatLng(37.23816 	,127.062251	),
+                        new LatLng(37.237738	,127.061873	),
+                        new LatLng(37.237645	,127.061769	),
+                        new LatLng(37.237563	,127.061656	),
+                        new LatLng(37.237481	,127.061537	),
+                        new LatLng(37.23747 	,127.061519	),
+                        new LatLng(37.237396	,127.061386	),
+                        new LatLng(37.237265	,127.061003	),
+                        new LatLng(37.237069	,127.060677	),
+                        new LatLng(37.237026	,127.0606	),
+                        new LatLng(37.236862	,127.060201	),
+                        new LatLng(37.236729	,127.060039	),
+                        new LatLng(37.236303	,127.060021	),
+                        new LatLng(37.235886	,127.059899	),
+                        new LatLng(37.235549	,127.059702	),
+                        new LatLng(37.235175	,127.059436	),
+                        new LatLng(37.234858	,127.059039	),
+                        new LatLng(37.234769	,127.058927	),
+                        new LatLng(37.234409	,127.058529	),
+                        new LatLng(37.234184	,127.058316	),
+                        new LatLng(37.234068	,127.058136	),
+                        new LatLng(37.233932	,127.057903	),
+                        new LatLng(37.233786	,127.05768	),
+                        new LatLng(37.233744	,127.057613	),
+                        new LatLng(37.233566	,127.057271	),
+                        new LatLng(37.233379	,127.05694	),
+                        new LatLng(37.233336	,127.056896	),
+                        new LatLng(37.23322 	,127.056703	),
+                        new LatLng(37.233086	,127.056484	),
+                        new LatLng(37.232978	,127.056318	),
+                        new LatLng(37.232864	,127.056067	),
+                        new LatLng(37.232764	,127.05596	),
+                        new LatLng(37.23264 	,127.055527	),
+                        new LatLng(37.232593	,127.055441	),
+                        new LatLng(37.232528	,127.055335	),
+                        new LatLng(37.232435	,127.055182	),
+                        new LatLng(37.232066	,127.054571	),
+                        new LatLng(37.231972	,127.054305	),
+                        new LatLng(37.231919	,127.054147	),
+                        new LatLng(37.231667	,127.053468	),
+                        new LatLng(37.231617	,127.053366	),
+                        new LatLng(37.231571	,127.053275	),
+                        new LatLng(37.231436	,127.053004	),
+                        new LatLng(37.231427	,127.052957	),
+                        new LatLng(37.231348	,127.052787	),
+                        new LatLng(37.231376	,127.052521	),
+                        new LatLng(37.231386	,127.052454	),
+                        new LatLng(37.231433	,127.052457	),
+                        new LatLng(37.231478	,127.052467	),
+                        new LatLng(37.231821	,127.052966	),
+                        new LatLng(37.231949	,127.053188	),
+                        new LatLng(37.232109	,127.05347	),
+                        new LatLng(37.232184	,127.053612	),
+                        new LatLng(37.23235 	,127.053757	),
+                        new LatLng(37.232382	,127.053764	),
+                        new LatLng(37.232805	,127.0537	),
+                        new LatLng(37.233153	,127.053637	),
+                        new LatLng(37.23334 	,127.053604	),
+                        new LatLng(37.233399	,127.053586	),
+                        new LatLng(37.233464	,127.053539	),
+                        new LatLng(37.233481	,127.053523	),
+                        new LatLng(37.233581	,127.053354	),
+                        new LatLng(37.233659	,127.053164	),
+                        new LatLng(37.233652	,127.053155	),
+                        new LatLng(37.233645	,127.053146	),
+                        new LatLng(37.233649	,127.053136	),
+                        new LatLng(37.233656	,127.053121	),
+                        new LatLng(37.233763	,127.05291	),
+                        new LatLng(37.233902	,127.052587	),
+                        new LatLng(37.234152	,127.051979	),
+                        new LatLng(37.234163	,127.051948	),
+                        new LatLng(37.234326	,127.051528	),
+                        new LatLng(37.234337	,127.051429	),
+                        new LatLng(37.234325	,127.051301	),
+                        new LatLng(37.234308	,127.051152	),
+                        new LatLng(37.234206	,127.050758	),
+                        new LatLng(37.234221	,127.050728	),
+                        new LatLng(37.23424 	,127.050737	),
+                        new LatLng(37.23423 	,127.050679	),
+                        new LatLng(37.234125	,127.050059	),
+                        new LatLng(37.234119	,127.050007	),
+                        new LatLng(37.234104	,127.049842	),
+                        new LatLng(37.234102	,127.049788	),
+                        new LatLng(37.234068	,127.04958	),
+                        new LatLng(37.234019	,127.049454	),
+                        new LatLng(37.233218	,127.047705	),
+                        new LatLng(37.233275	,127.047661	),
+                        new LatLng(37.233194	,127.047469	),
+                        new LatLng(37.232811	,127.046253	),
+                        new LatLng(37.232779	,127.045982	),
+                        new LatLng(37.232774	,127.045947	),
+                        new LatLng(37.232783	,127.045899	),
+                        new LatLng(37.232856	,127.045826	),
+                        new LatLng(37.233305	,127.04575	),
+                        new LatLng(37.233253	,127.045698	),
+                        new LatLng(37.233079	,127.045488	),
+                        new LatLng(37.233017	,127.045422	),
+                        new LatLng(37.233046	,127.04538	),
+                        new LatLng(37.233158	,127.045218	),
+                        new LatLng(37.233218	,127.045028	),
+                        new LatLng(37.233231	,127.044994	),
+                        new LatLng(37.233246	,127.044995	),
+                        new LatLng(37.233477	,127.045018	),
+                        new LatLng(37.233684	,127.045053	),
+                        new LatLng(37.233771	,127.045007	),
+                        new LatLng(37.233833	,127.044946	),
+                        new LatLng(37.233933	,127.044813	),
+                        new LatLng(37.23397 	,127.044764	),
+                        new LatLng(37.234213	,127.044428	),
+                        new LatLng(37.23428 	,127.044332	),
+                        new LatLng(37.234356	,127.044199	),
+                        new LatLng(37.234512	,127.0439	),
+                        new LatLng(37.234585	,127.043712	),
+                        new LatLng(37.234623	,127.043528	),
+                        new LatLng(37.234709	,127.043211	),
+                        new LatLng(37.234784	,127.0429	),
+                        new LatLng(37.234799	,127.042749	),
+                        new LatLng(37.234798	,127.042706	),
+                        new LatLng(37.234834	,127.042644	),
+                        new LatLng(37.235058	,127.042578	),
+                        new LatLng(37.2352  	,127.042182	),
+                        new LatLng(37.235234	,127.042038	),
+                        new LatLng(37.235232	,127.041916	),
+                        new LatLng(37.235213	,127.041661	),
+                        new LatLng(37.235223	,127.041648	),
+                        new LatLng(37.235299	,127.041555	),
+                        new LatLng(37.235619	,127.041282	),
+                        new LatLng(37.236242	,127.040574	),
+                        new LatLng(37.236223	,127.040549	),
+                        new LatLng(37.236209	,127.040531	),
+                        new LatLng(37.236249	,127.040505	),
+                        new LatLng(37.2374  	,127.039767	),
+                        new LatLng(37.237409	,127.039748	),
+                        new LatLng(37.237163	,127.039217	),
+                        new LatLng(37.237263	,127.039217	),
+                        new LatLng(37.237243	,127.039173	),
+                        new LatLng(37.237362	,127.039217	),
+                        new LatLng(37.238015	,127.03939	),
+                        new LatLng(37.239168	,127.039817	),
+                        new LatLng(37.239708	,127.04002	),
+                        new LatLng(37.242863	,127.041166	),
+                        new LatLng(37.243313	,127.04133	),
+                        new LatLng(37.244365	,127.041716	),
+                        new LatLng(37.24478 	,127.041868	),
+                        new LatLng(37.245119	,127.041993	),
+                        new LatLng(37.245406	,127.042098	),
+                        new LatLng(37.246119	,127.042355	),
+                        new LatLng(37.246443	,127.042472	),
+                        new LatLng(37.246633	,127.04254	),
+                        new LatLng(37.246849	,127.043514	),
+                        new LatLng(37.246813	,127.043879	),
+                        new LatLng(37.246798	,127.044081	),
+                        new LatLng(37.246828	,127.044045	),
+                        new LatLng(37.246886	,127.043465	),
+                        new LatLng(37.246899	,127.043466	),
+                        new LatLng(37.246904	,127.043428	),
+                        new LatLng(37.246891	,127.043425	),
+                        new LatLng(37.246961	,127.042731	),
+                        new LatLng(37.246986	,127.04267	),
+                        new LatLng(37.246995	,127.042646	),
+                        new LatLng(37.247011	,127.04258	),
+                        new LatLng(37.247029	,127.042505	),
+                        new LatLng(37.247109	,127.042074	),
+                        new LatLng(37.247151	,127.041893	),
+                        new LatLng(37.247166	,127.041828	),
+                        new LatLng(37.247256	,127.041591	),
+                        new LatLng(37.247339	,127.04137	),
+                        new LatLng(37.247384	,127.041247	),
+                        new LatLng(37.247446	,127.041107	),
+                        new LatLng(37.247469	,127.041114	),
+                        new LatLng(37.247565	,127.041174	),
+                        new LatLng(37.247572	,127.041145	),
+                        new LatLng(37.250981	,127.042171	),
+                        new LatLng(37.256521	,127.036676	),
+                        new LatLng(37.265158	,127.040561	),
+                        new LatLng(37.266996	,127.033177	),
+                        new LatLng(37.26947 	,127.038362	),
+                        new LatLng(37.274966	,127.037258	),
+                        new LatLng(37.27429 	,127.045965	),
+                        new LatLng(37.282717	,127.041816	),
+                        new LatLng(37.285829	,127.043411	),
+                        new LatLng(37.283534	,127.038673	),
+                        new LatLng(37.288411	,127.042503	),
+                        new LatLng(37.29019 	,127.038223	),
+                        new LatLng(37.290937	,127.041152	),
+                        new LatLng(37.293362	,127.034083	),
+                        new LatLng(37.309641	,127.032391	),
+                        new LatLng(37.320937	,127.039696	),
+                        new LatLng(37.319018	,127.042335	),
+                        new LatLng(37.318864	,127.042745	),
+                        new LatLng(37.318695	,127.043189	),
+                        new LatLng(37.315546	,127.05769	),
+                        new LatLng(37.309145	,127.060923	),
+                        new LatLng(37.304791	,127.058166	),
+                        new LatLng(37.303565	,127.060835	),
+                        new LatLng(37.298684	,127.060583	),
+                        new LatLng(37.298467	,127.060572	),
+                        new LatLng(37.296619	,127.060297	),
+                        new LatLng(37.295374	,127.067364	),
+                        new LatLng(37.293231	,127.079181	),
+                        new LatLng(37.297778	,127.085295	),
+                        new LatLng(37.298622	,127.085841	),
+                        new LatLng(37.298258	,127.089632	)
+                )
+                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .fillColor(clr));
+        polygon.setClickable(true);
+        namehmap.put(polygon.hashCode(),name);
+        colorhmap.put(polygon.hashCode(),clr);
+
+        IconGenerator iconFactory = new IconGenerator(this);
+        iconFactory.setColor(clr);
+        if(mclr == 2){
+            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
+        }else if(mclr == 3){
+            iconFactory.setStyle(IconGenerator.STYLE_RED);
+        }else if(mclr == 7){
+            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
+        }else if(mclr == 5){
+            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
+        }else {
+            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
+        }
+        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.281390, 127.008683));
+
+    }//수원시 영통구
+    public void drawPolygon44(GoogleMap googlemap) { //서울 성동구
+        String name = "고양시";
+        int clr = Color.argb(100,255,0,0);
+        int mclr;
+        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
+        if(hmap.get(name)==null){
+            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
+            mclr = 1;
+        } else if(hmap.get(name).equals("-")){
+            clr = Color.argb(100,140,140,140);
+            mclr = 2;
+        }else if(Integer.parseInt(hmap.get(name))>150){
+            clr = Color.argb(100,255,0,0);
+            mclr = 3;
+        }else if(Integer.parseInt(hmap.get(name))>80){
+            clr = Color.argb(100,255,255,0);
+            mclr = 7;
+        }else if(Integer.parseInt(hmap.get(name))>30){
+            clr = Color.argb(100,0,255,0);
+            mclr = 5;
+        }else {
+            clr = Color.argb(100,0,0,255);
+            mclr = 4;
+        }
+        Log.d("log","kbc   ++))++))++  "+clr);
+        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+                .add(
+                        new LatLng(37.669811	,126.994351	),
+                        new LatLng(37.66802 	,126.993629	),
+                        new LatLng(37.66703 	,126.994129	),
+                        new LatLng(37.66619 	,126.993261	),
+                        new LatLng(37.66453 	,126.989453	),
+                        new LatLng(37.663989	,126.988033	),
+                        new LatLng(37.662732	,126.987751	),
+                        new LatLng(37.66117 	,126.987284	),
+                        new LatLng(37.656488	,126.981194	),
+                        new LatLng(37.656039	,126.979658	),
+                        new LatLng(37.654815	,126.979944	),
+                        new LatLng(37.652713	,126.981048	),
+                        new LatLng(37.651688	,126.981874	),
+                        new LatLng(37.651254	,126.982298	),
+                        new LatLng(37.64961 	,126.983937	),
+                        new LatLng(37.646067	,126.984929	),
+                        new LatLng(37.645929	,126.985101	),
+                        new LatLng(37.646056	,126.985723	),
+                        new LatLng(37.645947	,126.985413	),
+                        new LatLng(37.645446	,126.984795	),
+                        new LatLng(37.645338	,126.984643	),
+                        new LatLng(37.644428	,126.98419	),
+                        new LatLng(37.64405 	,126.983726	),
+                        new LatLng(37.643804	,126.983352	),
+                        new LatLng(37.643683	,126.983247	),
+                        new LatLng(37.643039	,126.983691	),
+                        new LatLng(37.642365	,126.983854	),
+                        new LatLng(37.642149	,126.983831	),
+                        new LatLng(37.641645	,126.984257	),
+                        new LatLng(37.641636	,126.985224	),
+                        new LatLng(37.64135 	,126.985268	),
+                        new LatLng(37.640428	,126.986133	),
+                        new LatLng(37.640193	,126.985897	),
+                        new LatLng(37.639088	,126.985408	),
+                        new LatLng(37.638418	,126.985294	),
+                        new LatLng(37.638066	,126.985234	),
+                        new LatLng(37.637529	,126.985045	),
+                        new LatLng(37.637165	,126.984937	),
+                        new LatLng(37.636815	,126.984856	),
+                        new LatLng(37.636508	,126.984412	),
+                        new LatLng(37.63634 	,126.984204	),
+                        new LatLng(37.63597 	,126.985378	),
+                        new LatLng(37.635796	,126.985896	),
+                        new LatLng(37.635935	,126.985461	),
+                        new LatLng(37.63627 	,126.984414	),
+                        new LatLng(37.636331	,126.984215	),
+                        new LatLng(37.636336	,126.984204	),
+                        new LatLng(37.636337	,126.984201	),
+                        new LatLng(37.636438	,126.983959	),
+                        new LatLng(37.631698	,126.975369	),
+                        new LatLng(37.62947 	,126.958418	),
+                        new LatLng(37.633245	,126.963329	),
+                        new LatLng(37.65386 	,126.955459	),
+                        new LatLng(37.653876	,126.955444	),
+                        new LatLng(37.659215	,126.947565	),
+                        new LatLng(37.656768	,126.940335	),
+                        new LatLng(37.656673	,126.940186	),
+                        new LatLng(37.656445	,126.939905	),
+                        new LatLng(37.656241	,126.939666	),
+                        new LatLng(37.650614	,126.933349	),
+                        new LatLng(37.650496	,126.932823	),
+                        new LatLng(37.648888	,126.927992	),
+                        new LatLng(37.648873	,126.927973	),
+                        new LatLng(37.64884 	,126.927937	),
+                        new LatLng(37.646106	,126.924123	),
+                        new LatLng(37.645144	,126.915806	),
+                        new LatLng(37.645116	,126.915189	),
+                        new LatLng(37.645935	,126.911042	),
+                        new LatLng(37.645938	,126.911033	),
+                        new LatLng(37.646279	,126.910436	),
+                        new LatLng(37.646286	,126.910439	),
+                        new LatLng(37.646662	,126.909967	),
+                        new LatLng(37.646759	,126.909858	),
+                        new LatLng(37.649201	,126.904802	),
+                        new LatLng(37.647822	,126.906349	),
+                        new LatLng(37.647788	,126.906385	),
+                        new LatLng(37.644315	,126.91228	),
+                        new LatLng(37.635906	,126.91121	),
+                        new LatLng(37.63322 	,126.906202	),
+                        new LatLng(37.629328	,126.90877	),
+                        new LatLng(37.625094	,126.90744	),
+                        new LatLng(37.624496	,126.906627	),
+                        new LatLng(37.619219	,126.905223	),
+                        new LatLng(37.619075	,126.905231	),
+                        new LatLng(37.611191	,126.900304	),
+                        new LatLng(37.598489	,126.901261	),
+                        new LatLng(37.598208	,126.901171	),
+                        new LatLng(37.589817	,126.899644	),
+                        new LatLng(37.588533	,126.887159	),
+                        new LatLng(37.591001	,126.885485	),
+                        new LatLng(37.591105	,126.885467	),
+                        new LatLng(37.591523	,126.885612	),
+                        new LatLng(37.591667	,126.885715	),
+                        new LatLng(37.59392 	,126.887338	),
+                        new LatLng(37.590793	,126.882056	),
+                        new LatLng(37.58444 	,126.876538	),
+                        new LatLng(37.578185	,126.876261	),
+                        new LatLng(37.577472	,126.864941	),
+                        new LatLng(37.573799	,126.853629	),
+                        new LatLng(37.57179 	,126.853632	),
+                        new LatLng(37.571896	,126.853522	),
+                        new LatLng(37.57232 	,126.852925	),
+                        new LatLng(37.59285 	,126.819303	),
+                        new LatLng(37.593716	,126.818683	),
+                        new LatLng(37.605033	,126.802581	),
+                        new LatLng(37.629693	,126.75952	),
+                        new LatLng(37.635325	,126.764016	),
+                        new LatLng(37.630344	,126.783233	),
+                        new LatLng(37.625804	,126.791244	),
+                        new LatLng(37.629004	,126.794639	),
+                        new LatLng(37.639194	,126.794651	),
+                        new LatLng(37.643855	,126.797871	),
+                        new LatLng(37.643775	,126.805688	),
+                        new LatLng(37.648084	,126.811838	),
+                        new LatLng(37.644617	,126.813003	),
+                        new LatLng(37.645283	,126.81629	),
+                        new LatLng(37.656261	,126.816875	),
+                        new LatLng(37.658403	,126.810679	),
+                        new LatLng(37.66431 	,126.817311	),
+                        new LatLng(37.66327 	,126.822746	),
+                        new LatLng(37.671528	,126.820949	),
+                        new LatLng(37.674078	,126.82716	),
+                        new LatLng(37.676838	,126.828178	),
+                        new LatLng(37.677761	,126.833553	),
+                        new LatLng(37.68308 	,126.834456	),
+                        new LatLng(37.682331	,126.839633	),
+                        new LatLng(37.685568	,126.841644	),
+                        new LatLng(37.686036	,126.848071	),
+                        new LatLng(37.690425	,126.849117	),
+                        new LatLng(37.687981	,126.853813	),
+                        new LatLng(37.694087	,126.855969	),
+                        new LatLng(37.701086	,126.847927	),
+                        new LatLng(37.727457	,126.83675	),
+                        new LatLng(37.731634	,126.84169	),
+                        new LatLng(37.735586	,126.856033	),
+                        new LatLng(37.732636	,126.864945	),
+                        new LatLng(37.728449	,126.867978	),
+                        new LatLng(37.730105	,126.87224	),
+                        new LatLng(37.725962	,126.873658	),
+                        new LatLng(37.725861	,126.882143	),
+                        new LatLng(37.722965	,126.888534	),
+                        new LatLng(37.727114	,126.894112	),
+                        new LatLng(37.728666	,126.902641	),
+                        new LatLng(37.737214	,126.900918	),
+                        new LatLng(37.746901	,126.909363	),
+                        new LatLng(37.748485	,126.929096	),
+                        new LatLng(37.745886	,126.933072	),
+                        new LatLng(37.744145	,126.930362	),
+                        new LatLng(37.736046	,126.929996	),
+                        new LatLng(37.736108	,126.929383	),
+                        new LatLng(37.730256	,126.92163	),
+                        new LatLng(37.719807	,126.924851	),
+                        new LatLng(37.713804	,126.920502	),
+                        new LatLng(37.708653	,126.92535	),
+                        new LatLng(37.702763	,126.922164	),
+                        new LatLng(37.702579	,126.92217	),
+                        new LatLng(37.675975	,126.912789	),
+                        new LatLng(37.673828	,126.908791	),
+                        new LatLng(37.675267	,126.905264	),
+                        new LatLng(37.668685	,126.911223	),
+                        new LatLng(37.669566	,126.920142	),
+                        new LatLng(37.67162	    ,126.920355	),
+                        new LatLng(37.670208	,126.938809	),
+                        new LatLng(37.671994	,126.942877	),
+                        new LatLng(37.685825	,126.945213	),
+                        new LatLng(37.688035	,126.95139	),
+                        new LatLng(37.6931  	,126.955072	),
+                        new LatLng(37.692824	,126.965129	),
+                        new LatLng(37.679627	,126.992198	),
+                        new LatLng(37.679148	,126.992433	),
+                        new LatLng(37.677225	,126.99312	),
+                        new LatLng(37.675832	,126.993125	),
+                        new LatLng(37.675252	,126.99381	),
+                        new LatLng(37.674801	,126.993958	),
+                        new LatLng(37.674226	,126.993796	),
+                        new LatLng(37.672761	,126.994074	),
+                        new LatLng(37.669811	,126.994351	)
+                )
+                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .fillColor(clr));
+        polygon.setClickable(true);
+        namehmap.put(polygon.hashCode(),name);
+        colorhmap.put(polygon.hashCode(),clr);
+
+        IconGenerator iconFactory = new IconGenerator(this);
+        iconFactory.setColor(clr);
+        if(mclr == 2){
+            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
+        }else if(mclr == 3){
+            iconFactory.setStyle(IconGenerator.STYLE_RED);
+        }else if(mclr == 7){
+            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
+        }else if(mclr == 5){
+            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
+        }else {
+            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
+        }
+        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.666273, 126.836938));
+
+    }//고양시 덕양구
+    public void drawPolygon31(GoogleMap googlemap) { //서울 성동구
+        String name = "고양시";
+        int clr = Color.argb(100,255,0,0);
+        int mclr;
+        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
+        if(hmap.get(name)==null){
+            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
+            mclr = 1;
+        } else if(hmap.get(name).equals("-")){
+            clr = Color.argb(100,140,140,140);
+            mclr = 2;
+        }else if(Integer.parseInt(hmap.get(name))>150){
+            clr = Color.argb(100,255,0,0);
+            mclr = 3;
+        }else if(Integer.parseInt(hmap.get(name))>80){
+            clr = Color.argb(100,255,255,0);
+            mclr = 7;
+        }else if(Integer.parseInt(hmap.get(name))>30){
+            clr = Color.argb(100,0,255,0);
+            mclr = 5;
+        }else {
+            clr = Color.argb(100,0,0,255);
+            mclr = 4;
+        }
+        Log.d("log","kbc   ++))++))++  "+clr);
+        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+                .add(
+                        new LatLng(37.694087	,126.855969	),
+                        new LatLng(37.687981	,126.853813	),
+                        new LatLng(37.690425	,126.849117	),
+                        new LatLng(37.686036	,126.848071	),
+                        new LatLng(37.685568	,126.841644	),
+                        new LatLng(37.682331	,126.839633	),
+                        new LatLng(37.68308 	,126.834456	),
+                        new LatLng(37.677761	,126.833553	),
+                        new LatLng(37.676838	,126.828178	),
+                        new LatLng(37.674078	,126.82716	),
+                        new LatLng(37.671528	,126.820949	),
+                        new LatLng(37.66327 	,126.822746	),
+                        new LatLng(37.66431 	,126.817311	),
+                        new LatLng(37.658403	,126.810679	),
+                        new LatLng(37.656261	,126.816875	),
+                        new LatLng(37.645283	,126.81629	),
+                        new LatLng(37.644617	,126.813003	),
+                        new LatLng(37.648084	,126.811838	),
+                        new LatLng(37.643775	,126.805688	),
+                        new LatLng(37.643855	,126.797871	),
+                        new LatLng(37.639194	,126.794651	),
+                        new LatLng(37.629004	,126.794639	),
+                        new LatLng(37.625804	,126.791244	),
+                        new LatLng(37.630344	,126.783233	),
+                        new LatLng(37.635325	,126.764016	),
+                        new LatLng(37.629693	,126.75952	),
+                        new LatLng(37.635242	,126.746036	),
+                        new LatLng(37.647521	,126.73246	),
+                        new LatLng(37.654774	,126.745414	),
+                        new LatLng(37.65938 	,126.746452	),
+                        new LatLng(37.659028	,126.750001	),
+                        new LatLng(37.66394 	,126.750857	),
+                        new LatLng(37.662021	,126.755283	),
+                        new LatLng(37.666081	,126.758081	),
+                        new LatLng(37.66328 	,126.762691	),
+                        new LatLng(37.670848	,126.772064	),
+                        new LatLng(37.680159	,126.778252	),
+                        new LatLng(37.690833	,126.777138	),
+                        new LatLng(37.699112	,126.781796	),
+                        new LatLng(37.703871	,126.773418	),
+                        new LatLng(37.706303	,126.77349	),
+                        new LatLng(37.706742	,126.773642	),
+                        new LatLng(37.71731 	,126.779323	),
+                        new LatLng(37.726135	,126.793834	),
+                        new LatLng(37.734582	,126.793933	),
+                        new LatLng(37.737044	,126.798453	),
+                        new LatLng(37.729484	,126.801387	),
+                        new LatLng(37.723478	,126.813726	),
+                        new LatLng(37.725454	,126.821468	),
+                        new LatLng(37.729162	,126.822979	),
+                        new LatLng(37.726132	,126.825131	),
+                        new LatLng(37.72899 	,126.831601	),
+                        new LatLng(37.725231	,126.833939	),
+                        new LatLng(37.727457	,126.83675	),
+                        new LatLng(37.701086	,126.847927	),
+                        new LatLng(37.694087	,126.855969	)
+                )
+                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .fillColor(clr));
+        polygon.setClickable(true);
+        namehmap.put(polygon.hashCode(),name);
+        colorhmap.put(polygon.hashCode(),clr);
+
+        IconGenerator iconFactory = new IconGenerator(this);
+        iconFactory.setColor(clr);
+        if(mclr == 2){
+            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
+        }else if(mclr == 3){
+            iconFactory.setStyle(IconGenerator.STYLE_RED);
+        }else if(mclr == 7){
+            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
+        }else if(mclr == 5){
+            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
+        }else {
+            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
+        }
+        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.666273, 126.836938));
+
+    }//고양시 일산동구
+    public void drawPolygon38(GoogleMap googlemap) { //서울 성동구
+        String name = "고양시";
+        int clr = Color.argb(100,255,0,0);
+        int mclr;
+        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
+        if(hmap.get(name)==null){
+            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
+            mclr = 1;
+        } else if(hmap.get(name).equals("-")){
+            clr = Color.argb(100,140,140,140);
+            mclr = 2;
+        }else if(Integer.parseInt(hmap.get(name))>150){
+            clr = Color.argb(100,255,0,0);
+            mclr = 3;
+        }else if(Integer.parseInt(hmap.get(name))>80){
+            clr = Color.argb(100,255,255,0);
+            mclr = 7;
+        }else if(Integer.parseInt(hmap.get(name))>30){
+            clr = Color.argb(100,0,255,0);
+            mclr = 5;
+        }else {
+            clr = Color.argb(100,0,0,255);
+            mclr = 4;
+        }
+        Log.d("log","kbc   ++))++))++  "+clr);
+        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+                .add(
+                        new LatLng(37.699112	,126.781796	),
+                        new LatLng(37.690833	,126.777138	),
+                        new LatLng(37.680159	,126.778252	),
+                        new LatLng(37.670848	,126.772064	),
+                        new LatLng(37.66328 	,126.762691	),
+                        new LatLng(37.666081	,126.758081	),
+                        new LatLng(37.662021	,126.755283	),
+                        new LatLng(37.66394 	,126.750857	),
+                        new LatLng(37.659028	,126.750001	),
+                        new LatLng(37.65938 	,126.746452	),
+                        new LatLng(37.654774	,126.745414	),
+                        new LatLng(37.647521	,126.73246	),
+                        new LatLng(37.653504	,126.714523	),
+                        new LatLng(37.673558	,126.675639	),
+                        new LatLng(37.683527	,126.670454	),
+                        new LatLng(37.700299	,126.673951	),
+                        new LatLng(37.695994	,126.682881	),
+                        new LatLng(37.688606	,126.689915	),
+                        new LatLng(37.691371	,126.696272	),
+                        new LatLng(37.693344	,126.694932	),
+                        new LatLng(37.696956	,126.700721	),
+                        new LatLng(37.70012 	,126.716328	),
+                        new LatLng(37.704657	,126.725489	),
+                        new LatLng(37.704413	,126.73853	),
+                        new LatLng(37.706628	,126.740075	),
+                        new LatLng(37.703034	,126.749271	),
+                        new LatLng(37.705289	,126.755678	),
+                        new LatLng(37.703037	,126.75973	),
+                        new LatLng(37.703846	,126.765112	),
+                        new LatLng(37.707284	,126.766078	),
+                        new LatLng(37.703871	,126.773418	),
+                        new LatLng(37.699112	,126.781796	)
+                )
+                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .fillColor(clr));
+        polygon.setClickable(true);
+        namehmap.put(polygon.hashCode(),name);
+        colorhmap.put(polygon.hashCode(),clr);
+
+        IconGenerator iconFactory = new IconGenerator(this);
+        iconFactory.setColor(clr);
+        if(mclr == 2){
+            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
+        }else if(mclr == 3){
+            iconFactory.setStyle(IconGenerator.STYLE_RED);
+        }else if(mclr == 7){
+            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
+        }else if(mclr == 5){
+            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
+        }else {
+            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
+        }
+        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.666273, 126.836938));
+
+    }//고양시 일산서구
+    public void drawPolygon52(GoogleMap googlemap) { //서울 성동구
+        String name = "양주시";
+        int clr = Color.argb(100,255,0,0);
+        int mclr;
+        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
+        if(hmap.get(name)==null){
+            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
+            mclr = 1;
+        } else if(hmap.get(name).equals("-")){
+            clr = Color.argb(100,140,140,140);
+            mclr = 2;
+        }else if(Integer.parseInt(hmap.get(name))>150){
+            clr = Color.argb(100,255,0,0);
+            mclr = 3;
+        }else if(Integer.parseInt(hmap.get(name))>80){
+            clr = Color.argb(100,255,255,0);
+            mclr = 7;
+        }else if(Integer.parseInt(hmap.get(name))>30){
+            clr = Color.argb(100,0,255,0);
+            mclr = 5;
+        }else {
+            clr = Color.argb(100,0,0,255);
+            mclr = 4;
+        }
+        Log.d("log","kbc   ++))++))++  "+clr);
+        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+                .add(
+                        new LatLng(37.828304	,127.121794	),
+                        new LatLng(37.811357	,127.120994	),
+                        new LatLng(37.810834	,127.120699	),
+                        new LatLng(37.804385	,127.117029	),
+                        new LatLng(37.79599 	,127.11771	),
+                        new LatLng(37.780291	,127.105743	),
+                        new LatLng(37.773536	,127.084427	),
+                        new LatLng(37.763916	,127.065759	),
+                        new LatLng(37.763682	,127.065293	),
+                        new LatLng(37.763089	,127.06308	),
+                        new LatLng(37.763018	,127.062812	),
+                        new LatLng(37.76095 	,127.051344	),
+                        new LatLng(37.764764	,127.046398	),
+                        new LatLng(37.764673	,127.046137	),
+                        new LatLng(37.768434	,127.033825	),
+                        new LatLng(37.766454	,127.027241	),
+                        new LatLng(37.768861	,127.017436	),
+                        new LatLng(37.762393	,127.008503	),
+                        new LatLng(37.762619	,127.002046	),
+                        new LatLng(37.755159	,127.00242	),
+                        new LatLng(37.747699	,127.006641	),
+                        new LatLng(37.744753	,127.002568	),
+                        new LatLng(37.744203	,127.002227	),
+                        new LatLng(37.733743	,127.005665	),
+                        new LatLng(37.726084	,127.012232	),
+                        new LatLng(37.713687	,127.012117	),
+                        new LatLng(37.705145	,127.018205	),
+                        new LatLng(37.701455	,127.015415	),
+                        new LatLng(37.700428	,127.014961	),
+                        new LatLng(37.6967  	,127.009666	),
+                        new LatLng(37.691618	,127.007621	),
+                        new LatLng(37.688507	,127.008327	),
+                        new LatLng(37.685432	,127.00844	),
+                        new LatLng(37.68445 	,127.008664	),
+                        new LatLng(37.685054	,127.006051	),
+                        new LatLng(37.68508 	,127.004567	),
+                        new LatLng(37.685089	,127.004527	),
+                        new LatLng(37.684941	,127.004277	),
+                        new LatLng(37.684824	,127.003777	),
+                        new LatLng(37.684239	,127.003584	),
+                        new LatLng(37.684344	,127.001687	),
+                        new LatLng(37.684235	,127.000973	),
+                        new LatLng(37.683967	,127.000402	),
+                        new LatLng(37.683842	,126.999112	),
+                        new LatLng(37.683586	,126.997754	),
+                        new LatLng(37.683114	,126.997027	),
+                        new LatLng(37.682679	,126.996975	),
+                        new LatLng(37.682646	,126.996971	),
+                        new LatLng(37.682204	,126.996351	),
+                        new LatLng(37.681869	,126.995853	),
+                        new LatLng(37.680588	,126.994172	),
+                        new LatLng(37.680569	,126.994156	),
+                        new LatLng(37.680324	,126.994076	),
+                        new LatLng(37.680192	,126.993742	),
+                        new LatLng(37.679759	,126.992433	),
+                        new LatLng(37.679627	,126.992198	),
+                        new LatLng(37.692824	,126.965129	),
+                        new LatLng(37.6931  	,126.955072	),
+                        new LatLng(37.688035	,126.95139	),
+                        new LatLng(37.685825	,126.945213	),
+                        new LatLng(37.671994	,126.942877	),
+                        new LatLng(37.670208	,126.938809	),
+                        new LatLng(37.67162 	,126.920355	),
+                        new LatLng(37.669566	,126.920142	),
+                        new LatLng(37.668685	,126.911223	),
+                        new LatLng(37.675267	,126.905264	),
+                        new LatLng(37.673828	,126.908791	),
+                        new LatLng(37.675975	,126.912789	),
+                        new LatLng(37.702579	,126.92217	),
+                        new LatLng(37.702734	,126.922165	),
+                        new LatLng(37.702763	,126.922164	),
+                        new LatLng(37.708653	,126.92535	),
+                        new LatLng(37.713804	,126.920502	),
+                        new LatLng(37.719807	,126.924851	),
+                        new LatLng(37.730256	,126.92163	),
+                        new LatLng(37.736108	,126.929383	),
+                        new LatLng(37.736046	,126.929996	),
+                        new LatLng(37.744145	,126.930362	),
+                        new LatLng(37.745886	,126.933072	),
+                        new LatLng(37.748485	,126.929096	),
+                        new LatLng(37.753637	,126.931803	),
+                        new LatLng(37.757029	,126.927969	),
+                        new LatLng(37.770443	,126.932397	),
+                        new LatLng(37.770783	,126.934656	),
+                        new LatLng(37.780561	,126.933939	),
+                        new LatLng(37.786971	,126.93795	),
+                        new LatLng(37.789005	,126.931943	),
+                        new LatLng(37.785184	,126.926425	),
+                        new LatLng(37.790203	,126.918664	),
+                        new LatLng(37.790709	,126.903582	),
+                        new LatLng(37.802247	,126.905529	),
+                        new LatLng(37.804895	,126.91245	),
+                        new LatLng(37.804767	,126.91022	),
+                        new LatLng(37.80816 	,126.911714	),
+                        new LatLng(37.810722	,126.90869	),
+                        new LatLng(37.81666 	,126.909985	),
+                        new LatLng(37.824837	,126.901954	),
+                        new LatLng(37.828779	,126.905727	),
+                        new LatLng(37.828548	,126.911015	),
+                        new LatLng(37.840474	,126.912372	),
+                        new LatLng(37.841608	,126.925063	),
+                        new LatLng(37.837648	,126.927281	),
+                        new LatLng(37.840573	,126.936111	),
+                        new LatLng(37.846077	,126.933659	),
+                        new LatLng(37.866362	,126.946008	),
+                        new LatLng(37.874081	,126.943785	),
+                        new LatLng(37.885546	,126.947163	),
+                        new LatLng(37.886215	,126.94692	),
+                        new LatLng(37.896836	,126.948242	),
+                        new LatLng(37.900896	,126.945873	),
+                        new LatLng(37.910998	,126.954946	),
+                        new LatLng(37.918401	,126.94954	),
+                        new LatLng(37.921782	,126.956598	),
+                        new LatLng(37.921049	,126.961625	),
+                        new LatLng(37.928727	,126.964844	),
+                        new LatLng(37.938433	,126.96468	),
+                        new LatLng(37.938665	,126.969006	),
+                        new LatLng(37.942085	,126.972503	),
+                        new LatLng(37.937362	,126.979948	),
+                        new LatLng(37.938539	,126.986062	),
+                        new LatLng(37.938215	,126.986318	),
+                        new LatLng(37.933582	,126.99648	),
+                        new LatLng(37.933897	,126.997292	),
+                        new LatLng(37.936317	,127.000903	),
+                        new LatLng(37.933504	,127.001096	),
+                        new LatLng(37.92823 	,127.009725	),
+                        new LatLng(37.919545	,127.013374	),
+                        new LatLng(37.915221	,127.006221	),
+                        new LatLng(37.910157	,127.010496	),
+                        new LatLng(37.904833	,127.010632	),
+                        new LatLng(37.900832	,127.019739	),
+                        new LatLng(37.900824	,127.019755	),
+                        new LatLng(37.898651	,127.021409	),
+                        new LatLng(37.898875	,127.028777	),
+                        new LatLng(37.895601	,127.038682	),
+                        new LatLng(37.895547	,127.04044	),
+                        new LatLng(37.894626	,127.045851	),
+                        new LatLng(37.883607	,127.048016	),
+                        new LatLng(37.875757	,127.053842	),
+                        new LatLng(37.875566	,127.053919	),
+                        new LatLng(37.875565	,127.053919	),
+                        new LatLng(37.875562	,127.05392	),
+                        new LatLng(37.870551	,127.059305	),
+                        new LatLng(37.868861	,127.061793	),
+                        new LatLng(37.872756	,127.073741	),
+                        new LatLng(37.869977	,127.078966	),
+                        new LatLng(37.872205	,127.088356	),
+                        new LatLng(37.866363	,127.098456	),
+                        new LatLng(37.866692	,127.098817	),
+                        new LatLng(37.86567 	,127.103566),
+                        new LatLng(37.860368	,127.108831),
+                        new LatLng(37.860325	,127.108857),
+                        new LatLng(37.853636	,127.110686),
+                        new LatLng(37.85052 	,127.114799),
+                        new LatLng(37.834561	,127.117182),
+                        new LatLng(37.828304	,127.121794)
+                )
+                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .fillColor(clr));
+        polygon.setClickable(true);
+        namehmap.put(polygon.hashCode(),name);
+        colorhmap.put(polygon.hashCode(),clr);
+
+        IconGenerator iconFactory = new IconGenerator(this);
+        iconFactory.setColor(clr);
+        if(mclr == 2){
+            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
+        }else if(mclr == 3){
+            iconFactory.setStyle(IconGenerator.STYLE_RED);
+        }else if(mclr == 7){
+            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
+        }else if(mclr == 5){
+            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
+        }else {
+            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
+        }
+        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.810037, 127.001330));
+
+    }//양주시
+    public void drawPolygon49(GoogleMap googlemap) { //서울 성동구
+        String name = "파주시";
+        int clr = Color.argb(100,255,0,0);
+        int mclr;
+        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
+        if(hmap.get(name)==null){
+            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
+            mclr = 1;
+        } else if(hmap.get(name).equals("-")){
+            clr = Color.argb(100,140,140,140);
+            mclr = 2;
+        }else if(Integer.parseInt(hmap.get(name))>150){
+            clr = Color.argb(100,255,0,0);
+            mclr = 3;
+        }else if(Integer.parseInt(hmap.get(name))>80){
+            clr = Color.argb(100,255,255,0);
+            mclr = 7;
+        }else if(Integer.parseInt(hmap.get(name))>30){
+            clr = Color.argb(100,0,255,0);
+            mclr = 5;
+        }else {
+            clr = Color.argb(100,0,0,255);
+            mclr = 4;
+        }
+        Log.d("log","kbc   ++))++))++  "+clr);
+        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+                .add(
+                        new LatLng(37.986963	,127.017107	),
+                        new LatLng(37.983785	,127.011804	),
+                        new LatLng(37.975372	,127.010537	),
+                        new LatLng(37.973469	,127.002755	),
+                        new LatLng(37.968285	,127.001721	),
+                        new LatLng(37.967678	,126.990921	),
+                        new LatLng(37.956463	,126.98851	),
+                        new LatLng(37.951563	,126.977284	),
+                        new LatLng(37.946061	,126.977268	),
+                        new LatLng(37.942085	,126.972503	),
+                        new LatLng(37.938665	,126.969006	),
+                        new LatLng(37.938433	,126.96468	),
+                        new LatLng(37.928727	,126.964844	),
+                        new LatLng(37.921049	,126.961625	),
+                        new LatLng(37.921782	,126.956598	),
+                        new LatLng(37.918401	,126.94954	),
+                        new LatLng(37.910998	,126.954946	),
+                        new LatLng(37.900896	,126.945873	),
+                        new LatLng(37.896836	,126.948242	),
+                        new LatLng(37.886215	,126.94692	),
+                        new LatLng(37.885546	,126.947163	),
+                        new LatLng(37.874081	,126.943785	),
+                        new LatLng(37.866362	,126.946008	),
+                        new LatLng(37.846077	,126.933659	),
+                        new LatLng(37.840573	,126.936111	),
+                        new LatLng(37.837648	,126.927281	),
+                        new LatLng(37.841608	,126.925063	),
+                        new LatLng(37.840474	,126.912372	),
+                        new LatLng(37.828548	,126.911015	),
+                        new LatLng(37.828779	,126.905727	),
+                        new LatLng(37.824837	,126.901954	),
+                        new LatLng(37.81666 	,126.909985	),
+                        new LatLng(37.810722	,126.90869	),
+                        new LatLng(37.80816 	,126.911714	),
+                        new LatLng(37.804767	,126.91022	),
+                        new LatLng(37.804895	,126.91245	),
+                        new LatLng(37.802247	,126.905529	),
+                        new LatLng(37.790709	,126.903582	),
+                        new LatLng(37.790203	,126.918664	),
+                        new LatLng(37.785184	,126.926425	),
+                        new LatLng(37.789005	,126.931943	),
+                        new LatLng(37.786971	,126.93795	),
+                        new LatLng(37.780561	,126.933939	),
+                        new LatLng(37.770783	,126.934656	),
+                        new LatLng(37.770443	,126.932397	),
+                        new LatLng(37.757029	,126.927969	),
+                        new LatLng(37.753637	,126.931803	),
+                        new LatLng(37.748485	,126.929096	),
+                        new LatLng(37.746901	,126.909363	),
+                        new LatLng(37.737214	,126.900918	),
+                        new LatLng(37.728666	,126.902641	),
+                        new LatLng(37.727114	,126.894112	),
+                        new LatLng(37.722965	,126.888534	),
+                        new LatLng(37.725861	,126.882143	),
+                        new LatLng(37.725962	,126.873658	),
+                        new LatLng(37.730105	,126.87224	),
+                        new LatLng(37.728449	,126.867978	),
+                        new LatLng(37.732636	,126.864945	),
+                        new LatLng(37.735586	,126.856033	),
+                        new LatLng(37.731634	,126.84169	),
+                        new LatLng(37.727457	,126.83675	),
+                        new LatLng(37.725231	,126.833939	),
+                        new LatLng(37.72899 	,126.831601	),
+                        new LatLng(37.726132	,126.825131	),
+                        new LatLng(37.729162	,126.822979	),
+                        new LatLng(37.725454	,126.821468	),
+                        new LatLng(37.723478	,126.813726	),
+                        new LatLng(37.729484	,126.801387	),
+                        new LatLng(37.737044	,126.798453	),
+                        new LatLng(37.734582	,126.793933	),
+                        new LatLng(37.726135	,126.793834	),
+                        new LatLng(37.71731 	,126.779323	),
+                        new LatLng(37.706742	,126.773642	),
+                        new LatLng(37.706303	,126.77349	),
+                        new LatLng(37.703871	,126.773418	),
+                        new LatLng(37.707284	,126.766078	),
+                        new LatLng(37.703846	,126.765112	),
+                        new LatLng(37.703037	,126.75973	),
+                        new LatLng(37.705289	,126.755678	),
+                        new LatLng(37.703034	,126.749271	),
+                        new LatLng(37.706628	,126.740075	),
+                        new LatLng(37.704413	,126.73853	),
+                        new LatLng(37.704657	,126.725489	),
+                        new LatLng(37.70012 	,126.716328	),
+                        new LatLng(37.696956	,126.700721	),
+                        new LatLng(37.693344	,126.694932	),
+                        new LatLng(37.691371	,126.696272	),
+                        new LatLng(37.688606	,126.689915	),
+                        new LatLng(37.695994	,126.682881	),
+                        new LatLng(37.700299	,126.673951	),
+                        new LatLng(37.726822	,126.680183	),
+                        new LatLng(37.74657 	,126.676936	),
+                        new LatLng(37.746597	,126.683091	),
+                        new LatLng(37.761938	,126.683025	),
+                        new LatLng(37.762458	,126.677348	),
+                        new LatLng(37.76964 	,126.677317	),
+                        new LatLng(37.771644	,126.671633	),
+                        new LatLng(37.793266	,126.671537	),
+                        new LatLng(37.793899	,126.677211	),
+                        new LatLng(37.814905	,126.677119	),
+                        new LatLng(37.814889	,126.671441	),
+                        new LatLng(37.834779	,126.671352	),
+                        new LatLng(37.840303	,126.659323	),
+                        new LatLng(37.843663	,126.660937	),
+                        new LatLng(37.842407	,126.66467	),
+                        new LatLng(37.846228	,126.670663	),
+                        new LatLng(37.84404 	,126.676185	),
+                        new LatLng(37.84603 	,126.679575	),
+                        new LatLng(37.852612	,126.679863	),
+                        new LatLng(37.868506	,126.692129	),
+                        new LatLng(37.87406 	,126.683422	),
+                        new LatLng(37.870402	,126.680115	),
+                        new LatLng(37.870125	,126.672588	),
+                        new LatLng(37.873359	,126.676831	),
+                        new LatLng(37.878051	,126.672045	),
+                        new LatLng(37.879783	,126.68204	),
+                        new LatLng(37.881579	,126.67872	),
+                        new LatLng(37.884667	,126.679713	),
+                        new LatLng(37.882214	,126.672521	),
+                        new LatLng(37.885957	,126.674451	),
+                        new LatLng(37.888026	,126.670136	),
+                        new LatLng(37.897792	,126.677349	),
+                        new LatLng(37.906558	,126.675469	),
+                        new LatLng(37.914112	,126.682892	),
+                        new LatLng(37.915745	,126.680507	),
+                        new LatLng(37.913675	,126.672918	),
+                        new LatLng(37.919061	,126.665996	),
+                        new LatLng(37.934143	,126.667291	),
+                        new LatLng(37.939639	,126.672124	),
+                        new LatLng(37.941797	,126.669114	),
+                        new LatLng(37.948229	,126.671971	),
+                        new LatLng(37.955178	,126.67099	),
+                        new LatLng(37.953763	,126.676225	),
+                        new LatLng(37.958105	,126.681298	),
+                        new LatLng(37.957197	,126.687307	),
+                        new LatLng(37.966131	,126.691398	),
+                        new LatLng(37.969125	,126.700661	),
+                        new LatLng(37.974841	,126.703715	),
+                        new LatLng(37.975155	,126.708847	),
+                        new LatLng(37.967678	,126.711901	),
+                        new LatLng(37.968863	,126.716654	),
+                        new LatLng(37.964952	,126.719394	),
+                        new LatLng(37.969004	,126.727182	),
+                        new LatLng(37.966036	,126.736878	),
+                        new LatLng(37.972848	,126.740096	),
+                        new LatLng(37.976313	,126.748172	),
+                        new LatLng(37.981863	,126.752384	),
+                        new LatLng(37.985072	,126.763136	),
+                        new LatLng(37.978352	,126.772847	),
+                        new LatLng(37.980419	,126.775346	),
+                        new LatLng(37.982361	,126.771828	),
+                        new LatLng(37.984396	,126.772665	),
+                        new LatLng(37.980474	,126.782299	),
+                        new LatLng(37.992263	,126.793072	),
+                        new LatLng(37.993695	,126.796394	),
+                        new LatLng(37.990069	,126.801503	),
+                        new LatLng(37.982255	,126.80272	),
+                        new LatLng(37.980242	,126.806248	),
+                        new LatLng(37.975831	,126.806559	),
+                        new LatLng(37.974205	,126.810738	),
+                        new LatLng(37.972137	,126.805891	),
+                        new LatLng(37.966099	,126.81741	),
+                        new LatLng(37.960976	,126.816868	),
+                        new LatLng(37.957459	,126.820737	),
+                        new LatLng(37.959832	,126.828313	),
+                        new LatLng(37.964549	,126.830819	),
+                        new LatLng(37.964034	,126.835939	),
+                        new LatLng(37.960194	,126.835788	),
+                        new LatLng(37.981542	,126.841431	),
+                        new LatLng(37.986079	,126.847113	),
+                        new LatLng(37.986003	,126.852803	),
+                        new LatLng(37.984875	,126.854737	),
+                        new LatLng(37.970243	,126.873831	),
+                        new LatLng(37.966237	,126.886984	),
+                        new LatLng(37.969743	,126.895515	),
+                        new LatLng(37.984677	,126.892178	),
+                        new LatLng(37.991884	,126.892426	),
+                        new LatLng(37.994903	,126.895624	),
+                        new LatLng(37.99439 	,126.904017	),
+                        new LatLng(37.991223	,126.909713	),
+                        new LatLng(37.988295	,126.909717	),
+                        new LatLng(37.980873	,126.938182	),
+                        new LatLng(37.989572	,126.95525	),
+                        new LatLng(38.007529	,126.972218	),
+                        new LatLng(38.008732	,126.979537	),
+                        new LatLng(38.007013	,126.982214	),
+                        new LatLng(38.010591	,126.989382	),
+                        new LatLng(38.007812	,126.989137	),
+                        new LatLng(37.9964  	,127.000467	),
+                        new LatLng(37.992772	,127.014844	),
+                        new LatLng(37.986963	,127.017107	)
+                )
+                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .fillColor(clr));
+        polygon.setClickable(true);
+        namehmap.put(polygon.hashCode(),name);
+        colorhmap.put(polygon.hashCode(),clr);
+
+        IconGenerator iconFactory = new IconGenerator(this);
+        iconFactory.setColor(clr);
+        if(mclr == 2){
+            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
+        }else if(mclr == 3){
+            iconFactory.setStyle(IconGenerator.STYLE_RED);
+        }else if(mclr == 7){
+            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
+        }else if(mclr == 5){
+            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
+        }else {
+            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
+        }
+        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.866497, 126.791697));
+
+    }//파주시
+    public void drawPolygon43(GoogleMap googlemap) { //서울 성동구
+        String name = "김포시";
+        int clr = Color.argb(100,255,0,0);
+        int mclr;
+        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
+        if(hmap.get(name)==null){
+            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
+            mclr = 1;
+        } else if(hmap.get(name).equals("-")){
+            clr = Color.argb(100,140,140,140);
+            mclr = 2;
+        }else if(Integer.parseInt(hmap.get(name))>150){
+            clr = Color.argb(100,255,0,0);
+            mclr = 3;
+        }else if(Integer.parseInt(hmap.get(name))>80){
+            clr = Color.argb(100,255,255,0);
+            mclr = 7;
+        }else if(Integer.parseInt(hmap.get(name))>30){
+            clr = Color.argb(100,0,255,0);
+            mclr = 5;
+        }else {
+            clr = Color.argb(100,0,0,255);
+            mclr = 4;
+        }
+        Log.d("log","kbc   ++))++))++  "+clr);
+        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+                .add(
+                        new LatLng(37.605033	,126.802581	),
+                        new LatLng(37.597743	,126.797115	),
+                        new LatLng(37.597663	,126.797092	),
+                        new LatLng(37.596898	,126.797204	),
+                        new LatLng(37.596712	,126.797231	),
+                        new LatLng(37.589349	,126.801227	),
+                        new LatLng(37.58817 	,126.799022	),
+                        new LatLng(37.588133	,126.798856	),
+                        new LatLng(37.583121	,126.795722	),
+                        new LatLng(37.585155	,126.79554	),
+                        new LatLng(37.582622	,126.794698	),
+                        new LatLng(37.58452 	,126.793441	),
+                        new LatLng(37.581594	,126.793695	),
+                        new LatLng(37.58558 	,126.787048	),
+                        new LatLng(37.582585	,126.784113	),
+                        new LatLng(37.585088	,126.773882	),
+                        new LatLng(37.585104	,126.773519	),
+                        new LatLng(37.588395	,126.767517	),
+                        new LatLng(37.584962	,126.763177	),
+                        new LatLng(37.585328	,126.757985	),
+                        new LatLng(37.580498	,126.755689	),
+                        new LatLng(37.580498	,126.755629	),
+                        new LatLng(37.581083	,126.749526	),
+                        new LatLng(37.592495	,126.744324	),
+                        new LatLng(37.593449	,126.737889	),
+                        new LatLng(37.590483	,126.736253	),
+                        new LatLng(37.592311	,126.729809	),
+                        new LatLng(37.592473	,126.729637	),
+                        new LatLng(37.591875	,126.725463	),
+                        new LatLng(37.591918	,126.725579	),
+                        new LatLng(37.591964	,126.725622	),
+                        new LatLng(37.592025	,126.725645	),
+                        new LatLng(37.592078	,126.725649	),
+                        new LatLng(37.592264	,126.72566	),
+                        new LatLng(37.59217 	,126.725264	),
+                        new LatLng(37.592569	,126.724918	),
+                        new LatLng(37.593124	,126.72444	),
+                        new LatLng(37.595547	,126.722273	),
+                        new LatLng(37.595814	,126.722044	),
+                        new LatLng(37.595977	,126.722243	),
+                        new LatLng(37.595995	,126.722264	),
+                        new LatLng(37.59617 	,126.721942	),
+                        new LatLng(37.59625 	,126.721769	),
+                        new LatLng(37.596509	,126.721055	),
+                        new LatLng(37.596572	,126.720986	),
+                        new LatLng(37.596667	,126.720901	),
+                        new LatLng(37.5974  	,126.719953	),
+                        new LatLng(37.597594	,126.719635	),
+                        new LatLng(37.597771	,126.719362	),
+                        new LatLng(37.597847	,126.719251	),
+                        new LatLng(37.597923	,126.719147	),
+                        new LatLng(37.598046	,126.718907	),
+                        new LatLng(37.598091	,126.718758	),
+                        new LatLng(37.598122	,126.71861	),
+                        new LatLng(37.598188	,126.718467	),
+                        new LatLng(37.598318	,126.718178	),
+                        new LatLng(37.598536	,126.717761	),
+                        new LatLng(37.598625	,126.71753	),
+                        new LatLng(37.598836	,126.717159	),
+                        new LatLng(37.598971	,126.717019	),
+                        new LatLng(37.599648	,126.716302	),
+                        new LatLng(37.599755	,126.716269	),
+                        new LatLng(37.600291	,126.716065	),
+                        new LatLng(37.600867	,126.715869	),
+                        new LatLng(37.603806	,126.715625	),
+                        new LatLng(37.60381 	,126.715503	),
+                        new LatLng(37.603823	,126.715166	),
+                        new LatLng(37.60385 	,126.71426	),
+                        new LatLng(37.603854	,126.714068	),
+                        new LatLng(37.603764	,126.713816	),
+                        new LatLng(37.603308	,126.713535	),
+                        new LatLng(37.603206	,126.71351	),
+                        new LatLng(37.602954	,126.713353	),
+                        new LatLng(37.603002	,126.713305	),
+                        new LatLng(37.603289	,126.713115	),
+                        new LatLng(37.603556	,126.713051	),
+                        new LatLng(37.60362 	,126.713037	),
+                        new LatLng(37.604069	,126.712694	),
+                        new LatLng(37.60419 	,126.71244	),
+                        new LatLng(37.604439	,126.712213	),
+                        new LatLng(37.604723	,126.712041	),
+                        new LatLng(37.605006	,126.711576	),
+                        new LatLng(37.605015	,126.711493	),
+                        new LatLng(37.605111	,126.710421	),
+                        new LatLng(37.605146	,126.710197	),
+                        new LatLng(37.604298	,126.70781	),
+                        new LatLng(37.604096	,126.707614	),
+                        new LatLng(37.603785	,126.707082	),
+                        new LatLng(37.602497	,126.704685	),
+                        new LatLng(37.602476	,126.704681	),
+                        new LatLng(37.602992	,126.7042	),
+                        new LatLng(37.603597	,126.704055	),
+                        new LatLng(37.603966	,126.704081	),
+                        new LatLng(37.604241	,126.704116	),
+                        new LatLng(37.604473	,126.704094	),
+                        new LatLng(37.606395	,126.704811	),
+                        new LatLng(37.607139	,126.705786	),
+                        new LatLng(37.60815 	,126.706077	),
+                        new LatLng(37.609149	,126.705929	),
+                        new LatLng(37.609816	,126.706195	),
+                        new LatLng(37.610003	,126.706122	),
+                        new LatLng(37.611743	,126.705442	),
+                        new LatLng(37.611679	,126.704744	),
+                        new LatLng(37.611978	,126.704278	),
+                        new LatLng(37.61247 	,126.703852	),
+                        new LatLng(37.612996	,126.703488	),
+                        new LatLng(37.613947	,126.701614	),
+                        new LatLng(37.614625	,126.700647	),
+                        new LatLng(37.615601	,126.699932	),
+                        new LatLng(37.616372	,126.69951	),
+                        new LatLng(37.616538	,126.69921	),
+                        new LatLng(37.616941	,126.698974	),
+                        new LatLng(37.617296	,126.69876	),
+                        new LatLng(37.617835	,126.698194	),
+                        new LatLng(37.61785 	,126.69738	),
+                        new LatLng(37.618599	,126.696506	),
+                        new LatLng(37.61892 	,126.69631	),
+                        new LatLng(37.61937 	,126.695359	),
+                        new LatLng(37.619564	,126.695217	),
+                        new LatLng(37.620225	,126.69408	),
+                        new LatLng(37.620273	,126.693851	),
+                        new LatLng(37.62027 	,126.693802	),
+                        new LatLng(37.620797	,126.69265	),
+                        new LatLng(37.620995	,126.692389	),
+                        new LatLng(37.621404	,126.691532	),
+                        new LatLng(37.620721	,126.69062	),
+                        new LatLng(37.621148	,126.689942	),
+                        new LatLng(37.621378	,126.68958	),
+                        new LatLng(37.621451	,126.689413	),
+                        new LatLng(37.621591	,126.68917	),
+                        new LatLng(37.621838	,126.689077	),
+                        new LatLng(37.62197 	,126.688902	),
+                        new LatLng(37.623996	,126.685711	),
+                        new LatLng(37.624248	,126.68531	),
+                        new LatLng(37.624438	,126.684999	),
+                        new LatLng(37.625054	,126.684016	),
+                        new LatLng(37.625231	,126.683735	),
+                        new LatLng(37.625124	,126.683592	),
+                        new LatLng(37.625078	,126.683441	),
+                        new LatLng(37.625079	,126.68342	),
+                        new LatLng(37.625045	,126.683325	),
+                        new LatLng(37.626251	,126.682474	),
+                        new LatLng(37.626341	,126.682387	),
+                        new LatLng(37.626457	,126.681994	),
+                        new LatLng(37.626571	,126.681714	),
+                        new LatLng(37.626832	,126.681433	),
+                        new LatLng(37.627157	,126.681238	),
+                        new LatLng(37.627868	,126.680841	),
+                        new LatLng(37.62844 	,126.680703	),
+                        new LatLng(37.629309	,126.680552	),
+                        new LatLng(37.629587	,126.679134	),
+                        new LatLng(37.629387	,126.678773	),
+                        new LatLng(37.629479	,126.67806	),
+                        new LatLng(37.629574	,126.677241	),
+                        new LatLng(37.629726	,126.676329	),
+                        new LatLng(37.629581	,126.675974	),
+                        new LatLng(37.629808	,126.675306	),
+                        new LatLng(37.629879	,126.674706	),
+                        new LatLng(37.630337	,126.674536	),
+                        new LatLng(37.63205 	,126.674147	),
+                        new LatLng(37.633072	,126.672907	),
+                        new LatLng(37.633842	,126.672422	),
+                        new LatLng(37.634047	,126.671504	),
+                        new LatLng(37.634188	,126.671135	),
+                        new LatLng(37.634754	,126.669806	),
+                        new LatLng(37.635009	,126.669205	),
+                        new LatLng(37.6353  	,126.668217	),
+                        new LatLng(37.635992	,126.666689	),
+                        new LatLng(37.636235	,126.665489	),
+                        new LatLng(37.635981	,126.664568	),
+                        new LatLng(37.636054	,126.66423	),
+                        new LatLng(37.63673 	,126.662497	),
+                        new LatLng(37.636632	,126.661632	),
+                        new LatLng(37.636672	,126.661548	),
+                        new LatLng(37.636872	,126.661132	),
+                        new LatLng(37.637154	,126.660564	),
+                        new LatLng(37.63775 	,126.660074	),
+                        new LatLng(37.638642	,126.658886	),
+                        new LatLng(37.637964	,126.656729	),
+                        new LatLng(37.637946	,126.656065	),
+                        new LatLng(37.637939	,126.655545	),
+                        new LatLng(37.638084	,126.654757	),
+                        new LatLng(37.638158	,126.654329	),
+                        new LatLng(37.638576	,126.653655	),
+                        new LatLng(37.639018	,126.651965	),
+                        new LatLng(37.638562	,126.651663	),
+                        new LatLng(37.637867	,126.6512	),
+                        new LatLng(37.637546	,126.651453	),
+                        new LatLng(37.636886	,126.651574	),
+                        new LatLng(37.636839	,126.651597	),
+                        new LatLng(37.636164	,126.651429	),
+                        new LatLng(37.635112	,126.651429	),
+                        new LatLng(37.634883	,126.65093	),
+                        new LatLng(37.634205	,126.650533	),
+                        new LatLng(37.634033	,126.650524	),
+                        new LatLng(37.633549	,126.6505	),
+                        new LatLng(37.633311	,126.650558	),
+                        new LatLng(37.632968	,126.650493	),
+                        new LatLng(37.632435	,126.650263	),
+                        new LatLng(37.631865	,126.649645	),
+                        new LatLng(37.630941	,126.649092	),
+                        new LatLng(37.63052 	,126.648787	),
+                        new LatLng(37.629592	,126.648583	),
+                        new LatLng(37.628574	,126.647461	),
+                        new LatLng(37.627991	,126.647445	),
+                        new LatLng(37.627778	,126.646352	),
+                        new LatLng(37.628413	,126.645697	),
+                        new LatLng(37.628517	,126.644645	),
+                        new LatLng(37.628446	,126.644394	),
+                        new LatLng(37.628132	,126.642607	),
+                        new LatLng(37.627199	,126.640981	),
+                        new LatLng(37.62677 	,126.639907	),
+                        new LatLng(37.626936	,126.639422	),
+                        new LatLng(37.62731 	,126.639115	),
+                        new LatLng(37.627461	,126.638464	),
+                        new LatLng(37.628107	,126.636852	),
+                        new LatLng(37.624528	,126.63714	),
+                        new LatLng(37.624392	,126.637062	),
+                        new LatLng(37.624137	,126.636953	),
+                        new LatLng(37.623951	,126.636839	),
+                        new LatLng(37.623815	,126.636744	),
+                        new LatLng(37.623753	,126.63676	),
+                        new LatLng(37.623581	,126.636907	),
+                        new LatLng(37.623489	,126.637053	),
+                        new LatLng(37.623431	,126.637097	),
+                        new LatLng(37.623215	,126.637055	),
+                        new LatLng(37.623042	,126.636987	),
+                        new LatLng(37.622634	,126.636832	),
+                        new LatLng(37.622413	,126.636801	),
+                        new LatLng(37.622082	,126.636503	),
+                        new LatLng(37.621783	,126.63631	),
+                        new LatLng(37.621454	,126.636559	),
+                        new LatLng(37.621347	,126.636622	),
+                        new LatLng(37.621021	,126.636446	),
+                        new LatLng(37.620867	,126.636456	),
+                        new LatLng(37.620637	,126.636501	),
+                        new LatLng(37.620507	,126.636575	),
+                        new LatLng(37.620367	,126.636496	),
+                        new LatLng(37.620343	,126.636363	),
+                        new LatLng(37.620332	,126.636134	),
+                        new LatLng(37.620049	,126.635691	),
+                        new LatLng(37.61989 	,126.635455	),
+                        new LatLng(37.619776	,126.635162	),
+                        new LatLng(37.619488	,126.634679	),
+                        new LatLng(37.619363	,126.634564	),
+                        new LatLng(37.619315	,126.634505	),
+                        new LatLng(37.619215	,126.634311	),
+                        new LatLng(37.619185	,126.634009	),
+                        new LatLng(37.619206	,126.633849	),
+                        new LatLng(37.619279	,126.633662	),
+                        new LatLng(37.61937 	,126.633493	),
+                        new LatLng(37.619361	,126.633409	),
+                        new LatLng(37.619339	,126.633361	),
+                        new LatLng(37.61923 	,126.633226	),
+                        new LatLng(37.618952	,126.633199	),
+                        new LatLng(37.618515	,126.632938	),
+                        new LatLng(37.618453	,126.632883	),
+                        new LatLng(37.618395	,126.632841	),
+                        new LatLng(37.618261	,126.632643	),
+                        new LatLng(37.618044	,126.632512	),
+                        new LatLng(37.617841	,126.63241	),
+                        new LatLng(37.617043	,126.63166	),
+                        new LatLng(37.616964	,126.631733	),
+                        new LatLng(37.616757	,126.632084	),
+                        new LatLng(37.616648	,126.632153	),
+                        new LatLng(37.616557	,126.632164	),
+                        new LatLng(37.616434	,126.632211	),
+                        new LatLng(37.616255	,126.632282	),
+                        new LatLng(37.616029	,126.632349	),
+                        new LatLng(37.615642	,126.632191	),
+                        new LatLng(37.615605	,126.632181	),
+                        new LatLng(37.615295	,126.632124	),
+                        new LatLng(37.615126	,126.63212	),
+                        new LatLng(37.614967	,126.632087	),
+                        new LatLng(37.614791	,126.631965	),
+                        new LatLng(37.614627	,126.631863	),
+                        new LatLng(37.614485	,126.631796	),
+                        new LatLng(37.614143	,126.631613	),
+                        new LatLng(37.614001	,126.63156	),
+                        new LatLng(37.613778	,126.631531	),
+                        new LatLng(37.613627	,126.631508	),
+                        new LatLng(37.613367	,126.631293	),
+                        new LatLng(37.613319	,126.631124	),
+                        new LatLng(37.613279	,126.630944	),
+                        new LatLng(37.613162	,126.630705	),
+                        new LatLng(37.613072	,126.630578	),
+                        new LatLng(37.612556	,126.630363	),
+                        new LatLng(37.61244 	,126.630304	),
+                        new LatLng(37.612314	,126.630146	),
+                        new LatLng(37.612213	,126.63	    ),
+                        new LatLng(37.612155	,126.62994	),
+                        new LatLng(37.611859	,126.629584	),
+                        new LatLng(37.611693	,126.629429	),
+                        new LatLng(37.611448	,126.629318	),
+                        new LatLng(37.61132 	,126.629289	),
+                        new LatLng(37.611121	,126.629277	),
+                        new LatLng(37.61082 	,126.629313	),
+                        new LatLng(37.610584	,126.629333	),
+                        new LatLng(37.610329	,126.62943	),
+                        new LatLng(37.608913	,126.628931	),
+                        new LatLng(37.608147	,126.628511	),
+                        new LatLng(37.607358	,126.627864	),
+                        new LatLng(37.607151	,126.627795	),
+                        new LatLng(37.606401	,126.62779	),
+                        new LatLng(37.60576 	,126.627649	),
+                        new LatLng(37.604647	,126.625696	),
+                        new LatLng(37.604328	,126.625518	),
+                        new LatLng(37.60258 	,126.625668	),
+                        new LatLng(37.602721	,126.625561	),
+                        new LatLng(37.602707	,126.625514	),
+                        new LatLng(37.602613	,126.625173	),
+                        new LatLng(37.60279 	,126.624587	),
+                        new LatLng(37.602415	,126.624362	),
+                        new LatLng(37.602171	,126.623579	),
+                        new LatLng(37.602308	,126.623323	),
+                        new LatLng(37.602986	,126.62374	),
+                        new LatLng(37.603222	,126.623791	),
+                        new LatLng(37.603413	,126.623424	),
+                        new LatLng(37.602956	,126.622665	),
+                        new LatLng(37.603198	,126.622176	),
+                        new LatLng(37.603306	,126.621553	),
+                        new LatLng(37.603687	,126.620915	),
+                        new LatLng(37.605119	,126.615772	),
+                        new LatLng(37.605682	,126.615522	),
+                        new LatLng(37.604544	,126.60947	),
+                        new LatLng(37.600264	,126.605468	),
+                        new LatLng(37.598993	,126.603629	),
+                        new LatLng(37.593162	,126.591854	),
+                        new LatLng(37.593012	,126.591565	),
+                        new LatLng(37.59679 	,126.590244	),
+                        new LatLng(37.59955 	,126.593739	),
+                        new LatLng(37.600192	,126.581494	),
+                        new LatLng(37.605   	,126.577945	),
+                        new LatLng(37.599173	,126.573675	),
+                        new LatLng(37.603955	,126.565778	),
+                        new LatLng(37.60365 	,126.561125	),
+                        new LatLng(37.59968 	,126.559586	),
+                        new LatLng(37.604558	,126.560791	),
+                        new LatLng(37.609337	,126.5545	),
+                        new LatLng(37.615206	,126.555473	),
+                        new LatLng(37.632667	,126.550814	),
+                        new LatLng(37.637885	,126.544257	),
+                        new LatLng(37.640014	,126.544743	),
+                        new LatLng(37.641441	,126.538887	),
+                        new LatLng(37.654504	,126.531576	),
+                        new LatLng(37.65569 	,126.537722	),
+                        new LatLng(37.66269 	,126.544558	),
+                        new LatLng(37.665474	,126.539962	),
+                        new LatLng(37.670091	,126.538562	),
+                        new LatLng(37.674252	,126.526827	),
+                        new LatLng(37.687804	,126.534065	),
+                        new LatLng(37.705387	,126.530859	),
+                        new LatLng(37.714414	,126.521626	),
+                        new LatLng(37.747418	,126.531103	),
+                        new LatLng(37.752627	,126.529391	),
+                        new LatLng(37.76279 	,126.518341	),
+                        new LatLng(37.768455	,126.524501	),
+                        new LatLng(37.771029	,126.51705	),
+                        new LatLng(37.790098	,126.522783	),
+                        new LatLng(37.777619	,126.554681	),
+                        new LatLng(37.762704	,126.575345	),
+                        new LatLng(37.761156	,126.593773	),
+                        new LatLng(37.766566	,126.608123	),
+                        new LatLng(37.779137	,126.625503	),
+                        new LatLng(37.780941	,126.632078	),
+                        new LatLng(37.780683	,126.663034	),
+                        new LatLng(37.769328	,126.665106	),
+                        new LatLng(37.74657 	,126.676936	),
+                        new LatLng(37.726822	,126.680183	),
+                        new LatLng(37.700299	,126.673951	),
+                        new LatLng(37.683527	,126.670454	),
+                        new LatLng(37.673558	,126.675639	),
+                        new LatLng(37.653504	,126.714523	),
+                        new LatLng(37.647521	,126.73246	),
+                        new LatLng(37.635242	,126.746036	),
+                        new LatLng(37.629693	,126.75952	),
+                        new LatLng(37.605033	,126.802581	)
+                )
+                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .fillColor(clr));
+        polygon.setClickable(true);
+        namehmap.put(polygon.hashCode(),name);
+        colorhmap.put(polygon.hashCode(),clr);
+
+        IconGenerator iconFactory = new IconGenerator(this);
+        iconFactory.setColor(clr);
+        if(mclr == 2){
+            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
+        }else if(mclr == 3){
+            iconFactory.setStyle(IconGenerator.STYLE_RED);
+        }else if(mclr == 7){
+            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
+        }else if(mclr == 5){
+            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
+        }else {
+            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
+        }
+        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.727020, 126.613844));
+
+    }//김포시
+    public void drawPolygon29(GoogleMap googlemap) { //서울 성동구
+        String name = "동두천시";
+        int clr = Color.argb(100,255,0,0);
+        int mclr;
+        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
+        if(hmap.get(name)==null){
+            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
+            mclr = 1;
+        } else if(hmap.get(name).equals("-")){
+            clr = Color.argb(100,140,140,140);
+            mclr = 2;
+        }else if(Integer.parseInt(hmap.get(name))>150){
+            clr = Color.argb(100,255,0,0);
+            mclr = 3;
+        }else if(Integer.parseInt(hmap.get(name))>80){
+            clr = Color.argb(100,255,255,0);
+            mclr = 7;
+        }else if(Integer.parseInt(hmap.get(name))>30){
+            clr = Color.argb(100,0,255,0);
+            mclr = 5;
+        }else {
+            clr = Color.argb(100,0,0,255);
+            mclr = 4;
+        }
+        Log.d("log","kbc   ++))++))++  "+clr);
+        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+                .add(
+                        new LatLng(37.895624	,127.155371	),
+                        new LatLng(37.89556 	,127.155333	),
+                        new LatLng(37.894715	,127.154823	),
+                        new LatLng(37.87622 	,127.14684	),
+                        new LatLng(37.873953	,127.128287	),
+                        new LatLng(37.867306	,127.123396	),
+                        new LatLng(37.867057	,127.123308	),
+                        new LatLng(37.864816	,127.111622	),
+                        new LatLng(37.860386	,127.108863	),
+                        new LatLng(37.860368	,127.108831	),
+                        new LatLng(37.86567 	,127.103566	),
+                        new LatLng(37.866692	,127.098817	),
+                        new LatLng(37.866363	,127.098456	),
+                        new LatLng(37.872205	,127.088356	),
+                        new LatLng(37.869977	,127.078966	),
+                        new LatLng(37.872756	,127.073741	),
+                        new LatLng(37.868861	,127.061793	),
+                        new LatLng(37.870551	,127.059305	),
+                        new LatLng(37.875562	,127.05392	),
+                        new LatLng(37.875565	,127.053919	),
+                        new LatLng(37.875566	,127.053919	),
+                        new LatLng(37.875757	,127.053842	),
+                        new LatLng(37.883607	,127.048016	),
+                        new LatLng(37.894626	,127.045851	),
+                        new LatLng(37.895547	,127.04044	),
+                        new LatLng(37.895601	,127.038682	),
+                        new LatLng(37.898875	,127.028777	),
+                        new LatLng(37.898651	,127.021409	),
+                        new LatLng(37.900824	,127.019755	),
+                        new LatLng(37.900832	,127.019739	),
+                        new LatLng(37.904833	,127.010632	),
+                        new LatLng(37.910157	,127.010496	),
+                        new LatLng(37.915221	,127.006221	),
+                        new LatLng(37.919545	,127.013374	),
+                        new LatLng(37.92823 	,127.009725	),
+                        new LatLng(37.929842	,127.013672	),
+                        new LatLng(37.940022	,127.020408	),
+                        new LatLng(37.941264	,127.026062	),
+                        new LatLng(37.955877	,127.028832	),
+                        new LatLng(37.957532	,127.038926	),
+                        new LatLng(37.960062	,127.041828	),
+                        new LatLng(37.972494	,127.044669	),
+                        new LatLng(37.975862	,127.049542	),
+                        new LatLng(37.978862	,127.049453	),
+                        new LatLng(37.981049	,127.053678	),
+                        new LatLng(37.97917 	,127.064148	),
+                        new LatLng(37.975981	,127.063656	),
+                        new LatLng(37.975232	,127.066136	),
+                        new LatLng(37.976385	,127.080842	),
+                        new LatLng(37.971621	,127.090738	),
+                        new LatLng(37.971629	,127.091319	),
+                        new LatLng(37.967069	,127.094602	),
+                        new LatLng(37.958809	,127.092373	),
+                        new LatLng(37.954777	,127.098341	),
+                        new LatLng(37.953437	,127.098776	),
+                        new LatLng(37.944256	,127.095438	),
+                        new LatLng(37.939605	,127.108582	),
+                        new LatLng(37.921404	,127.120395	),
+                        new LatLng(37.917278	,127.120514	),
+                        new LatLng(37.912242	,127.144921	),
+                        new LatLng(37.912016	,127.145466	),
+                        new LatLng(37.898127	,127.149271	),
+                        new LatLng(37.895606	,127.1552	),
+                        new LatLng(37.895624	,127.155371	)
+                )
+                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .fillColor(clr));
+        polygon.setClickable(true);
+        namehmap.put(polygon.hashCode(),name);
+        colorhmap.put(polygon.hashCode(),clr);
+
+        IconGenerator iconFactory = new IconGenerator(this);
+        iconFactory.setColor(clr);
+        if(mclr == 2){
+            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
+        }else if(mclr == 3){
+            iconFactory.setStyle(IconGenerator.STYLE_RED);
+        }else if(mclr == 7){
+            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
+        }else if(mclr == 5){
+            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
+        }else {
+            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
+        }
+        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.917071, 127.078007));
+
+    }//동두천시
+    public void drawPolygon30(GoogleMap googlemap) { //서울 성동구
+        String name = "포천시";
+        int clr = Color.argb(100,255,0,0);
+        int mclr;
+        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
+        if(hmap.get(name)==null){
+            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
+            mclr = 1;
+        } else if(hmap.get(name).equals("-")){
+            clr = Color.argb(100,140,140,140);
+            mclr = 2;
+        }else if(Integer.parseInt(hmap.get(name))>150){
+            clr = Color.argb(100,255,0,0);
+            mclr = 3;
+        }else if(Integer.parseInt(hmap.get(name))>80){
+            clr = Color.argb(100,255,255,0);
+            mclr = 7;
+        }else if(Integer.parseInt(hmap.get(name))>30){
+            clr = Color.argb(100,0,255,0);
+            mclr = 5;
+        }else {
+            clr = Color.argb(100,0,0,255);
+            mclr = 4;
+        }
+        Log.d("log","kbc   ++))++))++  "+clr);
+        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+                .add(
+                            new LatLng(38.051214	,127.446239	),
+                            new LatLng(38.051213	,127.446239	),
+                            new LatLng(38.050029	,127.445389	),
+                            new LatLng(38.038361	,127.435689	),
+                            new LatLng(38.033452	,127.424667	),
+                            new LatLng(38.025746	,127.426719	),
+                            new LatLng(38.017448	,127.419838	),
+                            new LatLng(37.997822	,127.412837	),
+                            new LatLng(37.990338	,127.405237	),
+                            new LatLng(37.982333	,127.384859	),
+                            new LatLng(37.975454	,127.384839	),
+                            new LatLng(37.961617	,127.376691	),
+                            new LatLng(37.958205	,127.379447	),
+                            new LatLng(37.953192	,127.376646	),
+                            new LatLng(37.946938	,127.38519	),
+                            new LatLng(37.943267	,127.384578	),
+                            new LatLng(37.928891	,127.365906	),
+                            new LatLng(37.926233	,127.365732	),
+                            new LatLng(37.921114	,127.35654	),
+                            new LatLng(37.921458	,127.349837	),
+                            new LatLng(37.926399	,127.345348	),
+                            new LatLng(37.923091	,127.338322	),
+                            new LatLng(37.925567	,127.330235	),
+                            new LatLng(37.916318	,127.329905	),
+                            new LatLng(37.911568	,127.326624	),
+                            new LatLng(37.909319	,127.329575	),
+                            new LatLng(37.902373	,127.326428	),
+                            new LatLng(37.894015	,127.328481	),
+                            new LatLng(37.887296	,127.322427	),
+                            new LatLng(37.877145	,127.325098	),
+                            new LatLng(37.871368	,127.322887	),
+                            new LatLng(37.871438	,127.319172	),
+                            new LatLng(37.865758	,127.312736	),
+                            new LatLng(37.868619	,127.306106	),
+                            new LatLng(37.868864	,127.29582	),
+                            new LatLng(37.875392	,127.291914	),
+                            new LatLng(37.86969 	,127.287827	),
+                            new LatLng(37.855691	,127.280407	),
+                            new LatLng(37.848023	,127.286554	),
+                            new LatLng(37.842262	,127.278955	),
+                            new LatLng(37.830446	,127.274098	),
+                            new LatLng(37.816336	,127.279328	),
+                            new LatLng(37.807319	,127.276799	),
+                            new LatLng(37.804688	,127.278505	),
+                            new LatLng(37.794616	,127.271007	),
+                            new LatLng(37.789963	,127.273049	),
+                            new LatLng(37.779871	,127.266914	),
+                            new LatLng(37.780522	,127.265729	),
+                            new LatLng(37.779144	,127.265486	),
+                            new LatLng(37.779068	,127.26541	),
+                            new LatLng(37.778973	,127.265122	),
+                            new LatLng(37.778191	,127.264358	),
+                            new LatLng(37.77821 	,127.263973	),
+                            new LatLng(37.776664	,127.262276	),
+                            new LatLng(37.77401 	,127.260814	),
+                            new LatLng(37.773991	,127.260816	),
+                            new LatLng(37.771089	,127.261553	),
+                            new LatLng(37.770622	,127.260836	),
+                            new LatLng(37.770451	,127.260824	),
+                            new LatLng(37.769965	,127.260448	),
+                            new LatLng(37.769849	,127.260175	),
+                            new LatLng(37.768307	,127.259943	),
+                            new LatLng(37.768291	,127.259942	),
+                            new LatLng(37.768689	,127.259002	),
+                            new LatLng(37.767919	,127.256741	),
+                            new LatLng(37.768037	,127.256351	),
+                            new LatLng(37.768011	,127.256151	),
+                            new LatLng(37.76777 	,127.254811	),
+                            new LatLng(37.767521	,127.253516	),
+                            new LatLng(37.766578	,127.252128	),
+                            new LatLng(37.76604 	,127.250526	),
+                            new LatLng(37.765782	,127.249254	),
+                            new LatLng(37.765189	,127.248378	),
+                            new LatLng(37.765245	,127.247573	),
+                            new LatLng(37.765218	,127.247357	),
+                            new LatLng(37.765066	,127.246676	),
+                            new LatLng(37.764483	,127.245437	),
+                            new LatLng(37.764116	,127.244312	),
+                            new LatLng(37.763758	,127.243301	),
+                            new LatLng(37.762826	,127.240903	),
+                            new LatLng(37.762728	,127.240506	),
+                            new LatLng(37.763044	,127.239814	),
+                            new LatLng(37.763344	,127.238465	),
+                            new LatLng(37.763553	,127.238011	),
+                            new LatLng(37.763591	,127.236979	),
+                            new LatLng(37.762285	,127.236566	),
+                            new LatLng(37.760405	,127.234847	),
+                            new LatLng(37.759731	,127.234186	),
+                            new LatLng(37.759254	,127.234094	),
+                            new LatLng(37.758867	,127.234002	),
+                            new LatLng(37.757833	,127.232546	),
+                            new LatLng(37.757557	,127.231116	),
+                            new LatLng(37.757414	,127.230616	),
+                            new LatLng(37.75736 	,127.23057	),
+                            new LatLng(37.756477	,127.230193	),
+                            new LatLng(37.754499	,127.228349	),
+                            new LatLng(37.754111	,127.228381	),
+                            new LatLng(37.754394	,127.22659	),
+                            new LatLng(37.753738	,127.225986	),
+                            new LatLng(37.754265	,127.223491	),
+                            new LatLng(37.754373	,127.223219	),
+                            new LatLng(37.754843	,127.222835	),
+                            new LatLng(37.7553  	,127.22272	),
+                            new LatLng(37.755365	,127.222802	),
+                            new LatLng(37.756517	,127.223555	),
+                            new LatLng(37.757104	,127.223091	),
+                            new LatLng(37.7575  	,127.222888	),
+                            new LatLng(37.757825	,127.222571	),
+                            new LatLng(37.757862	,127.222265	),
+                            new LatLng(37.757862	,127.222072	),
+                            new LatLng(37.758007	,127.221902	),
+                            new LatLng(37.758205	,127.221744	),
+                            new LatLng(37.758026	,127.221335	),
+                            new LatLng(37.757994	,127.220854	),
+                            new LatLng(37.757955	,127.220779	),
+                            new LatLng(37.75791 	,127.220756	),
+                            new LatLng(37.757874	,127.220688	),
+                            new LatLng(37.757843	,127.220664	),
+                            new LatLng(37.757748	,127.220574	),
+                            new LatLng(37.757784	,127.220562	),
+                            new LatLng(37.757991	,127.220529	),
+                            new LatLng(37.758235	,127.220314	),
+                            new LatLng(37.758325	,127.220167	),
+                            new LatLng(37.758389	,127.220008	),
+                            new LatLng(37.758425	,127.219827	),
+                            new LatLng(37.758452	,127.219781	),
+                            new LatLng(37.758443	,127.219725	),
+                            new LatLng(37.758434	,127.219679	),
+                            new LatLng(37.758303	,127.217761	),
+                            new LatLng(37.759855	,127.216154	),
+                            new LatLng(37.760858	,127.214659	),
+                            new LatLng(37.760814	,127.214284	),
+                            new LatLng(37.760815	,127.213853	),
+                            new LatLng(37.761537	,127.212868	),
+                            new LatLng(37.764364	,127.212713	),
+                            new LatLng(37.764738	,127.212655	),
+                            new LatLng(37.765834	,127.213039	),
+                            new LatLng(37.766024	,127.21304	),
+                            new LatLng(37.766934	,127.212781	),
+                            new LatLng(37.76765 	,127.21314	),
+                            new LatLng(37.767735	,127.213249	),
+                            new LatLng(37.769366	,127.211644	),
+                            new LatLng(37.769369	,127.211642	),
+                            new LatLng(37.769376	,127.211504	),
+                            new LatLng(37.767339	,127.207925	),
+                            new LatLng(37.766501	,127.208093	),
+                            new LatLng(37.764524	,127.207543	),
+                            new LatLng(37.76389 	,127.2072	),
+                            new LatLng(37.763405	,127.205789	),
+                            new LatLng(37.763244	,127.205144	),
+                            new LatLng(37.765295	,127.202109	),
+                            new LatLng(37.765238	,127.202066	),
+                            new LatLng(37.765134	,127.20162	),
+                            new LatLng(37.764018	,127.199905	),
+                            new LatLng(37.763938	,127.199744	),
+                            new LatLng(37.76321 	,127.198732	),
+                            new LatLng(37.762294	,127.197334	),
+                            new LatLng(37.762124	,127.197086	),
+                            new LatLng(37.762387	,127.195405	),
+                            new LatLng(37.762577	,127.194611	),
+                            new LatLng(37.762668	,127.194452	),
+                            new LatLng(37.762848	,127.194237	),
+                            new LatLng(37.762939	,127.194101	),
+                            new LatLng(37.762984	,127.194124	),
+                            new LatLng(37.763164	,127.193977	),
+                            new LatLng(37.764266	,127.192618	),
+                            new LatLng(37.763467	,127.190834	),
+                            new LatLng(37.762458	,127.19065	),
+                            new LatLng(37.762388	,127.189504	),
+                            new LatLng(37.762532	,127.189356	),
+                            new LatLng(37.762841	,127.18736	),
+                            new LatLng(37.764159	,127.186092	),
+                            new LatLng(37.764398	,127.182824	),
+                            new LatLng(37.763042	,127.18012	),
+                            new LatLng(37.759164	,127.176615	),
+                            new LatLng(37.758369	,127.176135	),
+                            new LatLng(37.75767 	,127.172537	),
+                            new LatLng(37.755719	,127.172783	),
+                            new LatLng(37.754655	,127.17303	),
+                            new LatLng(37.753291	,127.173255	),
+                            new LatLng(37.750648	,127.171693	),
+                            new LatLng(37.750169	,127.172441	),
+                            new LatLng(37.749674	,127.17219	),
+                            new LatLng(37.749059	,127.167934	),
+                            new LatLng(37.746968	,127.164042	),
+                            new LatLng(37.746929	,127.163811	),
+                            new LatLng(37.749217	,127.157972	),
+                            new LatLng(37.75113 	,127.155309	),
+                            new LatLng(37.75511 	,127.150098	),
+                            new LatLng(37.755517	,127.14937	),
+                            new LatLng(37.756112	,127.148307	),
+                            new LatLng(37.755523	,127.146175	),
+                            new LatLng(37.75552 	,127.146172	),
+                            new LatLng(37.755498	,127.146178	),
+                            new LatLng(37.763447	,127.14015	),
+                            new LatLng(37.764011	,127.139656	),
+                            new LatLng(37.762094	,127.133713	),
+                            new LatLng(37.763643	,127.125806	),
+                            new LatLng(37.768956	,127.12889	),
+                            new LatLng(37.773123	,127.124255	),
+                            new LatLng(37.772959	,127.124055	),
+                            new LatLng(37.772681	,127.116128	),
+                            new LatLng(37.777024	,127.115124	),
+                            new LatLng(37.780291	,127.105743	),
+                            new LatLng(37.79599 	,127.11771	),
+                            new LatLng(37.804385	,127.117029	),
+                            new LatLng(37.810834	,127.120699	),
+                            new LatLng(37.811357	,127.120994	),
+                            new LatLng(37.828304	,127.121794	),
+                            new LatLng(37.834561	,127.117182	),
+                            new LatLng(37.85052 	,127.114799	),
+                            new LatLng(37.853636	,127.110686	),
+                            new LatLng(37.860325	,127.108857	),
+                            new LatLng(37.860386	,127.108863	),
+                            new LatLng(37.864816	,127.111622	),
+                            new LatLng(37.867057	,127.123308	),
+                            new LatLng(37.867306	,127.123396	),
+                            new LatLng(37.873953	,127.128287	),
+                            new LatLng(37.87622 	,127.14684	),
+                            new LatLng(37.894715	,127.154823	),
+                            new LatLng(37.89556 	,127.155333	),
+                            new LatLng(37.895624	,127.155371	),
+                            new LatLng(37.895606	,127.1552	),
+                            new LatLng(37.898127	,127.149271	),
+                            new LatLng(37.912016	,127.145466	),
+                            new LatLng(37.912242	,127.144921	),
+                            new LatLng(37.917278	,127.120514	),
+                            new LatLng(37.921404	,127.120395	),
+                            new LatLng(37.939605	,127.108582	),
+                            new LatLng(37.944256	,127.095438	),
+                            new LatLng(37.953437	,127.098776	),
+                            new LatLng(37.954777	,127.098341	),
+                            new LatLng(37.958809	,127.092373	),
+                            new LatLng(37.967069	,127.094602	),
+                            new LatLng(37.971629	,127.091319	),
+                            new LatLng(37.971628	,127.091234	),
+                            new LatLng(37.97453 	,127.092758	),
+                            new LatLng(37.983286	,127.089796	),
+                            new LatLng(37.985307	,127.096945	),
+                            new LatLng(37.989665	,127.100546	),
+                            new LatLng(37.988759	,127.112146	),
+                            new LatLng(37.985219	,127.117404	),
+                            new LatLng(37.97894 	,127.120272	),
+                            new LatLng(37.991959	,127.141356	),
+                            new LatLng(37.991689	,127.141808	),
+                            new LatLng(37.992437	,127.145026	),
+                            new LatLng(37.996837	,127.147333	),
+                            new LatLng(37.999499	,127.145484	),
+                            new LatLng(38.014733	,127.147356	),
+                            new LatLng(38.021037	,127.139483	),
+                            new LatLng(38.029613	,127.135265	),
+                            new LatLng(38.038088	,127.137477	),
+                            new LatLng(38.038713	,127.118891	),
+                            new LatLng(38.038877	,127.117126	),
+                            new LatLng(38.039794	,127.114638	),
+                            new LatLng(38.043565	,127.118073	),
+                            new LatLng(38.051125	,127.111892	),
+                            new LatLng(38.060293	,127.115721	),
+                            new LatLng(38.060276	,127.128278	),
+                            new LatLng(38.06645 	,127.138195	),
+                            new LatLng(38.07014 	,127.138469	),
+                            new LatLng(38.071134	,127.139679	),
+                            new LatLng(38.073051	,127.143375	),
+                            new LatLng(38.0695  	,127.147491	),
+                            new LatLng(38.060719	,127.146346	),
+                            new LatLng(38.057801	,127.148907	),
+                            new LatLng(38.063327	,127.156772	),
+                            new LatLng(38.061623	,127.166363	),
+                            new LatLng(38.066309	,127.172862	),
+                            new LatLng(38.063843	,127.185014	),
+                            new LatLng(38.064539	,127.188804	),
+                            new LatLng(38.067448	,127.189969	),
+                            new LatLng(38.08338 	,127.192093	),
+                            new LatLng(38.091576	,127.184096	),
+                            new LatLng(38.11506 	,127.1825	),
+                            new LatLng(38.118372	,127.180626	),
+                            new LatLng(38.121827	,127.171302	),
+                            new LatLng(38.128909	,127.175542	),
+                            new LatLng(38.141184	,127.172892	),
+                            new LatLng(38.152472	,127.177022	),
+                            new LatLng(38.161349	,127.173317	),
+                            new LatLng(38.17271 	,127.173997	),
+                            new LatLng(38.173098	,127.173931	),
+                            new LatLng(38.180383	,127.174582	),
+                            new LatLng(38.186007	,127.180201	),
+                            new LatLng(38.186134	,127.18053	),
+                            new LatLng(38.185956	,127.181388	),
+                            new LatLng(38.188321	,127.189225	),
+                            new LatLng(38.188018	,127.189278	),
+                            new LatLng(38.179609	,127.18829	),
+                            new LatLng(38.179458	,127.188212	),
+                            new LatLng(38.1742  	,127.18614	),
+                            new LatLng(38.17388 	,127.185856	),
+                            new LatLng(38.161156	,127.189233	),
+                            new LatLng(38.153477	,127.202968	),
+                            new LatLng(38.137432	,127.222042	),
+                            new LatLng(38.147857	,127.224728	),
+                            new LatLng(38.14706 	,127.234578	),
+                            new LatLng(38.156604	,127.239392	),
+                            new LatLng(38.162991	,127.25605	),
+                            new LatLng(38.168888	,127.258601	),
+                            new LatLng(38.168898	,127.2586	),
+                            new LatLng(38.171744	,127.26448	),
+                            new LatLng(38.180437	,127.266441	),
+                            new LatLng(38.182902	,127.283133	),
+                            new LatLng(38.180281	,127.286112	),
+                            new LatLng(38.179525	,127.286109	),
+                            new LatLng(38.17685 	,127.288253	),
+                            new LatLng(38.175203	,127.29799	),
+                            new LatLng(38.169457	,127.288996	),
+                            new LatLng(38.164559	,127.288569	),
+                            new LatLng(38.159219	,127.283975	),
+                            new LatLng(38.152639	,127.286405	),
+                            new LatLng(38.146848	,127.284264	),
+                            new LatLng(38.137282	,127.275011	),
+                            new LatLng(38.124176	,127.275813	),
+                            new LatLng(38.125128	,127.279646	),
+                            new LatLng(38.125143	,127.280141	),
+                            new LatLng(38.122081	,127.283111	),
+                            new LatLng(38.116488	,127.282751	),
+                            new LatLng(38.114288	,127.286087	),
+                            new LatLng(38.116401	,127.288572	),
+                            new LatLng(38.114146	,127.292546	),
+                            new LatLng(38.115432	,127.304736	),
+                            new LatLng(38.119019	,127.307553	),
+                            new LatLng(38.118941	,127.307807	),
+                            new LatLng(38.115931	,127.31137	),
+                            new LatLng(38.098638	,127.316273	),
+                            new LatLng(38.094684	,127.32067	),
+                            new LatLng(38.094381	,127.32872	),
+                            new LatLng(38.089769	,127.336958	),
+                            new LatLng(38.101295	,127.339765	),
+                            new LatLng(38.104826	,127.348134	),
+                            new LatLng(38.10693 	,127.365941	),
+                            new LatLng(38.118429	,127.378614	),
+                            new LatLng(38.118305	,127.378816	),
+                            new LatLng(38.117081	,127.383272	),
+                            new LatLng(38.114319	,127.384289	),
+                            new LatLng(38.113535	,127.393323	),
+                            new LatLng(38.113401	,127.394123	),
+                            new LatLng(38.112961	,127.403452	),
+                            new LatLng(38.102954	,127.405524	),
+                            new LatLng(38.102013	,127.413408	),
+                            new LatLng(38.106765	,127.422622	),
+                            new LatLng(38.114819	,127.429911	),
+                            new LatLng(38.115395	,127.430565	),
+                            new LatLng(38.111019	,127.433502	),
+                            new LatLng(38.108832	,127.440453	),
+                            new LatLng(38.09747 	,127.445167	),
+                            new LatLng(38.051797	,127.445997	),
+                            new LatLng(38.051214	,127.446239	)
+                )
+                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .fillColor(clr));
+        polygon.setClickable(true);
+        namehmap.put(polygon.hashCode(),name);
+        colorhmap.put(polygon.hashCode(),clr);
+
+        IconGenerator iconFactory = new IconGenerator(this);
+        iconFactory.setColor(clr);
+        if(mclr == 2){
+            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
+        }else if(mclr == 3){
+            iconFactory.setStyle(IconGenerator.STYLE_RED);
+        }else if(mclr == 7){
+            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
+        }else if(mclr == 5){
+            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
+        }else {
+            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
+        }
+        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.972607, 127.251062));
+
+    }//포천시
+    public void drawPolygon28(GoogleMap googlemap) { //서울 성동구
+        String name = "가평군";
+        int clr = Color.argb(100,255,0,0);
+        int mclr;
+        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
+        if(hmap.get(name)==null){
+            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
+            mclr = 1;
+        } else if(hmap.get(name).equals("-")){
+            clr = Color.argb(100,140,140,140);
+            mclr = 2;
+        }else if(Integer.parseInt(hmap.get(name))>150){
+            clr = Color.argb(100,255,0,0);
+            mclr = 3;
+        }else if(Integer.parseInt(hmap.get(name))>80){
+            clr = Color.argb(100,255,255,0);
+            mclr = 7;
+        }else if(Integer.parseInt(hmap.get(name))>30){
+            clr = Color.argb(100,0,255,0);
+            mclr = 5;
+        }else {
+            clr = Color.argb(100,0,0,255);
+            mclr = 4;
+        }
+        Log.d("log","kbc   ++))++))++  "+clr);
+        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+                .add(
+                        new LatLng(37.906362	,127.617141	),
+                        new LatLng(37.88966 	,127.607403	),
+                        new LatLng(37.883518	,127.609095	),
+                        new LatLng(37.876492	,127.605849	),
+                        new LatLng(37.874201	,127.603212	),
+                        new LatLng(37.874847	,127.598167	),
+                        new LatLng(37.875371	,127.597649	),
+                        new LatLng(37.876323	,127.584898	),
+                        new LatLng(37.874014	,127.577887	),
+                        new LatLng(37.866973	,127.568595	),
+                        new LatLng(37.859223	,127.566838	),
+                        new LatLng(37.85588 	,127.563239	),
+                        new LatLng(37.856278	,127.557452	),
+                        new LatLng(37.851931	,127.550088	),
+                        new LatLng(37.846538	,127.549652	),
+                        new LatLng(37.844812	,127.536698	),
+                        new LatLng(37.842152	,127.532443	),
+                        new LatLng(37.832924	,127.525619	),
+                        new LatLng(37.825001	,127.524592	),
+                        new LatLng(37.817711	,127.53494	),
+                        new LatLng(37.810541	,127.537354	),
+                        new LatLng(37.799765	,127.526756	),
+                        new LatLng(37.799351	,127.526329	),
+                        new LatLng(37.792543	,127.520814	),
+                        new LatLng(37.785345	,127.525678	),
+                        new LatLng(37.784067	,127.52754	),
+                        new LatLng(37.770875	,127.540924	),
+                        new LatLng(37.760075	,127.54488	),
+                        new LatLng(37.751146	,127.53762	),
+                        new LatLng(37.742788	,127.522668	),
+                        new LatLng(37.740267	,127.516871	),
+                        new LatLng(37.739577	,127.515682	),
+                        new LatLng(37.738603	,127.514005	),
+                        new LatLng(37.731359	,127.507112	),
+                        new LatLng(37.720594	,127.507067	),
+                        new LatLng(37.719019	,127.508115	),
+                        new LatLng(37.715682	,127.511862	),
+                        new LatLng(37.72686 	,127.527205	),
+                        new LatLng(37.720487	,127.537343	),
+                        new LatLng(37.720099	,127.538409	),
+                        new LatLng(37.719864	,127.542511	),
+                        new LatLng(37.728794	,127.553749	),
+                        new LatLng(37.728577	,127.559912	),
+                        new LatLng(37.719625	,127.561811	),
+                        new LatLng(37.687042	,127.550639	),
+                        new LatLng(37.686887	,127.550638	),
+                        new LatLng(37.668614	,127.549049	),
+                        new LatLng(37.661528	,127.552816	),
+                        new LatLng(37.65786 	,127.546219	),
+                        new LatLng(37.65173 	,127.543854	),
+                        new LatLng(37.650695	,127.535655	),
+                        new LatLng(37.645018	,127.535682	),
+                        new LatLng(37.63837 	,127.543444	),
+                        new LatLng(37.637859	,127.543716	),
+                        new LatLng(37.637478	,127.546759	),
+                        new LatLng(37.637706	,127.54725	),
+                        new LatLng(37.637357	,127.54717	),
+                        new LatLng(37.633208	,127.548258	),
+                        new LatLng(37.628497	,127.559402	),
+                        new LatLng(37.622867	,127.5597	),
+                        new LatLng(37.613362	,127.570474	),
+                        new LatLng(37.608429	,127.569551	),
+                        new LatLng(37.604613	,127.562683	),
+                        new LatLng(37.599422	,127.562902	),
+                        new LatLng(37.594594	,127.559357	),
+                        new LatLng(37.587675	,127.56155	),
+                        new LatLng(37.583485	,127.559918	),
+                        new LatLng(37.586677	,127.55337	),
+                        new LatLng(37.584352	,127.538145	),
+                        new LatLng(37.586497	,127.523401	),
+                        new LatLng(37.586399	,127.523054	),
+                        new LatLng(37.576541	,127.511177	),
+                        new LatLng(37.571198	,127.497485	),
+                        new LatLng(37.577569	,127.472842	),
+                        new LatLng(37.587083	,127.469361	),
+                        new LatLng(37.607381	,127.47316	),
+                        new LatLng(37.62198 	,127.471	),
+                        new LatLng(37.628802	,127.458819	),
+                        new LatLng(37.640914	,127.455112	),
+                        new LatLng(37.644072	,127.440517	),
+                        new LatLng(37.646675	,127.441101	),
+                        new LatLng(37.653723	,127.434846	),
+                        new LatLng(37.65965 	,127.441466	),
+                        new LatLng(37.670793	,127.428146	),
+                        new LatLng(37.663946	,127.422362	),
+                        new LatLng(37.663262	,127.415911	),
+                        new LatLng(37.655624	,127.401156	),
+                        new LatLng(37.650982	,127.399011	),
+                        new LatLng(37.65164 	,127.379928	),
+                        new LatLng(37.647661	,127.371529	),
+                        new LatLng(37.647652	,127.371497	),
+                        new LatLng(37.647652	,127.371495	),
+                        new LatLng(37.648738	,127.372096	),
+                        new LatLng(37.649429	,127.37251	),
+                        new LatLng(37.649707	,127.372645	),
+                        new LatLng(37.649856	,127.372717	),
+                        new LatLng(37.650485	,127.373021	),
+                        new LatLng(37.651673	,127.373609	),
+                        new LatLng(37.652927	,127.374257	),
+                        new LatLng(37.653574	,127.374632	),
+                        new LatLng(37.653846	,127.374789	),
+                        new LatLng(37.65407 	,127.374919	),
+                        new LatLng(37.655238	,127.375594	),
+                        new LatLng(37.656972	,127.375942	),
+                        new LatLng(37.658286	,127.376164	),
+                        new LatLng(37.658584	,127.376211	),
+                        new LatLng(37.66043 	,127.376526	),
+                        new LatLng(37.660952	,127.376631	),
+                        new LatLng(37.661654	,127.376759	),
+                        new LatLng(37.665382	,127.377424	),
+                        new LatLng(37.665832	,127.377539	),
+                        new LatLng(37.666691	,127.37776	),
+                        new LatLng(37.667219	,127.377875	),
+                        new LatLng(37.667606	,127.377979	),
+                        new LatLng(37.669649	,127.378533	),
+                        new LatLng(37.670171	,127.378683	),
+                        new LatLng(37.670972	,127.378959	),
+                        new LatLng(37.671197	,127.379006	),
+                        new LatLng(37.671782	,127.379122	),
+                        new LatLng(37.672206	,127.379215	),
+                        new LatLng(37.672764	,127.379331	),
+                        new LatLng(37.676265	,127.380528	),
+                        new LatLng(37.676409	,127.380585	),
+                        new LatLng(37.676715	,127.380734	),
+                        new LatLng(37.677263	,127.380986	),
+                        new LatLng(37.676101	,127.378294	),
+                        new LatLng(37.675006	,127.377474	),
+                        new LatLng(37.67657 	,127.375168	),
+                        new LatLng(37.67667 	,127.375066	),
+                        new LatLng(37.677907	,127.374222	),
+                        new LatLng(37.678033	,127.373996	),
+                        new LatLng(37.678205	,127.373997	),
+                        new LatLng(37.678295	,127.373895	),
+                        new LatLng(37.678719	,127.373682	),
+                        new LatLng(37.679052	,127.373888	),
+                        new LatLng(37.679241	,127.3739	),
+                        new LatLng(37.679538	,127.374026	),
+                        new LatLng(37.679835	,127.374005	),
+                        new LatLng(37.680195	,127.37412	),
+                        new LatLng(37.680331	,127.374121	),
+                        new LatLng(37.68052  	,127.374156	),
+                        new LatLng(37.680645	,127.374315	),
+                        new LatLng(37.680825	,127.374316	),
+                        new LatLng(37.68115 	,127.374261	),
+                        new LatLng(37.68142 	,127.374206	),
+                        new LatLng(37.681744	,127.374502	),
+                        new LatLng(37.682602	,127.373656	),
+                        new LatLng(37.683064	,127.37291	),
+                        new LatLng(37.683146	,127.372786	),
+                        new LatLng(37.683725	,127.371893	),
+                        new LatLng(37.683906	,127.371588	),
+                        new LatLng(37.684087	,127.371283	),
+                        new LatLng(37.684278	,127.370966	),
+                        new LatLng(37.684848	,127.370119	),
+                        new LatLng(37.685039	,127.369485	),
+                        new LatLng(37.685075	,127.369406	),
+                        new LatLng(37.685048	,127.369394	),
+                        new LatLng(37.68513 	,127.369225	),
+                        new LatLng(37.685972	,127.367959	),
+                        new LatLng(37.689068	,127.366206	),
+                        new LatLng(37.690367	,127.368332	),
+                        new LatLng(37.690421	,127.368639	),
+                        new LatLng(37.690383	,127.369262	),
+                        new LatLng(37.690729	,127.370885	),
+                        new LatLng(37.69106 	,127.371476	),
+                        new LatLng(37.692239	,127.37206	),
+                        new LatLng(37.692402	,127.371834	),
+                        new LatLng(37.692692	,127.37111	),
+                        new LatLng(37.692855	,127.370597	),
+                        new LatLng(37.693029	,127.370046	),
+                        new LatLng(37.69316 	,127.368505	),
+                        new LatLng(37.69371 	,127.362328	),
+                        new LatLng(37.694285	,127.359961	),
+                        new LatLng(37.694569	,127.358647	),
+                        new LatLng(37.694785	,127.358637	),
+                        new LatLng(37.695244	,127.358662	),
+                        new LatLng(37.695604	,127.358743	),
+                        new LatLng(37.696372	,127.358112	),
+                        new LatLng(37.696929	,127.358659	),
+                        new LatLng(37.697461	,127.358661	),
+                        new LatLng(37.698297	,127.359051	),
+                        new LatLng(37.698893	,127.358793	),
+                        new LatLng(37.699597	,127.358331	),
+                        new LatLng(37.699941	,127.357811	),
+                        new LatLng(37.700763	,127.357214	),
+                        new LatLng(37.701658	,127.356141	),
+                        new LatLng(37.702362	,127.355782	),
+                        new LatLng(37.702742	,127.355228	),
+                        new LatLng(37.703103	,127.355071	),
+                        new LatLng(37.703402	,127.354437	),
+                        new LatLng(37.70436 	,127.353353	),
+                        new LatLng(37.705179	,127.353493	),
+                        new LatLng(37.705494	,127.353597	),
+                        new LatLng(37.70669 	,127.354419	),
+                        new LatLng(37.707301	,127.355068	),
+                        new LatLng(37.70903 	,127.355201	),
+                        new LatLng(37.709536	,127.354897	),
+                        new LatLng(37.710069	,127.354514	),
+                        new LatLng(37.710285	,127.354527	),
+                        new LatLng(37.711287	,127.353749	),
+                        new LatLng(37.713621	,127.35376	),
+                        new LatLng(37.714394	,127.354138	),
+                        new LatLng(37.716123	,127.354498	),
+                        new LatLng(37.716762	,127.35475	),
+                        new LatLng(37.717583	,127.354391	),
+                        new LatLng(37.719314	,127.354082	),
+                        new LatLng(37.7207  	,127.354542	),
+                        new LatLng(37.720961	,127.354441	),
+                        new LatLng(37.722069	,127.354719	),
+                        new LatLng(37.723662	,127.355409	),
+                        new LatLng(37.724069	,127.354615	),
+                        new LatLng(37.724642	,127.352814	),
+                        new LatLng(37.725601	,127.351446	),
+                        new LatLng(37.726384	,127.350152	),
+                        new LatLng(37.726617	,127.34925	),
+                        new LatLng(37.726882	,127.347947	),
+                        new LatLng(37.72748 	,127.346634	),
+                        new LatLng(37.728127	,127.344187	),
+                        new LatLng(37.728477	,127.34369	),
+                        new LatLng(37.730572	,127.34312	),
+                        new LatLng(37.731968	,127.343456	),
+                        new LatLng(37.739411	,127.339814	),
+                        new LatLng(37.740204	,127.33967	),
+                        new LatLng(37.740772	,127.339616	),
+                        new LatLng(37.740863	,127.339299	),
+                        new LatLng(37.741919	,127.338691	),
+                        new LatLng(37.741968	,127.337885	),
+                        new LatLng(37.742818	,127.335995	),
+                        new LatLng(37.744019	,127.335172	),
+                        new LatLng(37.748881	,127.333095	),
+                        new LatLng(37.750864	,127.332684	),
+                        new LatLng(37.753586	,127.332537	),
+                        new LatLng(37.754706	,127.331521	),
+                        new LatLng(37.760086	,127.32755	),
+                        new LatLng(37.760297	,127.326439	),
+                        new LatLng(37.761189	,127.325503	),
+                        new LatLng(37.761492	,127.324367	),
+                        new LatLng(37.762665	,127.323646	),
+                        new LatLng(37.763199	,127.322695	),
+                        new LatLng(37.763677	,127.322629	),
+                        new LatLng(37.765078	,127.320706	),
+                        new LatLng(37.766095	,127.320476	),
+                        new LatLng(37.76636 	,127.319826	),
+                        new LatLng(37.767056	,127.319171	),
+                        new LatLng(37.768495	,127.313071	),
+                        new LatLng(37.768149	,127.311378	),
+                        new LatLng(37.76891 	,127.30969	),
+                        new LatLng(37.769805	,127.308468	),
+                        new LatLng(37.769897	,127.307674	),
+                        new LatLng(37.770919	,127.306214	),
+                        new LatLng(37.771543	,127.305184	),
+                        new LatLng(37.771823	,127.305083	),
+                        new LatLng(37.773318	,127.304406	),
+                        new LatLng(37.773483	,127.304306	),
+                        new LatLng(37.773448	,127.303614	),
+                        new LatLng(37.773651	,127.301742	),
+                        new LatLng(37.774166	,127.29978	),
+                        new LatLng(37.774451	,127.298919	),
+                        new LatLng(37.774482	,127.297398	),
+                        new LatLng(37.774749	,127.295768	),
+                        new LatLng(37.775916	,127.293204	),
+                        new LatLng(37.775665	,127.292896	),
+                        new LatLng(37.775774	,127.292386	),
+                        new LatLng(37.775542	,127.291273	),
+                        new LatLng(37.775093	,127.290965	),
+                        new LatLng(37.774834	,127.290056	),
+                        new LatLng(37.775024	,127.289738	),
+                        new LatLng(37.774757	,127.288353	),
+                        new LatLng(37.774895	,127.287264	),
+                        new LatLng(37.774868	,127.286866	),
+                        new LatLng(37.77468 	,127.286457	),
+                        new LatLng(37.774946	,127.284494	),
+                        new LatLng(37.774778	,127.283483	),
+                        new LatLng(37.774761	,127.282973	),
+                        new LatLng(37.774671	,127.282915	),
+                        new LatLng(37.774712	,127.28277	),
+                        new LatLng(37.775108	,127.280999	),
+                        new LatLng(37.774974	,127.280238	),
+                        new LatLng(37.774634	,127.279544	),
+                        new LatLng(37.774321	,127.278306	),
+                        new LatLng(37.774328	,127.278259	),
+                        new LatLng(37.774458	,127.277796	),
+                        new LatLng(37.774991	,127.277207	),
+                        new LatLng(37.774884	,127.276492	),
+                        new LatLng(37.774509	,127.275151	),
+                        new LatLng(37.774177	,127.274492	),
+                        new LatLng(37.773883	,127.273836	),
+                        new LatLng(37.773801	,127.273503	),
+                        new LatLng(37.774721	,127.272916	),
+                        new LatLng(37.776193	,127.271684	),
+                        new LatLng(37.776897	,127.271062	),
+                        new LatLng(37.77752 	,127.270225	),
+                        new LatLng(37.779256	,127.268573	),
+                        new LatLng(37.779871	,127.266914	),
+                        new LatLng(37.789963	,127.273049	),
+                        new LatLng(37.794616	,127.271007	),
+                        new LatLng(37.804688	,127.278505	),
+                        new LatLng(37.807319	,127.276799	),
+                        new LatLng(37.816336	,127.279328	),
+                        new LatLng(37.830446	,127.274098	),
+                        new LatLng(37.842262	,127.278955	),
+                        new LatLng(37.848023	,127.286554	),
+                        new LatLng(37.855691	,127.280407	),
+                        new LatLng(37.86969 	,127.287827	),
+                        new LatLng(37.875392	,127.291914	),
+                        new LatLng(37.868864	,127.29582	),
+                        new LatLng(37.868619	,127.306106	),
+                        new LatLng(37.865758	,127.312736	),
+                        new LatLng(37.871438	,127.319172	),
+                        new LatLng(37.871368	,127.322887	),
+                        new LatLng(37.877145	,127.325098	),
+                        new LatLng(37.887296	,127.322427	),
+                        new LatLng(37.894015	,127.328481	),
+                        new LatLng(37.902373	,127.326428	),
+                        new LatLng(37.909319	,127.329575	),
+                        new LatLng(37.911568	,127.326624	),
+                        new LatLng(37.916318	,127.329905	),
+                        new LatLng(37.925567	,127.330235	),
+                        new LatLng(37.923091	,127.338322	),
+                        new LatLng(37.926399	,127.345348	),
+                        new LatLng(37.921458	,127.349837	),
+                        new LatLng(37.921114	,127.35654	),
+                        new LatLng(37.926233	,127.365732	),
+                        new LatLng(37.928891	,127.365906	),
+                        new LatLng(37.943267	,127.384578	),
+                        new LatLng(37.946938	,127.38519	),
+                        new LatLng(37.953192	,127.376646	),
+                        new LatLng(37.958205	,127.379447	),
+                        new LatLng(37.961617	,127.376691	),
+                        new LatLng(37.975454	,127.384839	),
+                        new LatLng(37.982333	,127.384859	),
+                        new LatLng(37.990338	,127.405237	),
+                        new LatLng(37.997822	,127.412837	),
+                        new LatLng(38.017448	,127.419838	),
+                        new LatLng(38.025746	,127.426719	),
+                        new LatLng(38.033452	,127.424667	),
+                        new LatLng(38.038361	,127.435689	),
+                        new LatLng(38.050029	,127.445389	),
+                        new LatLng(38.05123 	,127.446189	),
+                        new LatLng(38.051213	,127.446239	),
+                        new LatLng(38.050512	,127.448358	),
+                        new LatLng(38.047186	,127.452906	),
+                        new LatLng(38.038085	,127.451022	),
+                        new LatLng(38.026717	,127.456356	),
+                        new LatLng(38.025206	,127.455243	),
+                        new LatLng(38.01699 	,127.457529	),
+                        new LatLng(38.006453	,127.471556	),
+                        new LatLng(38.003714	,127.4974	),
+                        new LatLng(37.997953	,127.503923	),
+                        new LatLng(38.001311	,127.508904	),
+                        new LatLng(38.002388	,127.531095	),
+                        new LatLng(38.000568	,127.539877	),
+                        new LatLng(38.000348	,127.539984	),
+                        new LatLng(37.999868	,127.540219	),
+                        new LatLng(37.978281	,127.547166	),
+                        new LatLng(37.974111	,127.544245	),
+                        new LatLng(37.967732	,127.545225	),
+                        new LatLng(37.962883	,127.55984	),
+                        new LatLng(37.964   	,127.571331	),
+                        new LatLng(37.961143	,127.579342	),
+                        new LatLng(37.961752	,127.584723	),
+                        new LatLng(37.956537	,127.600418	),
+                        new LatLng(37.944491	,127.603736	),
+                        new LatLng(37.943713	,127.606602	),
+                        new LatLng(37.940476	,127.612672	),
+                        new LatLng(37.930909	,127.61597	),
+                        new LatLng(37.920924	,127.612138	),
+                        new LatLng(37.906362	,127.617141	)
+                )
+                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .fillColor(clr));
+        polygon.setClickable(true);
+        namehmap.put(polygon.hashCode(),name);
+        colorhmap.put(polygon.hashCode(),clr);
+
+        IconGenerator iconFactory = new IconGenerator(this);
+        iconFactory.setColor(clr);
+        if(mclr == 2){
+            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
+        }else if(mclr == 3){
+            iconFactory.setStyle(IconGenerator.STYLE_RED);
+        }else if(mclr == 7){
+            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
+        }else if(mclr == 5){
+            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
+        }else {
+            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
+        }
+        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.821519, 127.452461));
+
+    }//가평군
+    public void drawPolygon53(GoogleMap googlemap) { //서울 성동구
+        String name = "양평군";
+        int clr = Color.argb(100,255,0,0);
+        int mclr;
+        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
+        if(hmap.get(name)==null){
+            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
+            mclr = 1;
+        } else if(hmap.get(name).equals("-")){
+            clr = Color.argb(100,140,140,140);
+            mclr = 2;
+        }else if(Integer.parseInt(hmap.get(name))>150){
+            clr = Color.argb(100,255,0,0);
+            mclr = 3;
+        }else if(Integer.parseInt(hmap.get(name))>80){
+            clr = Color.argb(100,255,255,0);
+            mclr = 7;
+        }else if(Integer.parseInt(hmap.get(name))>30){
+            clr = Color.argb(100,0,255,0);
+            mclr = 5;
+        }else {
+            clr = Color.argb(100,0,0,255);
+            mclr = 4;
+        }
+        Log.d("log","kbc   ++))++))++  "+clr);
+        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+                .add(
+                        new LatLng(37.552302	,127.848076	),
+                        new LatLng(37.538901	,127.842023	),
+                        new LatLng(37.539208	,127.833626	),
+                        new LatLng(37.536639	,127.828272	),
+                        new LatLng(37.537752	,127.814105	),
+                        new LatLng(37.537974	,127.81367	),
+                        new LatLng(37.53492 	,127.806232	),
+                        new LatLng(37.530165	,127.805014	),
+                        new LatLng(37.528582	,127.796344	),
+                        new LatLng(37.523106	,127.796399	),
+                        new LatLng(37.518552	,127.788787	),
+                        new LatLng(37.514278	,127.78664	),
+                        new LatLng(37.513062	,127.781119	),
+                        new LatLng(37.505284	,127.770545	),
+                        new LatLng(37.505401	,127.769705	),
+                        new LatLng(37.502764	,127.765437	),
+                        new LatLng(37.503306	,127.759914	),
+                        new LatLng(37.492482	,127.759791	),
+                        new LatLng(37.491746	,127.774689	),
+                        new LatLng(37.488545	,127.776066	),
+                        new LatLng(37.488651	,127.780188	),
+                        new LatLng(37.48168 	,127.782167	),
+                        new LatLng(37.474797	,127.78958	),
+                        new LatLng(37.472383	,127.799787	),
+                        new LatLng(37.467861	,127.800714	),
+                        new LatLng(37.463044	,127.796266	),
+                        new LatLng(37.43863 	,127.800414	),
+                        new LatLng(37.438641	,127.800466	),
+                        new LatLng(37.428849	,127.804006	),
+                        new LatLng(37.424402	,127.794558	),
+                        new LatLng(37.424346	,127.794572	),
+                        new LatLng(37.401131	,127.787828	),
+                        new LatLng(37.398656	,127.78363	),
+                        new LatLng(37.395513	,127.784528	),
+                        new LatLng(37.393042	,127.781683	),
+                        new LatLng(37.38883 	,127.784094	),
+                        new LatLng(37.383326	,127.776658	),
+                        new LatLng(37.370771	,127.778936	),
+                        new LatLng(37.369977	,127.762873	),
+                        new LatLng(37.367132	,127.759542	),
+                        new LatLng(37.36706 	,127.759599	),
+                        new LatLng(37.36721 	,127.759339	),
+                        new LatLng(37.367413	,127.758986	),
+                        new LatLng(37.367013	,127.756758	),
+                        new LatLng(37.368129	,127.754468	),
+                        new LatLng(37.368488	,127.752876	),
+                        new LatLng(37.36946 	,127.752261	),
+                        new LatLng(37.369403	,127.750459	),
+                        new LatLng(37.36896 	,127.749374	),
+                        new LatLng(37.369262	,127.748165	),
+                        new LatLng(37.369155	,127.747907	),
+                        new LatLng(37.369191	,127.747601	),
+                        new LatLng(37.369012	,127.746728	),
+                        new LatLng(37.370293	,127.742163	),
+                        new LatLng(37.371617	,127.741065	),
+                        new LatLng(37.371657	,127.740594	),
+                        new LatLng(37.372278	,127.738128	),
+                        new LatLng(37.373482	,127.736106	),
+                        new LatLng(37.37416 	,127.734839	),
+                        new LatLng(37.3754  	,127.732607	),
+                        new LatLng(37.376058	,127.732124	),
+                        new LatLng(37.37576 	,127.730973	),
+                        new LatLng(37.376241	,127.729866	),
+                        new LatLng(37.373192	,127.726967	),
+                        new LatLng(37.372292	,127.725842	),
+                        new LatLng(37.372101	,127.725305	),
+                        new LatLng(37.371539	,127.723747	),
+                        new LatLng(37.372002	,127.72311	),
+                        new LatLng(37.371887	,127.722649	),
+                        new LatLng(37.371713	,127.721658	),
+                        new LatLng(37.371712	,127.720477	),
+                        new LatLng(37.371276	,127.719835	),
+                        new LatLng(37.371485	,127.719141	),
+                        new LatLng(37.371359	,127.718593	),
+                        new LatLng(37.370887	,127.717422	),
+                        new LatLng(37.37013 	,127.716421	),
+                        new LatLng(37.370062	,127.716364	),
+                        new LatLng(37.370704	,127.71371	),
+                        new LatLng(37.371307	,127.713045	),
+                        new LatLng(37.37158 	,127.711799	),
+                        new LatLng(37.371617	,127.709386	),
+                        new LatLng(37.369861	,127.707359	),
+                        new LatLng(37.37106 	,127.706255	),
+                        new LatLng(37.371589	,127.705282	),
+                        new LatLng(37.372207	,127.704456	),
+                        new LatLng(37.372392	,127.703564	),
+                        new LatLng(37.372924	,127.702566	),
+                        new LatLng(37.372958	,127.702196	),
+                        new LatLng(37.373057	,127.702111	),
+                        new LatLng(37.373464	,127.701756	),
+                        new LatLng(37.37405 	,127.701254	),
+                        new LatLng(37.374444	,127.70157	),
+                        new LatLng(37.376963	,127.701168	),
+                        new LatLng(37.378385	,127.700503	),
+                        new LatLng(37.378836	,127.700468	),
+                        new LatLng(37.37966 	,127.700432	),
+                        new LatLng(37.379966	,127.701328	),
+                        new LatLng(37.380569	,127.702654	),
+                        new LatLng(37.380739	,127.703114	),
+                        new LatLng(37.38178 	,127.703235	),
+                        new LatLng(37.384673	,127.703407	),
+                        new LatLng(37.38526 	,127.703875	),
+                        new LatLng(37.386011	,127.704023	),
+                        new LatLng(37.387366	,127.703442	),
+                        new LatLng(37.389993	,127.703747	),
+                        new LatLng(37.390372	,127.703699	),
+                        new LatLng(37.391209	,127.70383	),
+                        new LatLng(37.392097	,127.704249	),
+                        new LatLng(37.393263	,127.705236	),
+                        new LatLng(37.393635	,127.706369	),
+                        new LatLng(37.394114	,127.707065	),
+                        new LatLng(37.394896	,127.70852	),
+                        new LatLng(37.394758	,127.708769	),
+                        new LatLng(37.394903	,127.709371	),
+                        new LatLng(37.395652	,127.709679	),
+                        new LatLng(37.396411	,127.710588	),
+                        new LatLng(37.396775	,127.711169	),
+                        new LatLng(37.398413	,127.714334	),
+                        new LatLng(37.398896	,127.714339	),
+                        new LatLng(37.399008	,127.714344	),
+                        new LatLng(37.399037	,127.714347	),
+                        new LatLng(37.399225	,127.714656	),
+                        new LatLng(37.400163	,127.714738	),
+                        new LatLng(37.401479	,127.714425	),
+                        new LatLng(37.402857	,127.714489	),
+                        new LatLng(37.403583	,127.714	),
+                        new LatLng(37.405131	,127.71366	),
+                        new LatLng(37.40574 	,127.712558	),
+                        new LatLng(37.40626 	,127.71146	),
+                        new LatLng(37.406066	,127.710964	),
+                        new LatLng(37.406113	,127.710741	),
+                        new LatLng(37.407156	,127.710574	),
+                        new LatLng(37.409422	,127.709119	),
+                        new LatLng(37.410306	,127.708089	),
+                        new LatLng(37.409811	,127.706849	),
+                        new LatLng(37.409444	,127.705377	),
+                        new LatLng(37.40911 	,127.704894	),
+                        new LatLng(37.408722	,127.704536	),
+                        new LatLng(37.407876	,127.702753	),
+                        new LatLng(37.407852	,127.702665	),
+                        new LatLng(37.407645	,127.699994	),
+                        new LatLng(37.407026	,127.698575	),
+                        new LatLng(37.402604	,127.693935	),
+                        new LatLng(37.40213 	,127.693314	),
+                        new LatLng(37.401895	,127.6931	),
+                        new LatLng(37.401812	,127.692772	),
+                        new LatLng(37.401745	,127.69227	),
+                        new LatLng(37.401835	,127.692047	),
+                        new LatLng(37.401107	,127.691478	),
+                        new LatLng(37.401388	,127.690872	),
+                        new LatLng(37.401486	,127.689953	),
+                        new LatLng(37.401342	,127.689236	),
+                        new LatLng(37.401193	,127.688883	),
+                        new LatLng(37.399565	,127.687318	),
+                        new LatLng(37.39889 	,127.686828	),
+                        new LatLng(37.39891 	,127.686573	),
+                        new LatLng(37.398858	,127.68643	),
+                        new LatLng(37.398812	,127.686323	),
+                        new LatLng(37.398756	,127.686041	),
+                        new LatLng(37.398711	,127.68592	),
+                        new LatLng(37.39864 	,127.685701	),
+                        new LatLng(37.398585	,127.685588	),
+                        new LatLng(37.398439	,127.685419	),
+                        new LatLng(37.398443	,127.685298	),
+                        new LatLng(37.398486	,127.685211	),
+                        new LatLng(37.398447	,127.685235	),
+                        new LatLng(37.398197	,127.684362	),
+                        new LatLng(37.399304	,127.684092	),
+                        new LatLng(37.401219	,127.684287	),
+                        new LatLng(37.403139	,127.684482	),
+                        new LatLng(37.409379	,127.687035	),
+                        new LatLng(37.409701	,127.687446	),
+                        new LatLng(37.411791	,127.688022	),
+                        new LatLng(37.411803	,127.688014	),
+                        new LatLng(37.411983	,127.687646	),
+                        new LatLng(37.412117	,127.687392	),
+                        new LatLng(37.412279	,127.687174	),
+                        new LatLng(37.412328	,127.687192	),
+                        new LatLng(37.412351	,127.687187	),
+                        new LatLng(37.412329	,127.687181	),
+                        new LatLng(37.412264	,127.687141	),
+                        new LatLng(37.412341	,127.686696	),
+                        new LatLng(37.412405	,127.686353	),
+                        new LatLng(37.412438	,127.686233	),
+                        new LatLng(37.41253 	,127.686081	),
+                        new LatLng(37.412691	,127.685966	),
+                        new LatLng(37.413188	,127.685749	),
+                        new LatLng(37.413239	,127.685685	),
+                        new LatLng(37.41346 	,127.685583	),
+                        new LatLng(37.413592	,127.685291	),
+                        new LatLng(37.413671	,127.685059	),
+                        new LatLng(37.413862	,127.684719	),
+                        new LatLng(37.41399 	,127.684271	),
+                        new LatLng(37.414051	,127.683821	),
+                        new LatLng(37.414094	,127.683691	),
+                        new LatLng(37.414297	,127.683391	),
+                        new LatLng(37.414282	,127.683356	),
+                        new LatLng(37.412426	,127.67999	),
+                        new LatLng(37.413   	,127.679023	),
+                        new LatLng(37.41293 	,127.678358	),
+                        new LatLng(37.412717	,127.677965	),
+                        new LatLng(37.412492	,127.677706	),
+                        new LatLng(37.412613	,127.675585	),
+                        new LatLng(37.411975	,127.673742	),
+                        new LatLng(37.412105	,127.667584	),
+                        new LatLng(37.413104	,127.66679	),
+                        new LatLng(37.414189	,127.665896	),
+                        new LatLng(37.414991	,127.664044	),
+                        new LatLng(37.414984	,127.663718	),
+                        new LatLng(37.415441	,127.662868	),
+                        new LatLng(37.415507	,127.662437	),
+                        new LatLng(37.415816	,127.661069	),
+                        new LatLng(37.415798	,127.660434	),
+                        new LatLng(37.41684 	,127.658288	),
+                        new LatLng(37.416038	,127.657444	),
+                        new LatLng(37.41297 	,127.654672	),
+                        new LatLng(37.412958	,127.654635	),
+                        new LatLng(37.412947	,127.654264	),
+                        new LatLng(37.412129	,127.653866	),
+                        new LatLng(37.411637	,127.653877	),
+                        new LatLng(37.41144 	,127.65361	),
+                        new LatLng(37.410538	,127.652955	),
+                        new LatLng(37.410237	,127.653022	),
+                        new LatLng(37.40903 	,127.653255	),
+                        new LatLng(37.407529	,127.651708	),
+                        new LatLng(37.407379	,127.651207	),
+                        new LatLng(37.406938	,127.650562	),
+                        new LatLng(37.40661 	,127.650025	),
+                        new LatLng(37.40623 	,127.649429	),
+                        new LatLng(37.405221	,127.644971	),
+                        new LatLng(37.405389	,127.644152	),
+                        new LatLng(37.406803	,127.642224	),
+                        new LatLng(37.408375	,127.641606	),
+                        new LatLng(37.408761	,127.640788	),
+                        new LatLng(37.410025	,127.639177	),
+                        new LatLng(37.410035	,127.63911	),
+                        new LatLng(37.41051 	,127.638296	),
+                        new LatLng(37.410763	,127.637758	),
+                        new LatLng(37.411111	,127.637113	),
+                        new LatLng(37.412345	,127.636508	),
+                        new LatLng(37.412716	,127.635799	),
+                        new LatLng(37.413398	,127.633012	),
+                        new LatLng(37.413372	,127.632956	),
+                        new LatLng(37.4135  	,127.631879	),
+                        new LatLng(37.413065	,127.631492	),
+                        new LatLng(37.413236	,127.628066	),
+                        new LatLng(37.41359 	,127.626427	),
+                        new LatLng(37.412142	,127.62524	),
+                        new LatLng(37.411394	,127.623939	),
+                        new LatLng(37.409362	,127.620611	),
+                        new LatLng(37.409249	,127.62047	),
+                        new LatLng(37.409418	,127.620203	),
+                        new LatLng(37.40941 	,127.620119	),
+                        new LatLng(37.409413	,127.620067	),
+                        new LatLng(37.409438	,127.620043	),
+                        new LatLng(37.409751	,127.619937	),
+                        new LatLng(37.410075	,127.619798	),
+                        new LatLng(37.410206	,127.619708	),
+                        new LatLng(37.410297	,127.619634	),
+                        new LatLng(37.410562	,127.619264	),
+                        new LatLng(37.410912	,127.6191	),
+                        new LatLng(37.411045	,127.619026	),
+                        new LatLng(37.411269	,127.618905	),
+                        new LatLng(37.411522	,127.618862	),
+                        new LatLng(37.411616	,127.618861	),
+                        new LatLng(37.411816	,127.618889	),
+                        new LatLng(37.411847	,127.618894	),
+                        new LatLng(37.412364	,127.618815	),
+                        new LatLng(37.412524	,127.618528	),
+                        new LatLng(37.412666	,127.618291	),
+                        new LatLng(37.412817	,127.61817	),
+                        new LatLng(37.413109	,127.618068	),
+                        new LatLng(37.413125	,127.618064	),
+                        new LatLng(37.413407	,127.617882	),
+                        new LatLng(37.413755	,127.617704	),
+                        new LatLng(37.413825	,127.61767	),
+                        new LatLng(37.413824	,127.617569	),
+                        new LatLng(37.413914	,127.617345	),
+                        new LatLng(37.413947	,127.61729	),
+                        new LatLng(37.413986	,127.617218	),
+                        new LatLng(37.414034	,127.617116	),
+                        new LatLng(37.414081	,127.616855	),
+                        new LatLng(37.414148	,127.616646	),
+                        new LatLng(37.414227	,127.616398	),
+                        new LatLng(37.41437 	,127.615948	),
+                        new LatLng(37.414372	,127.615933	),
+                        new LatLng(37.41437 	,127.615662	),
+                        new LatLng(37.414421	,127.615537	),
+                        new LatLng(37.414789	,127.615269	),
+                        new LatLng(37.414825	,127.615253	),
+                        new LatLng(37.41501 	,127.615013	),
+                        new LatLng(37.414925	,127.614871	),
+                        new LatLng(37.414728	,127.614581	),
+                        new LatLng(37.414645	,127.614458	),
+                        new LatLng(37.414494	,127.614085	),
+                        new LatLng(37.415199	,127.613769	),
+                        new LatLng(37.415255	,127.613747	),
+                        new LatLng(37.415596	,127.613621	),
+                        new LatLng(37.415586	,127.613528	),
+                        new LatLng(37.415395	,127.613401	),
+                        new LatLng(37.415608	,127.611288	),
+                        new LatLng(37.415562	,127.611036	),
+                        new LatLng(37.415556	,127.611005	),
+                        new LatLng(37.416179	,127.610564	),
+                        new LatLng(37.416285	,127.609875	),
+                        new LatLng(37.416623	,127.609489	),
+                        new LatLng(37.417431	,127.609105	),
+                        new LatLng(37.418172	,127.609141	),
+                        new LatLng(37.4183  	,127.609051	),
+                        new LatLng(37.418416	,127.608965	),
+                        new LatLng(37.418362	,127.608484	),
+                        new LatLng(37.418673	,127.608212	),
+                        new LatLng(37.418667	,127.607214	),
+                        new LatLng(37.41842 	,127.606027	),
+                        new LatLng(37.418901	,127.605258	),
+                        new LatLng(37.419732	,127.604062	),
+                        new LatLng(37.419869	,127.603431	),
+                        new LatLng(37.41983 	,127.602806	),
+                        new LatLng(37.420016	,127.602494	),
+                        new LatLng(37.419919	,127.601804	),
+                        new LatLng(37.420424	,127.60175	),
+                        new LatLng(37.420487	,127.601744	),
+                        new LatLng(37.42088 	,127.601456	),
+                        new LatLng(37.421056	,127.601321	),
+                        new LatLng(37.420945	,127.600957	),
+                        new LatLng(37.421205	,127.600158	),
+                        new LatLng(37.421059	,127.599527	),
+                        new LatLng(37.421055	,127.599388	),
+                        new LatLng(37.421068	,127.598956	),
+                        new LatLng(37.420982	,127.598729	),
+                        new LatLng(37.421092	,127.598159	),
+                        new LatLng(37.421075	,127.597995	),
+                        new LatLng(37.421014	,127.597893	),
+                        new LatLng(37.420959	,127.597695	),
+                        new LatLng(37.420968	,127.597538	),
+                        new LatLng(37.42094 	,127.597415	),
+                        new LatLng(37.420828	,127.597062	),
+                        new LatLng(37.420796	,127.596829	),
+                        new LatLng(37.420715	,127.596222	),
+                        new LatLng(37.42068 	,127.595902	),
+                        new LatLng(37.420763	,127.595519	),
+                        new LatLng(37.420698	,127.595005	),
+                        new LatLng(37.420694	,127.59474	),
+                        new LatLng(37.420732	,127.594515	),
+                        new LatLng(37.420669	,127.594069	),
+                        new LatLng(37.420664	,127.594024	),
+                        new LatLng(37.420542	,127.593854	),
+                        new LatLng(37.420275	,127.593845	),
+                        new LatLng(37.420591	,127.593041	),
+                        new LatLng(37.420781	,127.592464	),
+                        new LatLng(37.420995	,127.592111	),
+                        new LatLng(37.422255	,127.590386	),
+                        new LatLng(37.422121	,127.590056	),
+                        new LatLng(37.421175	,127.587421	),
+                        new LatLng(37.421122	,127.587274	),
+                        new LatLng(37.420029	,127.587116	),
+                        new LatLng(37.418988	,127.587785	),
+                        new LatLng(37.41847 	,127.588139	),
+                        new LatLng(37.416149	,127.586669	),
+                        new LatLng(37.415519	,127.586124	),
+                        new LatLng(37.413879	,127.584479	),
+                        new LatLng(37.414223	,127.58416	),
+                        new LatLng(37.415347	,127.583846	),
+                        new LatLng(37.416108	,127.58379	),
+                        new LatLng(37.416936	,127.58302	),
+                        new LatLng(37.416486	,127.582548	),
+                        new LatLng(37.416745	,127.581781	),
+                        new LatLng(37.415902	,127.579491	),
+                        new LatLng(37.415128	,127.578772	),
+                        new LatLng(37.414441	,127.578132	),
+                        new LatLng(37.414317	,127.577854	),
+                        new LatLng(37.414359	,127.577862	),
+                        new LatLng(37.41416 	,127.577426	),
+                        new LatLng(37.414328	,127.577031	),
+                        new LatLng(37.414385	,127.576849	),
+                        new LatLng(37.414332	,127.5767	),
+                        new LatLng(37.414026	,127.576111	),
+                        new LatLng(37.413825	,127.575562	),
+                        new LatLng(37.413677	,127.575452	),
+                        new LatLng(37.413515	,127.575494	),
+                        new LatLng(37.413436	,127.575514	),
+                        new LatLng(37.41315 	,127.574934	),
+                        new LatLng(37.413135	,127.574821	),
+                        new LatLng(37.413068	,127.574643	),
+                        new LatLng(37.412993	,127.574369	),
+                        new LatLng(37.412719	,127.573313	),
+                        new LatLng(37.412358	,127.572861	),
+                        new LatLng(37.412112	,127.572394	),
+                        new LatLng(37.411905	,127.572098	),
+                        new LatLng(37.412572	,127.571264	),
+                        new LatLng(37.413139	,127.571092	),
+                        new LatLng(37.412346	,127.567366	),
+                        new LatLng(37.411945	,127.567053	),
+                        new LatLng(37.411326	,127.565275	),
+                        new LatLng(37.411348	,127.565251	),
+                        new LatLng(37.411717	,127.565093	),
+                        new LatLng(37.411999	,127.565113	),
+                        new LatLng(37.412359	,127.564976	),
+                        new LatLng(37.412704	,127.56492	),
+                        new LatLng(37.413038	,127.56473	),
+                        new LatLng(37.413074	,127.564618	),
+                        new LatLng(37.413463	,127.564598	),
+                        new LatLng(37.413615	,127.564504	),
+                        new LatLng(37.413946	,127.564327	),
+                        new LatLng(37.414198	,127.563793	),
+                        new LatLng(37.414427	,127.563478	),
+                        new LatLng(37.414863	,127.563292	),
+                        new LatLng(37.415155	,127.563405	),
+                        new LatLng(37.415341	,127.563092	),
+                        new LatLng(37.415571	,127.56291	),
+                        new LatLng(37.415448	,127.562443	),
+                        new LatLng(37.415375	,127.562283	),
+                        new LatLng(37.415298	,127.562039	),
+                        new LatLng(37.415282	,127.561989	),
+                        new LatLng(37.415329	,127.561684	),
+                        new LatLng(37.415314	,127.561493	),
+                        new LatLng(37.415371	,127.561261	),
+                        new LatLng(37.415291	,127.560927	),
+                        new LatLng(37.415263	,127.560775	),
+                        new LatLng(37.415251	,127.560267	),
+                        new LatLng(37.415369	,127.560088	),
+                        new LatLng(37.415539	,127.559791	),
+                        new LatLng(37.415702	,127.559461	),
+                        new LatLng(37.415823	,127.559238	),
+                        new LatLng(37.41595 	,127.559043	),
+                        new LatLng(37.415958	,127.558826	),
+                        new LatLng(37.416043	,127.558662	),
+                        new LatLng(37.416356	,127.558352	),
+                        new LatLng(37.416446	,127.558113	),
+                        new LatLng(37.416462	,127.558072	),
+                        new LatLng(37.414436	,127.554212	),
+                        new LatLng(37.414298	,127.553416	),
+                        new LatLng(37.414415	,127.552549	),
+                        new LatLng(37.413921	,127.551216	),
+                        new LatLng(37.411753	,127.550903	),
+                        new LatLng(37.411415	,127.5506	),
+                        new LatLng(37.411483	,127.547624	),
+                        new LatLng(37.410603	,127.547215	),
+                        new LatLng(37.410494	,127.546969	),
+                        new LatLng(37.410271	,127.546016	),
+                        new LatLng(37.410217	,127.544852	),
+                        new LatLng(37.409873	,127.543298	),
+                        new LatLng(37.411119	,127.542269	),
+                        new LatLng(37.411413	,127.54155	),
+                        new LatLng(37.411637	,127.539736	),
+                        new LatLng(37.411704	,127.53662	),
+                        new LatLng(37.411983	,127.536571	),
+                        new LatLng(37.412572	,127.536477	),
+                        new LatLng(37.413488	,127.536286	),
+                        new LatLng(37.414107	,127.536156	),
+                        new LatLng(37.414362	,127.536092	),
+                        new LatLng(37.417264	,127.535056	),
+                        new LatLng(37.417757	,127.534872	),
+                        new LatLng(37.418609	,127.534602	),
+                        new LatLng(37.418938	,127.534494	),
+                        new LatLng(37.419851	,127.534127	),
+                        new LatLng(37.420229	,127.533947	),
+                        new LatLng(37.421041	,127.533457	),
+                        new LatLng(37.421328	,127.533286	),
+                        new LatLng(37.421616	,127.533194	),
+                        new LatLng(37.422434	,127.532929	),
+                        new LatLng(37.42352 	,127.532427	),
+                        new LatLng(37.424517	,127.531963	),
+                        new LatLng(37.424625	,127.531916	),
+                        new LatLng(37.42481 	,127.531835	),
+                        new LatLng(37.426092	,127.531254	),
+                        new LatLng(37.427058	,127.530733	),
+                        new LatLng(37.427423	,127.530494	),
+                        new LatLng(37.42854 	,127.52978	),
+                        new LatLng(37.430689	,127.527863	),
+                        new LatLng(37.433437	,127.524314	),
+                        new LatLng(37.435839	,127.520468	),
+                        new LatLng(37.435906	,127.520314	),
+                        new LatLng(37.43647 	,127.519125	),
+                        new LatLng(37.436865	,127.517651	),
+                        new LatLng(37.43692 	,127.517385	),
+                        new LatLng(37.437368	,127.514759	),
+                        new LatLng(37.439067	,127.509274	),
+                        new LatLng(37.439961	,127.50757	),
+                        new LatLng(37.440426	,127.506846	),
+                        new LatLng(37.440194	,127.506552	),
+                        new LatLng(37.439448	,127.50562	),
+                        new LatLng(37.43943 	,127.505596	),
+                        new LatLng(37.43874 	,127.504931	),
+                        new LatLng(37.438121	,127.504578	),
+                        new LatLng(37.437132	,127.503949	),
+                        new LatLng(37.436385	,127.502118	),
+                        new LatLng(37.435638	,127.499444	),
+                        new LatLng(37.435094	,127.498931	),
+                        new LatLng(37.433962	,127.498492	),
+                        new LatLng(37.433634	,127.498235	),
+                        new LatLng(37.433087	,127.497807	),
+                        new LatLng(37.432298	,127.496924	),
+                        new LatLng(37.432231	,127.496527	),
+                        new LatLng(37.432307	,127.49608	),
+                        new LatLng(37.432922	,127.493787	),
+                        new LatLng(37.433282	,127.49207	),
+                        new LatLng(37.433481	,127.491146	),
+                        new LatLng(37.433536	,127.490364	),
+                        new LatLng(37.433639	,127.48955	),
+                        new LatLng(37.43356 	,127.488212	),
+                        new LatLng(37.433485	,127.487701	),
+                        new LatLng(37.433276	,127.487179	),
+                        new LatLng(37.432977	,127.48663	),
+                        new LatLng(37.432941	,127.486566	),
+                        new LatLng(37.432705	,127.486145	),
+                        new LatLng(37.432415	,127.485818	),
+                        new LatLng(37.432347	,127.485738	),
+                        new LatLng(37.431501	,127.484551	),
+                        new LatLng(37.431213	,127.484201	),
+                        new LatLng(37.4311  	,127.484062	),
+                        new LatLng(37.430847	,127.483751	),
+                        new LatLng(37.430011	,127.482742	),
+                        new LatLng(37.429787	,127.48257	),
+                        new LatLng(37.429656	,127.482478	),
+                        new LatLng(37.429291	,127.482257	),
+                        new LatLng(37.428354	,127.482059	),
+                        new LatLng(37.427559	,127.481983	),
+                        new LatLng(37.427383	,127.481919	),
+                        new LatLng(37.426422	,127.481257	),
+                        new LatLng(37.426071	,127.480944	),
+                        new LatLng(37.425418	,127.48073	),
+                        new LatLng(37.424712	,127.480305	),
+                        new LatLng(37.42465 	,127.480261	),
+                        new LatLng(37.424286	,127.48  	),
+                        new LatLng(37.42328 	,127.476651	),
+                        new LatLng(37.423055	,127.475761	),
+                        new LatLng(37.422761	,127.47519	),
+                        new LatLng(37.422415	,127.474033	),
+                        new LatLng(37.422309	,127.473339	),
+                        new LatLng(37.422428	,127.472498	),
+                        new LatLng(37.422626	,127.472019	),
+                        new LatLng(37.4232  	,127.471132	),
+                        new LatLng(37.423548	,127.470442	),
+                        new LatLng(37.423835	,127.4697	),
+                        new LatLng(37.423905	,127.469476	),
+                        new LatLng(37.424533	,127.469188	),
+                        new LatLng(37.425293	,127.468685	),
+                        new LatLng(37.426421	,127.467942	),
+                        new LatLng(37.426824	,127.466386	),
+                        new LatLng(37.427243	,127.465495	),
+                        new LatLng(37.426793	,127.463583	),
+                        new LatLng(37.426911	,127.463006	),
+                        new LatLng(37.427254	,127.461608	),
+                        new LatLng(37.427498	,127.460876	),
+                        new LatLng(37.42748 	,127.460413	),
+                        new LatLng(37.427529	,127.459844	),
+                        new LatLng(37.427967	,127.458654	),
+                        new LatLng(37.427973	,127.457814	),
+                        new LatLng(37.428166	,127.457568	),
+                        new LatLng(37.428448	,127.456829	),
+                        new LatLng(37.42845 	,127.456775	),
+                        new LatLng(37.429569	,127.453041	),
+                        new LatLng(37.429616	,127.452363	),
+                        new LatLng(37.430795	,127.450771	),
+                        new LatLng(37.431365	,127.449863	),
+                        new LatLng(37.431284	,127.449438	),
+                        new LatLng(37.431435	,127.448894	),
+                        new LatLng(37.432597	,127.446712	),
+                        new LatLng(37.433142	,127.445383	),
+                        new LatLng(37.434411	,127.441441	),
+                        new LatLng(37.434219	,127.440934	),
+                        new LatLng(37.434666	,127.437767	),
+                        new LatLng(37.434405	,127.435541	),
+                        new LatLng(37.435234	,127.434541	),
+                        new LatLng(37.436128	,127.432988	),
+                        new LatLng(37.43608 	,127.430892	),
+                        new LatLng(37.436158	,127.430184	),
+                        new LatLng(37.436479	,127.428765	),
+                        new LatLng(37.437061	,127.427556	),
+                        new LatLng(37.437628	,127.426964	),
+                        new LatLng(37.43761 	,127.426552	),
+                        new LatLng(37.437743	,127.425525	),
+                        new LatLng(37.438229	,127.425059	),
+                        new LatLng(37.439071	,127.422338	),
+                        new LatLng(37.438683	,127.421823	),
+                        new LatLng(37.436025	,127.418811	),
+                        new LatLng(37.434286	,127.417129	),
+                        new LatLng(37.432062	,127.414093	),
+                        new LatLng(37.431597	,127.412665	),
+                        new LatLng(37.43168 	,127.412012	),
+                        new LatLng(37.43148 	,127.410373	),
+                        new LatLng(37.431399	,127.409762	),
+                        new LatLng(37.431248	,127.409429	),
+                        new LatLng(37.431026	,127.408848	),
+                        new LatLng(37.430993	,127.408751	),
+                        new LatLng(37.430256	,127.407801	),
+                        new LatLng(37.430149	,127.407233	),
+                        new LatLng(37.428956	,127.406924	),
+                        new LatLng(37.42586 	,127.403385	),
+                        new LatLng(37.425376	,127.403082	),
+                        new LatLng(37.424162	,127.402178	),
+                        new LatLng(37.423522	,127.40173	),
+                        new LatLng(37.422527	,127.401745	),
+                        new LatLng(37.421814	,127.401262	),
+                        new LatLng(37.421446	,127.400284	),
+                        new LatLng(37.421423	,127.400272	),
+                        new LatLng(37.434915	,127.384065	),
+                        new LatLng(37.442866	,127.382896	),
+                        new LatLng(37.443237	,127.382525	),
+                        new LatLng(37.444972	,127.372386	),
+                        new LatLng(37.451846	,127.372465	),
+                        new LatLng(37.456591	,127.367821	),
+                        new LatLng(37.458498	,127.383122	),
+                        new LatLng(37.466052	,127.387512	),
+                        new LatLng(37.466395	,127.387311	),
+                        new LatLng(37.475851	,127.388761	),
+                        new LatLng(37.483534	,127.38377	),
+                        new LatLng(37.483724	,127.383782	),
+                        new LatLng(37.490564	,127.380492	),
+                        new LatLng(37.490996	,127.380653	),
+                        new LatLng(37.497256	,127.386644	),
+                        new LatLng(37.500119	,127.384521	),
+                        new LatLng(37.500318	,127.384251	),
+                        new LatLng(37.508208	,127.37848	),
+                        new LatLng(37.50859 	,127.378355	),
+                        new LatLng(37.518653	,127.373259	),
+                        new LatLng(37.519287	,127.372946	),
+                        new LatLng(37.531153	,127.363286	),
+                        new LatLng(37.535356	,127.353146	),
+                        new LatLng(37.535707	,127.343814	),
+                        new LatLng(37.535612	,127.343424	),
+                        new LatLng(37.535666	,127.326412	),
+                        new LatLng(37.532411	,127.320696	),
+                        new LatLng(37.531918	,127.319936	),
+                        new LatLng(37.527127	,127.308931	),
+                        new LatLng(37.520702	,127.309323	),
+                        new LatLng(37.51951 	,127.306761	),
+                        new LatLng(37.519808	,127.30648	),
+                        new LatLng(37.520254	,127.306324	),
+                        new LatLng(37.52054 	,127.306232	),
+                        new LatLng(37.521161	,127.306044	),
+                        new LatLng(37.521611	,127.305969	),
+                        new LatLng(37.52211 	,127.305936	),
+                        new LatLng(37.522939	,127.305997	),
+                        new LatLng(37.523044	,127.306007	),
+                        new LatLng(37.523377	,127.306053	),
+                        new LatLng(37.523665	,127.306077	),
+                        new LatLng(37.524125	,127.306102	),
+                        new LatLng(37.524872	,127.30615	),
+                        new LatLng(37.525377	,127.306186	),
+                        new LatLng(37.526996	,127.30629	),
+                        new LatLng(37.527342	,127.306319	),
+                        new LatLng(37.52825 	,127.306424	),
+                        new LatLng(37.529105	,127.306569	),
+                        new LatLng(37.529824	,127.306692	),
+                        new LatLng(37.530406	,127.306846	),
+                        new LatLng(37.53084 	,127.30697	),
+                        new LatLng(37.531268	,127.307121	),
+                        new LatLng(37.531717	,127.307275	),
+                        new LatLng(37.532734	,127.307573	),
+                        new LatLng(37.533749	,127.307874	),
+                        new LatLng(37.534319	,127.308123	),
+                        new LatLng(37.535102	,127.308488	),
+                        new LatLng(37.536011	,127.308786	),
+                        new LatLng(37.537149	,127.309166	),
+                        new LatLng(37.537451	,127.309267	),
+                        new LatLng(37.538106	,127.309494	),
+                        new LatLng(37.538376	,127.309594	),
+                        new LatLng(37.539153	,127.309911	),
+                        new LatLng(37.539305	,127.309976	),
+                        new LatLng(37.539764	,127.310165	),
+                        new LatLng(37.540225	,127.310356	),
+                        new LatLng(37.540664	,127.31057	),
+                        new LatLng(37.540911	,127.310712	),
+                        new LatLng(37.541051	,127.310787	),
+                        new LatLng(37.541736	,127.311166	),
+                        new LatLng(37.542075	,127.311418	),
+                        new LatLng(37.542985	,127.312096	),
+                        new LatLng(37.543314	,127.312294	),
+                        new LatLng(37.543579	,127.312449	),
+                        new LatLng(37.544064	,127.312734	),
+                        new LatLng(37.54419 	,127.312814	),
+                        new LatLng(37.544937	,127.313258	),
+                        new LatLng(37.545782	,127.313794	),
+                        new LatLng(37.546187	,127.314044	),
+                        new LatLng(37.547051	,127.314591	),
+                        new LatLng(37.547416	,127.314822	),
+                        new LatLng(37.547734	,127.315058	),
+                        new LatLng(37.548525	,127.315729	),
+                        new LatLng(37.548912	,127.31607	),
+                        new LatLng(37.549496	,127.316593	),
+                        new LatLng(37.549972	,127.317036	),
+                        new LatLng(37.550566	,127.317593	),
+                        new LatLng(37.552508	,127.319163	),
+                        new LatLng(37.553137	,127.319641	),
+                        new LatLng(37.554063	,127.320324	),
+                        new LatLng(37.554612	,127.320711	),
+                        new LatLng(37.557929	,127.323283	),
+                        new LatLng(37.560393	,127.325071	),
+                        new LatLng(37.56051 	,127.325162	),
+                        new LatLng(37.561967	,127.326039	),
+                        new LatLng(37.562633	,127.326393	),
+                        new LatLng(37.562921	,127.326553	),
+                        new LatLng(37.563415	,127.326906	),
+                        new LatLng(37.564513	,127.327559	),
+                        new LatLng(37.564747	,127.327738	),
+                        new LatLng(37.565682	,127.328444	),
+                        new LatLng(37.568084	,127.329507	),
+                        new LatLng(37.568309	,127.329644	),
+                        new LatLng(37.574084	,127.33302	),
+                        new LatLng(37.575632	,127.333491	),
+                        new LatLng(37.576353	,127.333675	),
+                        new LatLng(37.577084	,127.333953	),
+                        new LatLng(37.577226	,127.33403	),
+                        new LatLng(37.577918	,127.334452	),
+                        new LatLng(37.57826 	,127.334748	),
+                        new LatLng(37.578628	,127.335078	),
+                        new LatLng(37.579591	,127.335671	),
+                        new LatLng(37.580445	,127.336241	),
+                        new LatLng(37.580625	,127.336321	),
+                        new LatLng(37.583258	,127.336937	),
+                        new LatLng(37.584226	,127.337401	),
+                        new LatLng(37.585442	,127.338369	),
+                        new LatLng(37.586033	,127.338655	),
+                        new LatLng(37.586987	,127.339021	),
+                        new LatLng(37.588154	,127.339594	),
+                        new LatLng(37.589686	,127.340426	),
+                        new LatLng(37.589866	,127.340461	),
+                        new LatLng(37.590415	,127.340622	),
+                        new LatLng(37.591575	,127.341095	),
+                        new LatLng(37.593097	,127.341823	),
+                        new LatLng(37.594132	,127.342088	),
+                        new LatLng(37.594414	,127.342165	),
+                        new LatLng(37.594818	,127.342268	),
+                        new LatLng(37.595411	,127.342433	),
+                        new LatLng(37.597082	,127.342668	),
+                        new LatLng(37.597942	,127.342683	),
+                        new LatLng(37.598194	,127.342684	),
+                        new LatLng(37.598626	,127.34272	),
+                        new LatLng(37.598923	,127.342767	),
+                        new LatLng(37.599509	,127.34286	),
+                        new LatLng(37.59988 	,127.342942	),
+                        new LatLng(37.60103 	,127.343184	),
+                        new LatLng(37.602228	,127.343427	),
+                        new LatLng(37.603947	,127.343956	),
+                        new LatLng(37.606091	,127.344136	),
+                        new LatLng(37.608063	,127.344575	),
+                        new LatLng(37.609432	,127.344785	),
+                        new LatLng(37.613034	,127.345368	),
+                        new LatLng(37.614537	,127.34593	),
+                        new LatLng(37.6163  	,127.346878	),
+                        new LatLng(37.616868	,127.346994	),
+                        new LatLng(37.617103	,127.347041	),
+                        new LatLng(37.617192	,127.347064	),
+                        new LatLng(37.61802 	,127.347294	),
+                        new LatLng(37.618178	,127.347341	),
+                        new LatLng(37.618614	,127.347501	),
+                        new LatLng(37.618647	,127.347516	),
+                        new LatLng(37.618854	,127.347613	),
+                        new LatLng(37.619838	,127.348095	),
+                        new LatLng(37.620775	,127.348649	),
+                        new LatLng(37.621646	,127.348942	),
+                        new LatLng(37.622333	,127.349285	),
+                        new LatLng(37.623832	,127.349994	),
+                        new LatLng(37.624795	,127.350355	),
+                        new LatLng(37.627481	,127.352402	),
+                        new LatLng(37.628958	,127.353349	),
+                        new LatLng(37.631024	,127.355284	),
+                        new LatLng(37.632595	,127.356665	),
+                        new LatLng(37.634277	,127.358177	),
+                        new LatLng(37.634735	,127.358769	),
+                        new LatLng(37.636735	,127.363071	),
+                        new LatLng(37.637146	,127.363609	),
+                        new LatLng(37.63745 	,127.363978	),
+                        new LatLng(37.637632	,127.364199	),
+                        new LatLng(37.63773 	,127.364318	),
+                        new LatLng(37.637967	,127.364605	),
+                        new LatLng(37.638203	,127.364892	),
+                        new LatLng(37.638408	,127.365115	),
+                        new LatLng(37.638845	,127.365591	),
+                        new LatLng(37.639398	,127.366193	),
+                        new LatLng(37.639937	,127.366735	),
+                        new LatLng(37.64046 	,127.367258	),
+                        new LatLng(37.640742	,127.367459	),
+                        new LatLng(37.641023	,127.367639	),
+                        new LatLng(37.641613	,127.368007	),
+                        new LatLng(37.642135	,127.368311	),
+                        new LatLng(37.643065	,127.368893	),
+                        new LatLng(37.643596	,127.369237	),
+                        new LatLng(37.644531	,127.369818	),
+                        new LatLng(37.644904	,127.370119	),
+                        new LatLng(37.645393	,127.370513	),
+                        new LatLng(37.645509	,127.370609	),
+                        new LatLng(37.647143	,127.371414	),
+                        new LatLng(37.647505	,127.371482	),
+                        new LatLng(37.647652	,127.371497	),
+                        new LatLng(37.647661	,127.371529	),
+                        new LatLng(37.65164 	,127.379928	),
+                        new LatLng(37.650982	,127.399011	),
+                        new LatLng(37.655624	,127.401156	),
+                        new LatLng(37.663262	,127.415911	),
+                        new LatLng(37.663946	,127.422362	),
+                        new LatLng(37.670793	,127.428146	),
+                        new LatLng(37.65965 	,127.441466	),
+                        new LatLng(37.653723	,127.434846	),
+                        new LatLng(37.646675	,127.441101	),
+                        new LatLng(37.644072	,127.440517	),
+                        new LatLng(37.640914	,127.455112	),
+                        new LatLng(37.628802	,127.458819	),
+                        new LatLng(37.62198 	,127.471	),
+                        new LatLng(37.607381	,127.47316	),
+                        new LatLng(37.587083	,127.469361	),
+                        new LatLng(37.577569	,127.472842	),
+                        new LatLng(37.571198	,127.497485	),
+                        new LatLng(37.576541	,127.511177	),
+                        new LatLng(37.586399	,127.523054	),
+                        new LatLng(37.586497	,127.523401	),
+                        new LatLng(37.584352	,127.538145	),
+                        new LatLng(37.586677	,127.55337	),
+                        new LatLng(37.583485	,127.559918	),
+                        new LatLng(37.587675	,127.56155	),
+                        new LatLng(37.594594	,127.559357	),
+                        new LatLng(37.599422	,127.562902	),
+                        new LatLng(37.604613	,127.562683	),
+                        new LatLng(37.608429	,127.569551	),
+                        new LatLng(37.613362	,127.570474	),
+                        new LatLng(37.622867	,127.5597	),
+                        new LatLng(37.628497	,127.559402	),
+                        new LatLng(37.633157	,127.564681	),
+                        new LatLng(37.633398	,127.580655	),
+                        new LatLng(37.642303	,127.584861	),
+                        new LatLng(37.646885	,127.598824	),
+                        new LatLng(37.651537	,127.602194	),
+                        new LatLng(37.648444	,127.609601	),
+                        new LatLng(37.6478  	,127.609963	),
+                        new LatLng(37.645609	,127.612788	),
+                        new LatLng(37.646018	,127.617958	),
+                        new LatLng(37.642826	,127.621802	),
+                        new LatLng(37.639566	,127.621571	),
+                        new LatLng(37.643078	,127.625888	),
+                        new LatLng(37.639355	,127.630889	),
+                        new LatLng(37.639938	,127.634153	),
+                        new LatLng(37.635385	,127.634828	),
+                        new LatLng(37.635387	,127.635345	),
+                        new LatLng(37.635035	,127.638856	),
+                        new LatLng(37.632643	,127.639433	),
+                        new LatLng(37.632737	,127.646988	),
+                        new LatLng(37.622686	,127.652111	),
+                        new LatLng(37.623796	,127.663845	),
+                        new LatLng(37.617251	,127.667521	),
+                        new LatLng(37.601335	,127.691679	),
+                        new LatLng(37.600794	,127.69619	),
+                        new LatLng(37.596117	,127.700836	),
+                        new LatLng(37.592767	,127.698371	),
+                        new LatLng(37.591848	,127.697431	),
+                        new LatLng(37.586651	,127.707542	),
+                        new LatLng(37.586354	,127.707894	),
+                        new LatLng(37.588381	,127.715265	),
+                        new LatLng(37.58807 	,127.715888	),
+                        new LatLng(37.590626	,127.723125	),
+                        new LatLng(37.587095	,127.739396	),
+                        new LatLng(37.592065	,127.754106	),
+                        new LatLng(37.586812	,127.757984	),
+                        new LatLng(37.587591	,127.761284	),
+                        new LatLng(37.582642	,127.767318	),
+                        new LatLng(37.582303	,127.767589	),
+                        new LatLng(37.578119	,127.784438	),
+                        new LatLng(37.585255	,127.79408	),
+                        new LatLng(37.579134	,127.804247	),
+                        new LatLng(37.564608	,127.81378	),
+                        new LatLng(37.564413	,127.813868	),
+                        new LatLng(37.562922	,127.819322	),
+                        new LatLng(37.5628  	,127.820611	),
+                        new LatLng(37.560409	,127.836363	),
+                        new LatLng(37.552447	,127.848004	),
+                        new LatLng(37.552302	,127.848076	)
+                )
+                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .fillColor(clr));
+        polygon.setClickable(true);
+        namehmap.put(polygon.hashCode(),name);
+        colorhmap.put(polygon.hashCode(),clr);
+
+        IconGenerator iconFactory = new IconGenerator(this);
+        iconFactory.setColor(clr);
+        if(mclr == 2){
+            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
+        }else if(mclr == 3){
+            iconFactory.setStyle(IconGenerator.STYLE_RED);
+        }else if(mclr == 7){
+            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
+        }else if(mclr == 5){
+            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
+        }else {
+            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
+        }
+        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.522524, 127.579168));
+
+    }//양평군
+    public void drawPolygon55(GoogleMap googlemap) { //서울 성동구
+        String name = "연천군";
+        int clr = Color.argb(100,255,0,0);
+        int mclr;
+        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
+        if(hmap.get(name)==null){
+            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
+            mclr = 1;
+        } else if(hmap.get(name).equals("-")){
+            clr = Color.argb(100,140,140,140);
+            mclr = 2;
+        }else if(Integer.parseInt(hmap.get(name))>150){
+            clr = Color.argb(100,255,0,0);
+            mclr = 3;
+        }else if(Integer.parseInt(hmap.get(name))>80){
+            clr = Color.argb(100,255,255,0);
+            mclr = 7;
+        }else if(Integer.parseInt(hmap.get(name))>30){
+            clr = Color.argb(100,0,255,0);
+            mclr = 5;
+        }else {
+            clr = Color.argb(100,0,0,255);
+            mclr = 4;
+        }
+        Log.d("log","kbc   ++))++))++  "+clr);
+        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+                .add(
+                        new LatLng(38.08338 	,127.192093	),
+                        new LatLng(38.067448	,127.189969	),
+                        new LatLng(38.064539	,127.188804	),
+                        new LatLng(38.063843	,127.185014	),
+                        new LatLng(38.066309	,127.172862	),
+                        new LatLng(38.061623	,127.166363	),
+                        new LatLng(38.063327	,127.156772	),
+                        new LatLng(38.057801	,127.148907	),
+                        new LatLng(38.060719	,127.146346	),
+                        new LatLng(38.0695  	,127.147491	),
+                        new LatLng(38.073051	,127.143375	),
+                        new LatLng(38.071134	,127.139679	),
+                        new LatLng(38.07014 	,127.138469	),
+                        new LatLng(38.06645 	,127.138195	),
+                        new LatLng(38.060276	,127.128278	),
+                        new LatLng(38.060293	,127.115721	),
+                        new LatLng(38.051125	,127.111892	),
+                        new LatLng(38.043565	,127.118073	),
+                        new LatLng(38.039794	,127.114638	),
+                        new LatLng(38.038877	,127.117126	),
+                        new LatLng(38.038713	,127.118891	),
+                        new LatLng(38.038088	,127.137477	),
+                        new LatLng(38.029613	,127.135265	),
+                        new LatLng(38.021037	,127.139483	),
+                        new LatLng(38.014733	,127.147356	),
+                        new LatLng(37.999499	,127.145484	),
+                        new LatLng(37.996837	,127.147333	),
+                        new LatLng(37.992437	,127.145026	),
+                        new LatLng(37.991689	,127.141808	),
+                        new LatLng(37.991959	,127.141356	),
+                        new LatLng(37.97894 	,127.120272	),
+                        new LatLng(37.985219	,127.117404	),
+                        new LatLng(37.988759	,127.112146	),
+                        new LatLng(37.989665	,127.100546	),
+                        new LatLng(37.985307	,127.096945	),
+                        new LatLng(37.983286	,127.089796	),
+                        new LatLng(37.97453 	,127.092758	),
+                        new LatLng(37.971628	,127.091234	),
+                        new LatLng(37.971621	,127.090738	),
+                        new LatLng(37.976385	,127.080842	),
+                        new LatLng(37.975232	,127.066136	),
+                        new LatLng(37.975981	,127.063656	),
+                        new LatLng(37.97917 	,127.064148	),
+                        new LatLng(37.981049	,127.053678	),
+                        new LatLng(37.978862	,127.049453	),
+                        new LatLng(37.975862	,127.049542	),
+                        new LatLng(37.972494	,127.044669	),
+                        new LatLng(37.960062	,127.041828	),
+                        new LatLng(37.957532	,127.038926	),
+                        new LatLng(37.955877	,127.028832	),
+                        new LatLng(37.941264	,127.026062	),
+                        new LatLng(37.940022	,127.020408	),
+                        new LatLng(37.929842	,127.013672	),
+                        new LatLng(37.92823 	,127.009725	),
+                        new LatLng(37.933504	,127.001096	),
+                        new LatLng(37.936317	,127.000903	),
+                        new LatLng(37.933897	,126.997292	),
+                        new LatLng(37.933582	,126.99648	),
+                        new LatLng(37.938215	,126.986318	),
+                        new LatLng(37.938539	,126.986062	),
+                        new LatLng(37.937362	,126.979948	),
+                        new LatLng(37.942085	,126.972503	),
+                        new LatLng(37.946061	,126.977268	),
+                        new LatLng(37.951563	,126.977284	),
+                        new LatLng(37.956463	,126.98851	),
+                        new LatLng(37.967678	,126.990921	),
+                        new LatLng(37.968285	,127.001721	),
+                        new LatLng(37.973469	,127.002755	),
+                        new LatLng(37.975372	,127.010537	),
+                        new LatLng(37.983785	,127.011804	),
+                        new LatLng(37.986963	,127.017107	),
+                        new LatLng(37.992772	,127.014844	),
+                        new LatLng(37.9964  	,127.000467	),
+                        new LatLng(38.007812	,126.989137	),
+                        new LatLng(38.010591	,126.989382	),
+                        new LatLng(38.007013	,126.982214	),
+                        new LatLng(38.008732	,126.979537	),
+                        new LatLng(38.007529	,126.972218	),
+                        new LatLng(37.989572	,126.95525	),
+                        new LatLng(37.980873	,126.938182	),
+                        new LatLng(37.988295	,126.909717	),
+                        new LatLng(37.991223	,126.909713	),
+                        new LatLng(37.99439 	,126.904017	),
+                        new LatLng(37.994903	,126.895624	),
+                        new LatLng(37.991884	,126.892426	),
+                        new LatLng(37.984677	,126.892178	),
+                        new LatLng(37.969743	,126.895515	),
+                        new LatLng(37.966237	,126.886984	),
+                        new LatLng(37.970243	,126.873831	),
+                        new LatLng(37.984875	,126.854737	),
+                        new LatLng(37.986003	,126.852803	),
+                        new LatLng(37.986079	,126.847113	),
+                        new LatLng(37.981542	,126.841431	),
+                        new LatLng(37.960194	,126.835788	),
+                        new LatLng(37.964034	,126.835939	),
+                        new LatLng(37.964549	,126.830819	),
+                        new LatLng(37.959832	,126.828313	),
+                        new LatLng(37.957459	,126.820737	),
+                        new LatLng(37.960976	,126.816868	),
+                        new LatLng(37.966099	,126.81741	),
+                        new LatLng(37.972137	,126.805891	),
+                        new LatLng(37.974205	,126.810738	),
+                        new LatLng(37.975831	,126.806559	),
+                        new LatLng(37.980242	,126.806248	),
+                        new LatLng(37.982255	,126.80272	),
+                        new LatLng(37.990069	,126.801503	),
+                        new LatLng(37.993729	,126.808118	),
+                        new LatLng(37.99353 	,126.813026	),
+                        new LatLng(37.994654	,126.809857	),
+                        new LatLng(37.998548	,126.813165	),
+                        new LatLng(37.994664	,126.807857	),
+                        new LatLng(37.998062	,126.809038	),
+                        new LatLng(37.998041	,126.806809	),
+                        new LatLng(37.993693	,126.806517	),
+                        new LatLng(37.991716	,126.802755	),
+                        new LatLng(37.997779	,126.805832	),
+                        new LatLng(37.997802	,126.802403	),
+                        new LatLng(37.993201	,126.799353	),
+                        new LatLng(37.99659 	,126.800456	),
+                        new LatLng(37.995833	,126.797953	),
+                        new LatLng(37.997935	,126.800908	),
+                        new LatLng(37.999155	,126.798989	),
+                        new LatLng(37.998964	,126.812931	),
+                        new LatLng(38.002595	,126.812921	),
+                        new LatLng(38.002316	,126.816268	),
+                        new LatLng(38.000552	,126.813789	),
+                        new LatLng(37.99977 	,126.815945	),
+                        new LatLng(38.001694	,126.817166	),
+                        new LatLng(37.999994	,126.817879	),
+                        new LatLng(38.000716	,126.823278	),
+                        new LatLng(38.00214 	,126.81841	),
+                        new LatLng(38.003378	,126.823745	),
+                        new LatLng(38.00511 	,126.820796	),
+                        new LatLng(38.007647	,126.822803	),
+                        new LatLng(38.006485	,126.818568	),
+                        new LatLng(38.007794	,126.821519	),
+                        new LatLng(38.010013	,126.818596	),
+                        new LatLng(38.009314	,126.823402	),
+                        new LatLng(38.011506	,126.822515	),
+                        new LatLng(38.011183	,126.818638	),
+                        new LatLng(38.014674	,126.822453	),
+                        new LatLng(38.016629	,126.818425	),
+                        new LatLng(38.017549	,126.826058	),
+                        new LatLng(38.019803	,126.826039	),
+                        new LatLng(38.019457	,126.827721	),
+                        new LatLng(38.026233	,126.832911	),
+                        new LatLng(38.018884	,126.834385	),
+                        new LatLng(38.032907	,126.840731	),
+                        new LatLng(38.032088	,126.855409	),
+                        new LatLng(38.03509 	,126.852377	),
+                        new LatLng(38.040433	,126.854814	),
+                        new LatLng(38.053103	,126.852535	),
+                        new LatLng(38.05332 	,126.858542	),
+                        new LatLng(38.060008	,126.858427	),
+                        new LatLng(38.06031 	,126.852692	),
+                        new LatLng(38.06174 	,126.858144	),
+                        new LatLng(38.069385	,126.867466	),
+                        new LatLng(38.08012 	,126.868896	),
+                        new LatLng(38.081252	,126.871296	),
+                        new LatLng(38.080091	,126.868784	),
+                        new LatLng(38.085266	,126.860187	),
+                        new LatLng(38.091822	,126.859075	),
+                        new LatLng(38.09438 	,126.863238	),
+                        new LatLng(38.09809 	,126.855623	),
+                        new LatLng(38.108329	,126.86237	),
+                        new LatLng(38.115842	,126.88323	),
+                        new LatLng(38.128895	,126.888413	),
+                        new LatLng(38.13413 	,126.90207	),
+                        new LatLng(38.137893	,126.904703	),
+                        new LatLng(38.136718	,126.917058	),
+                        new LatLng(38.128516	,126.927015	),
+                        new LatLng(38.125948	,126.926877	),
+                        new LatLng(38.125185	,126.934186	),
+                        new LatLng(38.126461	,126.93715	),
+                        new LatLng(38.131133	,126.937722	),
+                        new LatLng(38.125725	,126.934554	),
+                        new LatLng(38.129943	,126.935023	),
+                        new LatLng(38.129168	,126.932277	),
+                        new LatLng(38.131651	,126.932349	),
+                        new LatLng(38.132281	,126.93894	),
+                        new LatLng(38.134411	,126.938049	),
+                        new LatLng(38.13423 	,126.942869	),
+                        new LatLng(38.136066	,126.943157	),
+                        new LatLng(38.134654	,126.957531	),
+                        new LatLng(38.136074	,126.96086	),
+                        new LatLng(38.139677	,126.960858	),
+                        new LatLng(38.139679	,126.966046	),
+                        new LatLng(38.137391	,126.966406	),
+                        new LatLng(38.146255	,126.968744	),
+                        new LatLng(38.153137	,126.959447	),
+                        new LatLng(38.153544	,126.959556	),
+                        new LatLng(38.158375	,126.950455	),
+                        new LatLng(38.162342	,126.949435	),
+                        new LatLng(38.165112	,126.953685	),
+                        new LatLng(38.160049	,126.950657	),
+                        new LatLng(38.158282	,126.953867	),
+                        new LatLng(38.160182	,126.954688	),
+                        new LatLng(38.16099 	,126.951831	),
+                        new LatLng(38.163746	,126.95606	),
+                        new LatLng(38.168257	,126.956104	),
+                        new LatLng(38.16533 	,126.958304	),
+                        new LatLng(38.171103	,126.965598	),
+                        new LatLng(38.173465	,126.963568	),
+                        new LatLng(38.180647	,126.968947	),
+                        new LatLng(38.181868	,126.966268	),
+                        new LatLng(38.181188	,126.968629	),
+                        new LatLng(38.185244	,126.969669	),
+                        new LatLng(38.186914	,126.972178	),
+                        new LatLng(38.190185	,126.970935	),
+                        new LatLng(38.186299	,126.968921	),
+                        new LatLng(38.190876	,126.969054	),
+                        new LatLng(38.192113	,126.966301	),
+                        new LatLng(38.189872	,126.965458	),
+                        new LatLng(38.191743	,126.963338	),
+                        new LatLng(38.187792	,126.96772	),
+                        new LatLng(38.183981	,126.966637	),
+                        new LatLng(38.19225 	,126.96244	),
+                        new LatLng(38.192832	,126.966576	),
+                        new LatLng(38.198952	,126.966533	),
+                        new LatLng(38.19933 	,126.970413	),
+                        new LatLng(38.196003	,126.967845	),
+                        new LatLng(38.195541	,126.975698	),
+                        new LatLng(38.191278	,126.977693	),
+                        new LatLng(38.193021	,126.975519	),
+                        new LatLng(38.191094	,126.975096	),
+                        new LatLng(38.191218	,126.971337	),
+                        new LatLng(38.189112	,126.975193	),
+                        new LatLng(38.189951	,126.971666	),
+                        new LatLng(38.186935	,126.97221	),
+                        new LatLng(38.192147	,126.980039	),
+                        new LatLng(38.189145	,126.979228	),
+                        new LatLng(38.189489	,126.981541	),
+                        new LatLng(38.194637	,126.980356	),
+                        new LatLng(38.197088	,126.982283	),
+                        new LatLng(38.194855	,126.977849	),
+                        new LatLng(38.197528	,126.973617	),
+                        new LatLng(38.204546	,126.974396	),
+                        new LatLng(38.205139	,126.979521	),
+                        new LatLng(38.207473	,126.980767	),
+                        new LatLng(38.201732	,126.980611	),
+                        new LatLng(38.20276 	,126.978805	),
+                        new LatLng(38.200475	,126.98162	),
+                        new LatLng(38.199436	,126.975484	),
+                        new LatLng(38.197316	,126.982462	),
+                        new LatLng(38.200626	,126.985064	),
+                        new LatLng(38.203679	,126.983142	),
+                        new LatLng(38.199283	,126.983319	),
+                        new LatLng(38.201198	,126.981322	),
+                        new LatLng(38.207638	,126.980855	),
+                        new LatLng(38.209075	,126.981622	),
+                        new LatLng(38.200735	,126.98515	),
+                        new LatLng(38.201818	,126.986001	),
+                        new LatLng(38.209166	,126.981744	),
+                        new LatLng(38.211755	,126.984017	),
+                        new LatLng(38.217498	,126.980082	),
+                        new LatLng(38.219717	,126.981215	),
+                        new LatLng(38.222107	,126.978165	),
+                        new LatLng(38.227483	,126.981898	),
+                        new LatLng(38.225375	,126.98907	),
+                        new LatLng(38.229472	,126.991591	),
+                        new LatLng(38.227389	,126.993949	),
+                        new LatLng(38.225229	,126.991171	),
+                        new LatLng(38.224377	,126.993632	),
+                        new LatLng(38.226883	,126.995644	),
+                        new LatLng(38.225166	,126.998358	),
+                        new LatLng(38.223374	,126.996328	),
+                        new LatLng(38.224647	,126.998553	),
+                        new LatLng(38.221343	,127.004436	),
+                        new LatLng(38.223897	,127.002458	),
+                        new LatLng(38.222882	,127.005239	),
+                        new LatLng(38.225814	,127.00641	),
+                        new LatLng(38.226133	,127.009477	),
+                        new LatLng(38.223881	,127.015896	),
+                        new LatLng(38.220377	,127.017525	),
+                        new LatLng(38.220343	,127.024661	),
+                        new LatLng(38.223128	,127.024655	),
+                        new LatLng(38.222253	,127.029552	),
+                        new LatLng(38.22283 	,127.025224	),
+                        new LatLng(38.220343	,127.024681	),
+                        new LatLng(38.220327	,127.027897	),
+                        new LatLng(38.214251	,127.027294	),
+                        new LatLng(38.20788 	,127.026662	),
+                        new LatLng(38.207159	,127.029087	),
+                        new LatLng(38.213186	,127.027243	),
+                        new LatLng(38.216585	,127.031578	),
+                        new LatLng(38.211034	,127.02996	),
+                        new LatLng(38.213634	,127.02865	),
+                        new LatLng(38.207074	,127.029593	),
+                        new LatLng(38.20655 	,127.033479	),
+                        new LatLng(38.207954	,127.030645	),
+                        new LatLng(38.208855	,127.033089	),
+                        new LatLng(38.213263	,127.03199	),
+                        new LatLng(38.206393	,127.034644	),
+                        new LatLng(38.20531 	,127.042675	),
+                        new LatLng(38.208425	,127.046441	),
+                        new LatLng(38.205476	,127.042181	),
+                        new LatLng(38.206999	,127.039911	),
+                        new LatLng(38.209378	,127.044573	),
+                        new LatLng(38.213322	,127.043678	),
+                        new LatLng(38.211042	,127.042924	),
+                        new LatLng(38.214084	,127.043505	),
+                        new LatLng(38.21451 	,127.043408	),
+                        new LatLng(38.215978	,127.039622	),
+                        new LatLng(38.220446	,127.039613	),
+                        new LatLng(38.221311	,127.037016	),
+                        new LatLng(38.222273	,127.038956	),
+                        new LatLng(38.216214	,127.04266	),
+                        new LatLng(38.216217	,127.042678	),
+                        new LatLng(38.218671	,127.041406	),
+                        new LatLng(38.218179	,127.043359	),
+                        new LatLng(38.219097	,127.044457	),
+                        new LatLng(38.218655	,127.041509	),
+                        new LatLng(38.220933	,127.041163	),
+                        new LatLng(38.220694	,127.04412	),
+                        new LatLng(38.219237	,127.041543	),
+                        new LatLng(38.220772	,127.044899	),
+                        new LatLng(38.218899	,127.048107	),
+                        new LatLng(38.21807 	,127.043794	),
+                        new LatLng(38.217458	,127.046226	),
+                        new LatLng(38.216325	,127.043536	),
+                        new LatLng(38.216712	,127.046605	),
+                        new LatLng(38.214353	,127.049063	),
+                        new LatLng(38.217915	,127.048223	),
+                        new LatLng(38.221923	,127.050271	),
+                        new LatLng(38.219648	,127.047881	),
+                        new LatLng(38.223898	,127.05128	),
+                        new LatLng(38.223859	,127.051261	),
+                        new LatLng(38.225207	,127.05195	),
+                        new LatLng(38.224824	,127.054109	),
+                        new LatLng(38.227397	,127.049525	),
+                        new LatLng(38.23136 	,127.055279	),
+                        new LatLng(38.227774	,127.053785	),
+                        new LatLng(38.227505	,127.050942	),
+                        new LatLng(38.225011	,127.054122	),
+                        new LatLng(38.23214 	,127.060744	),
+                        new LatLng(38.233697	,127.061124	),
+                        new LatLng(38.232021	,127.056419	),
+                        new LatLng(38.235007	,127.059828	),
+                        new LatLng(38.233902	,127.061174	),
+                        new LatLng(38.237038	,127.061939	),
+                        new LatLng(38.235106	,127.058793	),
+                        new LatLng(38.238144	,127.05981	),
+                        new LatLng(38.237142	,127.061965	),
+                        new LatLng(38.240515	,127.062788	),
+                        new LatLng(38.242034	,127.066988	),
+                        new LatLng(38.237551	,127.071877	),
+                        new LatLng(38.24184 	,127.109901	),
+                        new LatLng(38.236351	,127.114417	),
+                        new LatLng(38.232804	,127.123049	),
+                        new LatLng(38.232751	,127.130581	),
+                        new LatLng(38.23365 	,127.134526	),
+                        new LatLng(38.236501	,127.135079	),
+                        new LatLng(38.236655	,127.143	),
+                        new LatLng(38.241652	,127.14734	),
+                        new LatLng(38.242344	,127.148923	),
+                        new LatLng(38.238481	,127.163294	),
+                        new LatLng(38.219546	,127.159714	),
+                        new LatLng(38.213493	,127.171166	),
+                        new LatLng(38.205484	,127.175135	),
+                        new LatLng(38.197652	,127.1697	),
+                        new LatLng(38.186146	,127.18056	),
+                        new LatLng(38.186134	,127.18053	),
+                        new LatLng(38.186007	,127.180201	),
+                        new LatLng(38.180383	,127.174582	),
+                        new LatLng(38.173098	,127.173931	),
+                        new LatLng(38.17271 	,127.173997	),
+                        new LatLng(38.161349	,127.173317	),
+                        new LatLng(38.152472	,127.177022	),
+                        new LatLng(38.141184	,127.172892	),
+                        new LatLng(38.128909	,127.175542	),
+                        new LatLng(38.121827	,127.171302	),
+                        new LatLng(38.118372	,127.180626	),
+                        new LatLng(38.11506 	,127.1825	),
+                        new LatLng(38.091576	,127.184096	),
+                        new LatLng(38.08338 	,127.192093	)
+                )
+                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .fillColor(clr));
+        polygon.setClickable(true);
+        namehmap.put(polygon.hashCode(),name);
+        colorhmap.put(polygon.hashCode(),clr);
+
+        IconGenerator iconFactory = new IconGenerator(this);
+        iconFactory.setColor(clr);
+        if(mclr == 2){
+            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
+        }else if(mclr == 3){
+            iconFactory.setStyle(IconGenerator.STYLE_RED);
+        }else if(mclr == 7){
+            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
+        }else if(mclr == 5){
+            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
+        }else {
+            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
+        }
+        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(38.103768, 126.988260));
+
+    }//연천군
+    public void drawPolygon27(GoogleMap googlemap) { //서울 성동구
+        String name = "부천시";
+        int clr = Color.argb(100,255,0,0);
+        int mclr;
+        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
+        if(hmap.get(name)==null){
+            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
+            mclr = 1;
+        } else if(hmap.get(name).equals("-")){
+            clr = Color.argb(100,140,140,140);
+            mclr = 2;
+        }else if(Integer.parseInt(hmap.get(name))>150){
+            clr = Color.argb(100,255,0,0);
+            mclr = 3;
+        }else if(Integer.parseInt(hmap.get(name))>80){
+            clr = Color.argb(100,255,255,0);
+            mclr = 7;
+        }else if(Integer.parseInt(hmap.get(name))>30){
+            clr = Color.argb(100,0,255,0);
+            mclr = 5;
+        }else {
+            clr = Color.argb(100,0,0,255);
+            mclr = 4;
+        }
+        Log.d("log","kbc   ++))++))++  "+clr);
+        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+                .add(
+                        new LatLng(37.477246	,126.833052	),
+                        new LatLng(37.473865	,126.832412	),
+                        new LatLng(37.473365	,126.832162	),
+                        new LatLng(37.465865	,126.832996	),
+                        new LatLng(37.459479	,126.826101	),
+                        new LatLng(37.4588  	,126.823518	),
+                        new LatLng(37.458376	,126.82318	),
+                        new LatLng(37.460353	,126.814212	),
+                        new LatLng(37.460262	,126.813794	),
+                        new LatLng(37.458817	,126.811831	),
+                        new LatLng(37.462128	,126.808895	),
+                        new LatLng(37.464027	,126.796468	),
+                        new LatLng(37.464244	,126.796312	),
+                        new LatLng(37.465645	,126.789207	),
+                        new LatLng(37.472393	,126.784304	),
+                        new LatLng(37.471795	,126.778197	),
+                        new LatLng(37.471743	,126.767753	),
+                        new LatLng(37.475182	,126.76516	),
+                        new LatLng(37.47692 	,126.759159	),
+                        new LatLng(37.482873	,126.755549	),
+                        new LatLng(37.486515	,126.743049	),
+                        new LatLng(37.48843 	,126.74251	),
+                        new LatLng(37.482255	,126.802603	),
+                        new LatLng(37.48605 	,126.814646	),
+                        new LatLng(37.490702	,126.8209	),
+                        new LatLng(37.488381	,126.823041	),
+                        new LatLng(37.488187	,126.823038	),
+                        new LatLng(37.486062	,126.820974	),
+                        new LatLng(37.48602 	,126.820857	),
+                        new LatLng(37.485707	,126.819923	),
+                        new LatLng(37.485671	,126.819804	),
+                        new LatLng(37.485659	,126.819764	),
+                        new LatLng(37.485504	,126.819327	),
+                        new LatLng(37.485502	,126.819317	),
+                        new LatLng(37.48543 	,126.819307	),
+                        new LatLng(37.485393	,126.81932	),
+                        new LatLng(37.485035	,126.819401	),
+                        new LatLng(37.485002	,126.819413	),
+                        new LatLng(37.480281	,126.819526	),
+                        new LatLng(37.479162	,126.818997	),
+                        new LatLng(37.474649	,126.814629	),
+                        new LatLng(37.473188	,126.81764	),
+                        new LatLng(37.475177	,126.819284	),
+                        new LatLng(37.475184	,126.819311	),
+                        new LatLng(37.477246	,126.833052	)
+                )
+                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .fillColor(clr));
+        polygon.setClickable(true);
+        namehmap.put(polygon.hashCode(),name);
+        colorhmap.put(polygon.hashCode(),clr);
+
+        IconGenerator iconFactory = new IconGenerator(this);
+        iconFactory.setColor(clr);
+        if(mclr == 2){
+            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
+        }else if(mclr == 3){
+            iconFactory.setStyle(IconGenerator.STYLE_RED);
+        }else if(mclr == 7){
+            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
+        }else if(mclr == 5){
+            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
+        }else {
+            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
+        }
+        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.505620, 126.788776));
+
+    }//부천시 소사구
+    public void drawPolygon37(GoogleMap googlemap) { //서울 성동구
+        String name = "부천시";
+        int clr = Color.argb(100,255,0,0);
+        int mclr;
+        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
+        if(hmap.get(name)==null){
+            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
+            mclr = 1;
+        } else if(hmap.get(name).equals("-")){
+            clr = Color.argb(100,140,140,140);
+            mclr = 2;
+        }else if(Integer.parseInt(hmap.get(name))>150){
+            clr = Color.argb(100,255,0,0);
+            mclr = 3;
+        }else if(Integer.parseInt(hmap.get(name))>80){
+            clr = Color.argb(100,255,255,0);
+            mclr = 7;
+        }else if(Integer.parseInt(hmap.get(name))>30){
+            clr = Color.argb(100,0,255,0);
+            mclr = 5;
+        }else {
+            clr = Color.argb(100,0,0,255);
+            mclr = 4;
+        }
+        Log.d("log","kbc   ++))++))++  "+clr);
+        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+                .add(
+                        new LatLng(37.526516	,126.828837	),
+                        new LatLng(37.522814	,126.825193	),
+                        new LatLng(37.522808	,126.825196	),
+                        new LatLng(37.51622 	,126.823105	),
+                        new LatLng(37.508503	,126.826989	),
+                        new LatLng(37.506114	,126.822383	),
+                        new LatLng(37.506679	,126.790878	),
+                        new LatLng(37.512877	,126.790102	),
+                        new LatLng(37.517562	,126.795304	),
+                        new LatLng(37.522031	,126.795348	),
+                        new LatLng(37.513824	,126.771312	),
+                        new LatLng(37.517975	,126.765757	),
+                        new LatLng(37.518081	,126.76015	),
+                        new LatLng(37.524082	,126.760308	),
+                        new LatLng(37.538875	,126.760723	),
+                        new LatLng(37.554242	,126.766204	),
+                        new LatLng(37.548318	,126.771552	),
+                        new LatLng(37.543746	,126.791819	),
+                        new LatLng(37.541372	,126.794944	),
+                        new LatLng(37.535829	,126.794425	),
+                        new LatLng(37.544408	,126.806241	),
+                        new LatLng(37.540737	,126.812334	),
+                        new LatLng(37.540678	,126.822121	),
+                        new LatLng(37.534903	,126.821868	),
+                        new LatLng(37.526516	,126.828837	)
+                )
+                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .fillColor(clr));
+        polygon.setClickable(true);
+        namehmap.put(polygon.hashCode(),name);
+        colorhmap.put(polygon.hashCode(),clr);
+
+        IconGenerator iconFactory = new IconGenerator(this);
+        iconFactory.setColor(clr);
+        if(mclr == 2){
+            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
+        }else if(mclr == 3){
+            iconFactory.setStyle(IconGenerator.STYLE_RED);
+        }else if(mclr == 7){
+            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
+        }else if(mclr == 5){
+            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
+        }else {
+            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
+        }
+        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.505620, 126.788776));
+
+    }//부천시 오정구
+    public void drawPolygon36(GoogleMap googlemap) { //서울 성동구
+        String name = "부천시";
+        int clr = Color.argb(100,255,0,0);
+        int mclr;
+        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
+        if(hmap.get(name)==null){
+            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
+            mclr = 1;
+        } else if(hmap.get(name).equals("-")){
+            clr = Color.argb(100,140,140,140);
+            mclr = 2;
+        }else if(Integer.parseInt(hmap.get(name))>150){
+            clr = Color.argb(100,255,0,0);
+            mclr = 3;
+        }else if(Integer.parseInt(hmap.get(name))>80){
+            clr = Color.argb(100,255,255,0);
+            mclr = 7;
+        }else if(Integer.parseInt(hmap.get(name))>30){
+            clr = Color.argb(100,0,255,0);
+            mclr = 5;
+        }else {
+            clr = Color.argb(100,0,0,255);
+            mclr = 4;
+        }
+        Log.d("log","kbc   ++))++))++  "+clr);
+        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+                .add(
+                        new LatLng(37.506114	,126.822383	),
+                        new LatLng(37.499211	,126.81964	),
+                        new LatLng(37.497352	,126.814037	),
+                        new LatLng(37.497045	,126.813645	),
+                        new LatLng(37.493193	,126.814575	),
+                        new LatLng(37.490702	,126.8209	),
+                        new LatLng(37.48605 	,126.814646	),
+                        new LatLng(37.482255	,126.802603	),
+                        new LatLng(37.48843 	,126.74251	),
+                        new LatLng(37.501616	,126.74376	),
+                        new LatLng(37.508988	,126.741471	),
+                        new LatLng(37.514997	,126.745839	),
+                        new LatLng(37.515042	,126.74589	),
+                        new LatLng(37.514513	,126.747209	),
+                        new LatLng(37.514622	,126.747184	),
+                        new LatLng(37.514021	,126.750007	),
+                        new LatLng(37.51687 	,126.753436	),
+                        new LatLng(37.515564	,126.759406	),
+                        new LatLng(37.518081	,126.76015	),
+                        new LatLng(37.517975	,126.765757	),
+                        new LatLng(37.513824	,126.771312	),
+                        new LatLng(37.522031	,126.795348	),
+                        new LatLng(37.517562	,126.795304	),
+                        new LatLng(37.512877	,126.790102	),
+                        new LatLng(37.506679	,126.790878	),
+                        new LatLng(37.506114	,126.822383	)
+                )
+                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .fillColor(clr));
+        polygon.setClickable(true);
+        namehmap.put(polygon.hashCode(),name);
+        colorhmap.put(polygon.hashCode(),clr);
+
+        IconGenerator iconFactory = new IconGenerator(this);
+        iconFactory.setColor(clr);
+        if(mclr == 2){
+            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
+        }else if(mclr == 3){
+            iconFactory.setStyle(IconGenerator.STYLE_RED);
+        }else if(mclr == 7){
+            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
+        }else if(mclr == 5){
+            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
+        }else {
+            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
+        }
+        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.505620, 126.788776));
+
+    }//부천시 원미구
+    public void drawPolygon34(GoogleMap googlemap) { //
+        String name = "안산시";
+        int clr = Color.argb(100,255,0,0);
+        int mclr;
+        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
+        if(hmap.get(name)==null){
+            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
+            mclr = 1;
+        } else if(hmap.get(name).equals("-")){
+            clr = Color.argb(100,140,140,140);
+            mclr = 2;
+        }else if(Integer.parseInt(hmap.get(name))>150){
+            clr = Color.argb(100,255,0,0);
+            mclr = 3;
+        }else if(Integer.parseInt(hmap.get(name))>80){
+            clr = Color.argb(100,255,255,0);
+            mclr = 7;
+        }else if(Integer.parseInt(hmap.get(name))>30){
+            clr = Color.argb(100,0,255,0);
+            mclr = 5;
+        }else {
+            clr = Color.argb(100,0,0,255);
+            mclr = 4;
+        }
+
+        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+                .add(
+                        new LatLng(37.295446	,126.939607	),
+                        new LatLng(37.295315	,126.939586	),
+                        new LatLng(37.295131	,126.939395	),
+                        new LatLng(37.294915	,126.939125	),
+                        new LatLng(37.294858	,126.939018	),
+                        new LatLng(37.294761	,126.938903	),
+                        new LatLng(37.294632	,126.938742	),
+                        new LatLng(37.294577	,126.938602	),
+                        new LatLng(37.294506	,126.938481	),
+                        new LatLng(37.294293	,126.938091	),
+                        new LatLng(37.294278	,126.938103	),
+                        new LatLng(37.294175	,126.93788	),
+                        new LatLng(37.293756	,126.937506	),
+                        new LatLng(37.293371	,126.937133	),
+                        new LatLng(37.293213	,126.936794	),
+                        new LatLng(37.292841	,126.935817	),
+                        new LatLng(37.292743	,126.935374	),
+                        new LatLng(37.292501	,126.934679	),
+                        new LatLng(37.292424	,126.934302	),
+                        new LatLng(37.292079	,126.933788	),
+                        new LatLng(37.291996	,126.933451	),
+                        new LatLng(37.291576	,126.933037	),
+                        new LatLng(37.291005	,126.932851	),
+                        new LatLng(37.290022	,126.932542	),
+                        new LatLng(37.28916 	,126.932188	),
+                        new LatLng(37.288318	,126.932051	),
+                        new LatLng(37.287866	,126.931837	),
+                        new LatLng(37.286719	,126.930938	),
+                        new LatLng(37.286382	,126.930601	),
+                        new LatLng(37.284208	,126.928815	),
+                        new LatLng(37.283169	,126.928393	),
+                        new LatLng(37.282258	,126.928036	),
+                        new LatLng(37.279422	,126.927516	),
+                        new LatLng(37.278806	,126.927288	),
+                        new LatLng(37.278806	,126.927287	),
+                        new LatLng(37.278815	,126.927234	),
+                        new LatLng(37.278981	,126.927031	),
+                        new LatLng(37.279634	,126.925745	),
+                        new LatLng(37.279971	,126.925513	),
+                        new LatLng(37.28116 	,126.924881	),
+                        new LatLng(37.281457	,126.924283	),
+                        new LatLng(37.281749	,126.922681	),
+                        new LatLng(37.281914	,126.922471	),
+                        new LatLng(37.282825	,126.921597	),
+                        new LatLng(37.282911	,126.921496	),
+                        new LatLng(37.282987	,126.920994	),
+                        new LatLng(37.283172	,126.920864	),
+                        new LatLng(37.284842	,126.919165	),
+                        new LatLng(37.284877	,126.919027	),
+                        new LatLng(37.284988	,126.918595	),
+                        new LatLng(37.290709	,126.914442	),
+                        new LatLng(37.29079 	,126.914287	),
+                        new LatLng(37.29074 	,126.902474	),
+                        new LatLng(37.29119 	,126.902152	),
+                        new LatLng(37.291405	,126.901793	),
+                        new LatLng(37.287755	,126.894324	),
+                        new LatLng(37.282036	,126.889936	),
+                        new LatLng(37.281985	,126.889842	),
+                        new LatLng(37.282931	,126.886935	),
+                        new LatLng(37.282974	,126.886835	),
+                        new LatLng(37.28335 	,126.886403	),
+                        new LatLng(37.283364	,126.886351	),
+                        new LatLng(37.282714	,126.885701	),
+                        new LatLng(37.282593	,126.88557	),
+                        new LatLng(37.28347 	,126.883756	),
+                        new LatLng(37.283487	,126.883719	),
+                        new LatLng(37.283517	,126.883662	),
+                        new LatLng(37.283523	,126.883646	),
+                        new LatLng(37.283568	,126.883556	),
+                        new LatLng(37.283595	,126.88346	),
+                        new LatLng(37.283622	,126.883347	),
+                        new LatLng(37.283629	,126.883333	),
+                        new LatLng(37.283667	,126.883183	),
+                        new LatLng(37.283685	,126.88311	),
+                        new LatLng(37.283648	,126.882107	),
+                        new LatLng(37.283639	,126.882084	),
+                        new LatLng(37.283639	,126.882022	),
+                        new LatLng(37.283666	,126.881915	),
+                        new LatLng(37.283711	,126.88183	),
+                        new LatLng(37.283751	,126.88174	),
+                        new LatLng(37.283787	,126.881661	),
+                        new LatLng(37.284319	,126.881779	),
+                        new LatLng(37.284409	,126.881869	),
+                        new LatLng(37.284413	,126.881733	),
+                        new LatLng(37.284428	,126.881678	),
+                        new LatLng(37.284443	,126.881642	),
+                        new LatLng(37.284458	,126.881592	),
+                        new LatLng(37.284467	,126.88157	),
+                        new LatLng(37.284485	,126.881485	),
+                        new LatLng(37.284494	,126.881463	),
+                        new LatLng(37.284503	,126.881372	),
+                        new LatLng(37.284521	,126.881169	),
+                        new LatLng(37.284665	,126.881084	),
+                        new LatLng(37.284705	,126.880994	),
+                        new LatLng(37.28471 	,126.880887	),
+                        new LatLng(37.284809	,126.880808	),
+                        new LatLng(37.28484 	,126.880718	),
+                        new LatLng(37.284831	,126.880701	),
+                        new LatLng(37.284849	,126.880684	),
+                        new LatLng(37.284822	,126.880616	),
+                        new LatLng(37.284709	,126.880526	),
+                        new LatLng(37.284727	,126.880475	),
+                        new LatLng(37.28511 	,126.879793	),
+                        new LatLng(37.285168	,126.879725	),
+                        new LatLng(37.285213	,126.879685	),
+                        new LatLng(37.285258	,126.879651	),
+                        new LatLng(37.285452	,126.879335	),
+                        new LatLng(37.285551	,126.879177	),
+                        new LatLng(37.285613	,126.879042	),
+                        new LatLng(37.284689	,126.878361	),
+                        new LatLng(37.284725	,126.87831	),
+                        new LatLng(37.284741	,126.878278	),
+                        new LatLng(37.283513	,126.877073	),
+                        new LatLng(37.283484	,126.877062	),
+                        new LatLng(37.283103	,126.877033	),
+                        new LatLng(37.282996	,126.877064	),
+                        new LatLng(37.282922	,126.877078	),
+                        new LatLng(37.282916	,126.87708	),
+                        new LatLng(37.28285 	,126.877101	),
+                        new LatLng(37.282771	,126.877166	),
+                        new LatLng(37.282727	,126.877177	),
+                        new LatLng(37.282664	,126.877125	),
+                        new LatLng(37.282635	,126.87704	),
+                        new LatLng(37.282609	,126.876966	),
+                        new LatLng(37.282574	,126.87691	),
+                        new LatLng(37.282039	,126.876434	),
+                        new LatLng(37.281943	,126.876358	),
+                        new LatLng(37.279459	,126.872232	),
+                        new LatLng(37.279506	,126.87216	),
+                        new LatLng(37.27965 	,126.872065	),
+                        new LatLng(37.27983 	,126.871986	),
+                        new LatLng(37.279863	,126.871972	),
+                        new LatLng(37.279875	,126.871961	),
+                        new LatLng(37.280138	,126.871834	),
+                        new LatLng(37.280419	,126.871703	),
+                        new LatLng(37.281172	,126.868282	),
+                        new LatLng(37.281192	,126.868195	),
+                        new LatLng(37.281211	,126.868114	),
+                        new LatLng(37.281216	,126.868105	),
+                        new LatLng(37.281302	,126.867938	),
+                        new LatLng(37.281318	,126.867908	),
+                        new LatLng(37.281326	,126.8679	),
+                        new LatLng(37.281338	,126.86789	),
+                        new LatLng(37.281391	,126.867835	),
+                        new LatLng(37.281474	,126.867648	),
+                        new LatLng(37.281544	,126.867495	),
+                        new LatLng(37.281643	,126.86727	),
+                        new LatLng(37.281697	,126.867146	),
+                        new LatLng(37.281429	,126.864068	),
+                        new LatLng(37.281369	,126.864038	),
+                        new LatLng(37.281371	,126.864035	),
+                        new LatLng(37.281389	,126.864009	),
+                        new LatLng(37.281455	,126.863871	),
+                        new LatLng(37.281483	,126.863782	),
+                        new LatLng(37.28109 	,126.862736	),
+                        new LatLng(37.281049	,126.862708	),
+                        new LatLng(37.281082	,126.862677	),
+                        new LatLng(37.27966 	,126.862315	),
+                        new LatLng(37.279626	,126.862237	),
+                        new LatLng(37.279682	,126.862177	),
+                        new LatLng(37.279743	,126.862075	),
+                        new LatLng(37.279373	,126.861966	),
+                        new LatLng(37.279293	,126.862102	),
+                        new LatLng(37.278979	,126.862133	),
+                        new LatLng(37.278934	,126.862234	),
+                        new LatLng(37.27905 	,126.862823	),
+                        new LatLng(37.278971	,126.8629	),
+                        new LatLng(37.275382	,126.862219	),
+                        new LatLng(37.275344	,126.862247	),
+                        new LatLng(37.275107	,126.862419	),
+                        new LatLng(37.274925	,126.862555	),
+                        new LatLng(37.274741	,126.862684	),
+                        new LatLng(37.274604	,126.862773	),
+                        new LatLng(37.274436	,126.862895	),
+                        new LatLng(37.274333	,126.862943	),
+                        new LatLng(37.274326	,126.862949	),
+                        new LatLng(37.274099	,126.863135	),
+                        new LatLng(37.272383	,126.852844	),
+                        new LatLng(37.268448	,126.847271	),
+                        new LatLng(37.275556	,126.840097	),
+                        new LatLng(37.27929 	,126.828667	),
+                        new LatLng(37.289518	,126.823291	),
+                        new LatLng(37.295109	,126.814508	),
+                        new LatLng(37.298043	,126.816802	),
+                        new LatLng(37.304169	,126.824402	),
+                        new LatLng(37.303625	,126.83451	),
+                        new LatLng(37.306112	,126.841611	),
+                        new LatLng(37.315989	,126.843011	),
+                        new LatLng(37.333549	,126.841801	),
+                        new LatLng(37.338209	,126.836747	),
+                        new LatLng(37.343876	,126.842637	),
+                        new LatLng(37.34701 	,126.835576	),
+                        new LatLng(37.349982	,126.834407	),
+                        new LatLng(37.362786	,126.841468	),
+                        new LatLng(37.364759	,126.848113	),
+                        new LatLng(37.364767	,126.848242	),
+                        new LatLng(37.359453	,126.855833	),
+                        new LatLng(37.364324	,126.868331	),
+                        new LatLng(37.364379	,126.868387	),
+                        new LatLng(37.369377	,126.874317	),
+                        new LatLng(37.369548	,126.874576	),
+                        new LatLng(37.377466	,126.881247	),
+                        new LatLng(37.377422	,126.881362	),
+                        new LatLng(37.377152	,126.882117	),
+                        new LatLng(37.377152	,126.882782	),
+                        new LatLng(37.376531	,126.88345	),
+                        new LatLng(37.376442	,126.883834	),
+                        new LatLng(37.376891	,126.884455	),
+                        new LatLng(37.376076	,126.887752	),
+                        new LatLng(37.37591 	,126.888377	),
+                        new LatLng(37.375905	,126.888396	),
+                        new LatLng(37.376041	,126.889174	),
+                        new LatLng(37.375843	,126.88948	),
+                        new LatLng(37.375448	,126.890621	),
+                        new LatLng(37.374709	,126.890723	),
+                        new LatLng(37.373268	,126.891098	),
+                        new LatLng(37.372367	,126.89128	),
+                        new LatLng(37.372106	,126.8911	),
+                        new LatLng(37.371178	,126.891869	),
+                        new LatLng(37.37025 	,126.891735	),
+                        new LatLng(37.368845	,126.892087	),
+                        new LatLng(37.368124	,126.892223	),
+                        new LatLng(37.367908	,126.892122	),
+                        new LatLng(37.3675  	,126.891801	),
+                        new LatLng(37.367539	,126.892359	),
+                        new LatLng(37.367152	,126.892879	),
+                        new LatLng(37.364648	,126.894463	),
+                        new LatLng(37.363694	,126.894826	),
+                        new LatLng(37.362801	,126.894737	),
+                        new LatLng(37.362225	,126.89476	),
+                        new LatLng(37.361297	,126.894807	),
+                        new LatLng(37.360369	,126.895384	),
+                        new LatLng(37.35991 	,126.895949	),
+                        new LatLng(37.359486	,126.896378	),
+                        new LatLng(37.359485	,126.896379	),
+                        new LatLng(37.359451	,126.896412	),
+                        new LatLng(37.346936	,126.886893	),
+                        new LatLng(37.339916	,126.88608	),
+                        new LatLng(37.334515	,126.881586	),
+                        new LatLng(37.334393	,126.881793	),
+                        new LatLng(37.329217	,126.873437	),
+                        new LatLng(37.321082	,126.874285	),
+                        new LatLng(37.319572	,126.878011	),
+                        new LatLng(37.321064	,126.882713	),
+                        new LatLng(37.317644	,126.887355	),
+                        new LatLng(37.321827	,126.907635	),
+                        new LatLng(37.321357	,126.908289	),
+                        new LatLng(37.318341	,126.911846	),
+                        new LatLng(37.316673	,126.910235	),
+                        new LatLng(37.315677	,126.915742	),
+                        new LatLng(37.315568	,126.915723	),
+                        new LatLng(37.30554 	,126.914964	),
+                        new LatLng(37.307221	,126.930235	),
+                        new LatLng(37.307222	,126.930236	),
+                        new LatLng(37.306609	,126.930552	),
+                        new LatLng(37.306546	,126.930586	),
+                        new LatLng(37.305978	,126.930722	),
+                        new LatLng(37.303637	,126.931767	),
+                        new LatLng(37.30356 	,126.932428	),
+                        new LatLng(37.303042	,126.932933	),
+                        new LatLng(37.30231 	,126.932606	),
+                        new LatLng(37.300706	,126.932865	),
+                        new LatLng(37.300302	,126.933411	),
+                        new LatLng(37.300061	,126.933595	),
+                        new LatLng(37.299397	,126.933883	),
+                        new LatLng(37.298036	,126.935436	),
+                        new LatLng(37.297878	,126.935813	),
+                        new LatLng(37.297568	,126.93665	),
+                        new LatLng(37.296868	,126.937967	),
+                        new LatLng(37.296129	,126.939447	),
+                        new LatLng(37.295686	,126.939535	),
+                        new LatLng(37.295567	,126.939596	),
+                        new LatLng(37.295446	,126.939607	)
+                )
+                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .fillColor(clr));
+        polygon.setClickable(true);
+        namehmap.put(polygon.hashCode(),name);
+        colorhmap.put(polygon.hashCode(),clr);
+
+        IconGenerator iconFactory = new IconGenerator(this);
+        iconFactory.setColor(clr);
+        if(mclr == 2){
+            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
+        }else if(mclr == 3){
+            iconFactory.setStyle(IconGenerator.STYLE_RED);
+        }else if(mclr == 7){
+            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
+        }else if(mclr == 5){
+            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
+        }else {
+            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
+        }
+        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.323148, 126.830889));
+    }//안산시 상록구
+    public void drawPolygon48(GoogleMap googlemap) { //서울 성동구
+        String name = "화성시";
+        int clr = Color.argb(100,255,0,0);
+        int mclr;
+        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
+        if(hmap.get(name)==null){
+            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
+            mclr = 1;
+        } else if(hmap.get(name).equals("-")){
+            clr = Color.argb(100,140,140,140);
+            mclr = 2;
+        }else if(Integer.parseInt(hmap.get(name))>150){
+            clr = Color.argb(100,255,0,0);
+            mclr = 3;
+        }else if(Integer.parseInt(hmap.get(name))>80){
+            clr = Color.argb(100,255,255,0);
+            mclr = 7;
+        }else if(Integer.parseInt(hmap.get(name))>30){
+            clr = Color.argb(100,0,255,0);
+            mclr = 5;
+        }else {
+            clr = Color.argb(100,0,0,255);
+            mclr = 4;
+        }
+        Log.d("log","kbc   ++))++))++  "+clr);
+        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+                .add(
+                        new LatLng(37.190897	,127.16134	),
+                        new LatLng(37.190472	,127.161288	),
+                        new LatLng(37.189753	,127.160814	),
+                        new LatLng(37.189522	,127.16059	),
+                        new LatLng(37.189055	,127.160461	),
+                        new LatLng(37.188701	,127.160528	),
+                        new LatLng(37.188279	,127.160424	),
+                        new LatLng(37.18711 	,127.1604	),
+                        new LatLng(37.186979	,127.160415	),
+                        new LatLng(37.186689	,127.160274	),
+                        new LatLng(37.186564	,127.160216	),
+                        new LatLng(37.18614 	,127.160215	),
+                        new LatLng(37.186044	,127.160196	),
+                        new LatLng(37.185745	,127.160034	),
+                        new LatLng(37.185664	,127.159956	),
+                        new LatLng(37.185373	,127.15968	),
+                        new LatLng(37.185007	,127.159458	),
+                        new LatLng(37.184612	,127.159228	),
+                        new LatLng(37.183929	,127.158664	),
+                        new LatLng(37.182799	,127.159437	),
+                        new LatLng(37.182003	,127.15986	),
+                        new LatLng(37.180602	,127.160495	),
+                        new LatLng(37.180352	,127.160578	),
+                        new LatLng(37.179625	,127.159977	),
+                        new LatLng(37.17953 	,127.159772	),
+                        new LatLng(37.178957	,127.159549	),
+                        new LatLng(37.178287	,127.159272	),
+                        new LatLng(37.177442	,127.158173	),
+                        new LatLng(37.176951	,127.157742	),
+                        new LatLng(37.17656 	,127.156585	),
+                        new LatLng(37.176282	,127.154741	),
+                        new LatLng(37.175966	,127.154069	),
+                        new LatLng(37.175512	,127.153848	),
+                        new LatLng(37.174316	,127.153264	),
+                        new LatLng(37.174062	,127.153232	),
+                        new LatLng(37.173532	,127.152975	),
+                        new LatLng(37.17336 	,127.152873	),
+                        new LatLng(37.172685	,127.152136	),
+                        new LatLng(37.172323	,127.152059	),
+                        new LatLng(37.171724	,127.15197	),
+                        new LatLng(37.171615	,127.151797	),
+                        new LatLng(37.171602	,127.151049	),
+                        new LatLng(37.171441	,127.150844	),
+                        new LatLng(37.171445	,127.150819	),
+                        new LatLng(37.171173	,127.150537	),
+                        new LatLng(37.170959	,127.150251	),
+                        new LatLng(37.170772	,127.149643	),
+                        new LatLng(37.170558	,127.149137	),
+                        new LatLng(37.170349	,127.14903	),
+                        new LatLng(37.17005 	,127.148788	),
+                        new LatLng(37.169869	,127.148486	),
+                        new LatLng(37.169827	,127.147701	),
+                        new LatLng(37.169778	,127.1475	),
+                        new LatLng(37.169996	,127.144818	),
+                        new LatLng(37.17027 	,127.144581	),
+                        new LatLng(37.170197	,127.144113	),
+                        new LatLng(37.170309	,127.143899	),
+                        new LatLng(37.170229	,127.143747	),
+                        new LatLng(37.170099	,127.143518	),
+                        new LatLng(37.169759	,127.142559	),
+                        new LatLng(37.169379	,127.141277	),
+                        new LatLng(37.169314	,127.141164	),
+                        new LatLng(37.169213	,127.140962	),
+                        new LatLng(37.16914 	,127.140558	),
+                        new LatLng(37.169194	,127.140418	),
+                        new LatLng(37.169166	,127.140262	),
+                        new LatLng(37.169496	,127.1395	),
+                        new LatLng(37.169363	,127.138855	),
+                        new LatLng(37.169322	,127.138492	),
+                        new LatLng(37.16894 	,127.135627	),
+                        new LatLng(37.169041	,127.135448	),
+                        new LatLng(37.169026	,127.135228	),
+                        new LatLng(37.169084	,127.13515	),
+                        new LatLng(37.169315	,127.134554	),
+                        new LatLng(37.169292	,127.134408	),
+                        new LatLng(37.169262	,127.133757	),
+                        new LatLng(37.169308	,127.133745	),
+                        new LatLng(37.169293	,127.133674	),
+                        new LatLng(37.169254	,127.13349	),
+                        new LatLng(37.168969	,127.133024	),
+                        new LatLng(37.16883 	,127.133042	),
+                        new LatLng(37.168461	,127.132756	),
+                        new LatLng(37.168106	,127.132521	),
+                        new LatLng(37.167474	,127.132863	),
+                        new LatLng(37.167067	,127.133201	),
+                        new LatLng(37.166535	,127.133462	),
+                        new LatLng(37.166278	,127.133783	),
+                        new LatLng(37.164913	,127.13387	),
+                        new LatLng(37.164683	,127.133489	),
+                        new LatLng(37.164456	,127.132932	),
+                        new LatLng(37.164156	,127.132524	),
+                        new LatLng(37.163828	,127.132447	),
+                        new LatLng(37.163842	,127.132242	),
+                        new LatLng(37.164013	,127.131823	),
+                        new LatLng(37.164027	,127.131658	),
+                        new LatLng(37.164029	,127.131624	),
+                        new LatLng(37.163451	,127.131435	),
+                        new LatLng(37.162628	,127.131202	),
+                        new LatLng(37.162444	,127.130781	),
+                        new LatLng(37.162438	,127.13075	),
+                        new LatLng(37.162171	,127.129969	),
+                        new LatLng(37.162172	,127.129927	),
+                        new LatLng(37.162129	,127.129435	),
+                        new LatLng(37.162034	,127.129333	),
+                        new LatLng(37.161696	,127.128985	),
+                        new LatLng(37.16149 	,127.128888	),
+                        new LatLng(37.160665	,127.128261	),
+                        new LatLng(37.160145	,127.128157	),
+                        new LatLng(37.159828	,127.128047	),
+                        new LatLng(37.159496	,127.128916	),
+                        new LatLng(37.15889 	,127.129018	),
+                        new LatLng(37.158597	,127.12903	),
+                        new LatLng(37.15831 	,127.128974	),
+                        new LatLng(37.158298	,127.129018	),
+                        new LatLng(37.15826 	,127.129547	),
+                        new LatLng(37.15825 	,127.129593	),
+                        new LatLng(37.157677	,127.130081	),
+                        new LatLng(37.157263	,127.130052	),
+                        new LatLng(37.157121	,127.129903	),
+                        new LatLng(37.156999	,127.129801	),
+                        new LatLng(37.15673 	,127.129563	),
+                        new LatLng(37.156386	,127.129341	),
+                        new LatLng(37.155893	,127.129068	),
+                        new LatLng(37.154804	,127.129175	),
+                        new LatLng(37.154479	,127.129265	),
+                        new LatLng(37.154364	,127.129235	),
+                        new LatLng(37.154153	,127.129136	),
+                        new LatLng(37.153912	,127.129175	),
+                        new LatLng(37.153384	,127.129266	),
+                        new LatLng(37.152708	,127.12994	),
+                        new LatLng(37.1511  	,127.129913	),
+                        new LatLng(37.150686	,127.129552	),
+                        new LatLng(37.150477	,127.129484	),
+                        new LatLng(37.150081	,127.129495	),
+                        new LatLng(37.149954	,127.129383	),
+                        new LatLng(37.149861	,127.129421	),
+                        new LatLng(37.149873	,127.129465	),
+                        new LatLng(37.149711	,127.129463	),
+                        new LatLng(37.149485	,127.129453	),
+                        new LatLng(37.14882 	,127.129484	),
+                        new LatLng(37.148604	,127.129424	),
+                        new LatLng(37.148595	,127.129418	),
+                        new LatLng(37.148587	,127.129408	),
+                        new LatLng(37.148217	,127.129002	),
+                        new LatLng(37.147536	,127.127957	),
+                        new LatLng(37.147268	,127.127781	),
+                        new LatLng(37.146729	,127.127963	),
+                        new LatLng(37.146678	,127.128047	),
+                        new LatLng(37.14639 	,127.128308	),
+                        new LatLng(37.146376	,127.128297	),
+                        new LatLng(37.14595 	,127.128014	),
+                        new LatLng(37.145471	,127.127696	),
+                        new LatLng(37.145791	,127.126993	),
+                        new LatLng(37.145537	,127.126281	),
+                        new LatLng(37.145321	,127.125531	),
+                        new LatLng(37.145321	,127.12553	),
+                        new LatLng(37.145332	,127.125095	),
+                        new LatLng(37.145294	,127.125045	),
+                        new LatLng(37.145329	,127.124621	),
+                        new LatLng(37.145256	,127.124387	),
+                        new LatLng(37.145177	,127.124274	),
+                        new LatLng(37.144855	,127.123712	),
+                        new LatLng(37.144771	,127.123276	),
+                        new LatLng(37.144493	,127.122941	),
+                        new LatLng(37.144376	,127.122838	),
+                        new LatLng(37.144343	,127.121993	),
+                        new LatLng(37.144522	,127.121465	),
+                        new LatLng(37.14455 	,127.12086	),
+                        new LatLng(37.144452	,127.120524	),
+                        new LatLng(37.144451	,127.120519	),
+                        new LatLng(37.143937	,127.11917	),
+                        new LatLng(37.143659	,127.118897	),
+                        new LatLng(37.144589	,127.117503	),
+                        new LatLng(37.144634	,127.117199	),
+                        new LatLng(37.144626	,127.117174	),
+                        new LatLng(37.144376	,127.11452	),
+                        new LatLng(37.144673	,127.113946	),
+                        new LatLng(37.144564	,127.113862	),
+                        new LatLng(37.144511	,127.113822	),
+                        new LatLng(37.144278	,127.113237	),
+                        new LatLng(37.144146	,127.111964	),
+                        new LatLng(37.144016	,127.111606	),
+                        new LatLng(37.143793	,127.111142	),
+                        new LatLng(37.143357	,127.110873	),
+                        new LatLng(37.142267	,127.106388	),
+                        new LatLng(37.142049	,127.106311	),
+                        new LatLng(37.142035	,127.106195	),
+                        new LatLng(37.142014	,127.106019	),
+                        new LatLng(37.142068	,127.105546	),
+                        new LatLng(37.142052	,127.105371	),
+                        new LatLng(37.143268	,127.103747	),
+                        new LatLng(37.143333	,127.10367	),
+                        new LatLng(37.143863	,127.103038	),
+                        new LatLng(37.158915	,127.094369	),
+                        new LatLng(37.158954	,127.094322	),
+                        new LatLng(37.158977	,127.094235	),
+                        new LatLng(37.159096	,127.094035	),
+                        new LatLng(37.159424	,127.093566	),
+                        new LatLng(37.159499	,127.093301	),
+                        new LatLng(37.15931 	,127.092806	),
+                        new LatLng(37.159302	,127.092721	),
+                        new LatLng(37.159301	,127.092713	),
+                        new LatLng(37.159401	,127.092005	),
+                        new LatLng(37.159607	,127.091301	),
+                        new LatLng(37.159718	,127.091142	),
+                        new LatLng(37.160284	,127.089647	),
+                        new LatLng(37.160963	,127.089371	),
+                        new LatLng(37.160952	,127.089301	),
+                        new LatLng(37.160759	,127.088747	),
+                        new LatLng(37.160648	,127.08828	),
+                        new LatLng(37.16082 	,127.086783	),
+                        new LatLng(37.160844	,127.086613	),
+                        new LatLng(37.160946	,127.085702	),
+                        new LatLng(37.161067	,127.084834	),
+                        new LatLng(37.161156	,127.08392	),
+                        new LatLng(37.161502	,127.083566	),
+                        new LatLng(37.16167 	,127.083341	),
+                        new LatLng(37.161379	,127.07987	),
+                        new LatLng(37.161442	,127.079836	),
+                        new LatLng(37.162524	,127.078914	),
+                        new LatLng(37.162317	,127.078655	),
+                        new LatLng(37.1622  	,127.078565	),
+                        new LatLng(37.162299	,127.078396	),
+                        new LatLng(37.16239 	,127.078227	),
+                        new LatLng(37.162381	,127.078148	),
+                        new LatLng(37.162264	,127.076966	),
+                        new LatLng(37.162201	,127.076628	),
+                        new LatLng(37.162112	,127.076189	),
+                        new LatLng(37.162166	,127.076234	),
+                        new LatLng(37.162301	,127.076054	),
+                        new LatLng(37.162256	,127.075987	),
+                        new LatLng(37.162599	,127.075435	),
+                        new LatLng(37.163824	,127.075763	),
+                        new LatLng(37.163788	,127.075729	),
+                        new LatLng(37.16377 	,127.075605	),
+                        new LatLng(37.163923	,127.075572	),
+                        new LatLng(37.163941	,127.075515	),
+                        new LatLng(37.164058	,127.07538	),
+                        new LatLng(37.164139	,127.075279	),
+                        new LatLng(37.164131	,127.075189	),
+                        new LatLng(37.164158	,127.074964	),
+                        new LatLng(37.164266	,127.07484	),
+                        new LatLng(37.167419	,127.072033	),
+                        new LatLng(37.167581	,127.072145	),
+                        new LatLng(37.167852	,127.071767	),
+                        new LatLng(37.168228	,127.071324	),
+                        new LatLng(37.168998	,127.071425	),
+                        new LatLng(37.169043	,127.071392	),
+                        new LatLng(37.169132	,127.071326	),
+                        new LatLng(37.169557	,127.071377	),
+                        new LatLng(37.16987 	,127.071044	),
+                        new LatLng(37.170118	,127.070929	),
+                        new LatLng(37.170122	,127.070922	),
+                        new LatLng(37.170253	,127.070794	),
+                        new LatLng(37.173488	,127.070797	),
+                        new LatLng(37.173591	,127.070739	),
+                        new LatLng(37.173703	,127.07075	),
+                        new LatLng(37.174562	,127.073094	),
+                        new LatLng(37.17469 	,127.072996	),
+                        new LatLng(37.175027	,127.072589	),
+                        new LatLng(37.175112	,127.072576	),
+                        new LatLng(37.175227	,127.072532	),
+                        new LatLng(37.175674	,127.072351	),
+                        new LatLng(37.175839	,127.072352	),
+                        new LatLng(37.175897	,127.072289	),
+                        new LatLng(37.180961	,127.072086	),
+                        new LatLng(37.181413	,127.072041	),
+                        new LatLng(37.1821  	,127.072033	),
+                        new LatLng(37.182196	,127.071979	),
+                        new LatLng(37.18233 	,127.071778	),
+                        new LatLng(37.184038	,127.071179	),
+                        new LatLng(37.184019	,127.070555	),
+                        new LatLng(37.184155	,127.069872	),
+                        new LatLng(37.184029	,127.069438	),
+                        new LatLng(37.183894	,127.068781	),
+                        new LatLng(37.183894	,127.068605	),
+                        new LatLng(37.183951	,127.068427	),
+                        new LatLng(37.1844  	,127.067916	),
+                        new LatLng(37.184202	,127.066754	),
+                        new LatLng(37.184193	,127.066429	),
+                        new LatLng(37.184332	,127.066196	),
+                        new LatLng(37.189136	,127.068029	),
+                        new LatLng(37.189745	,127.067848	),
+                        new LatLng(37.190293	,127.067931	),
+                        new LatLng(37.190479	,127.068299	),
+                        new LatLng(37.190602	,127.068604	),
+                        new LatLng(37.190747	,127.06848	),
+                        new LatLng(37.190752	,127.068502	),
+                        new LatLng(37.190806	,127.068372	),
+                        new LatLng(37.191034	,127.067106	),
+                        new LatLng(37.191171	,127.066855	),
+                        new LatLng(37.191578	,127.066347	),
+                        new LatLng(37.191757	,127.066122	),
+                        new LatLng(37.195847	,127.066187	),
+                        new LatLng(37.196049	,127.066033	),
+                        new LatLng(37.196175	,127.065899	),
+                        new LatLng(37.196356	,127.065706	),
+                        new LatLng(37.199051	,127.064436	),
+                        new LatLng(37.199071	,127.064392	),
+                        new LatLng(37.199461	,127.060582	),
+                        new LatLng(37.199453	,127.060538	),
+                        new LatLng(37.198732	,127.059573	),
+                        new LatLng(37.198726	,127.059564	),
+                        new LatLng(37.198744	,127.059564	),
+                        new LatLng(37.198646	,127.059446	),
+                        new LatLng(37.197326	,127.056721	),
+                        new LatLng(37.197284	,127.056719	),
+                        new LatLng(37.197417	,127.054113	),
+                        new LatLng(37.197372	,127.053978	),
+                        new LatLng(37.197282	,127.053775	),
+                        new LatLng(37.19722 	,127.053212	),
+                        new LatLng(37.197184	,127.0531	),
+                        new LatLng(37.197139	,127.053043	),
+                        new LatLng(37.197103	,127.052886	),
+                        new LatLng(37.197067	,127.052784	),
+                        new LatLng(37.196995	,127.051725	),
+                        new LatLng(37.196806	,127.051387	),
+                        new LatLng(37.196716	,127.051298	),
+                        new LatLng(37.195973	,127.049235	),
+                        new LatLng(37.195984	,127.049078	),
+                        new LatLng(37.195987	,127.048931	),
+                        new LatLng(37.195998	,127.048912	),
+                        new LatLng(37.196006	,127.048899	),
+                        new LatLng(37.196008	,127.048891	),
+                        new LatLng(37.196016	,127.048878	),
+                        new LatLng(37.19605	,127.048847	),
+                        new LatLng(37.196082	,127.048808	),
+                        new LatLng(37.196226	,127.046053	),
+                        new LatLng(37.196281	,127.045981	),
+                        new LatLng(37.196287	,127.045948	),
+                        new LatLng(37.19682	,127.044768	),
+                        new LatLng(37.196876	,127.044708	),
+                        new LatLng(37.196975	,127.044543	),
+                        new LatLng(37.197043	,127.044438	),
+                        new LatLng(37.197668	,127.042425	),
+                        new LatLng(37.197625	,127.042428	),
+                        new LatLng(37.198166	,127.039899	),
+                        new LatLng(37.198238	,127.039816	),
+                        new LatLng(37.198321	,127.039708	),
+                        new LatLng(37.198495	,127.039567	),
+                        new LatLng(37.198512	,127.039504	),
+                        new LatLng(37.198495	,127.039222	),
+                        new LatLng(37.198476	,127.039071	),
+                        new LatLng(37.199032	,127.037529	),
+                        new LatLng(37.199082	,127.037489	),
+                        new LatLng(37.199528	,127.037317	),
+                        new LatLng(37.199559	,127.037264	),
+                        new LatLng(37.199582	,127.03723	),
+                        new LatLng(37.199884	,127.037056	),
+                        new LatLng(37.199901	,127.036994	),
+                        new LatLng(37.199968	,127.036379	),
+                        new LatLng(37.199981	,127.036375	),
+                        new LatLng(37.199974	,127.036268	),
+                        new LatLng(37.199692	,127.029774	),
+                        new LatLng(37.199738	,127.029714	),
+                        new LatLng(37.199801	,127.029624	),
+                        new LatLng(37.199845	,127.029554	),
+                        new LatLng(37.199862	,127.029541	),
+                        new LatLng(37.199895	,127.029515	),
+                        new LatLng(37.200016	,127.02941	),
+                        new LatLng(37.200056	,127.029379	),
+                        new LatLng(37.200064	,127.029356	),
+                        new LatLng(37.200101	,127.029177	),
+                        new LatLng(37.200108	,127.029154	),
+                        new LatLng(37.200126	,127.029007	),
+                        new LatLng(37.200233	,127.028276	),
+                        new LatLng(37.200315	,127.028299	),
+                        new LatLng(37.200396	,127.028332	),
+                        new LatLng(37.200427	,127.028304	),
+                        new LatLng(37.200503	,127.027763	),
+                        new LatLng(37.200542	,127.027724	),
+                        new LatLng(37.200553	,127.027713	),
+                        new LatLng(37.20062 	,127.027679	),
+                        new LatLng(37.200653	,127.027628	),
+                        new LatLng(37.200512	,127.027161	),
+                        new LatLng(37.200643	,127.027082	),
+                        new LatLng(37.200467	,127.026795	),
+                        new LatLng(37.200341	,127.026857	),
+                        new LatLng(37.200257	,127.026879	),
+                        new LatLng(37.200185	,127.026982	),
+                        new LatLng(37.20008 	,127.027155	),
+                        new LatLng(37.199985	,127.027296	),
+                        new LatLng(37.197801	,127.023915	),
+                        new LatLng(37.197774	,127.023741	),
+                        new LatLng(37.195833	,127.018616	),
+                        new LatLng(37.195943	,127.018397	),
+                        new LatLng(37.194629	,127.014997	),
+                        new LatLng(37.194707	,127.014859	),
+                        new LatLng(37.194754	,127.014782	),
+                        new LatLng(37.194783	,127.014728	),
+                        new LatLng(37.19482 	,127.014661	),
+                        new LatLng(37.194921	,127.014495	),
+                        new LatLng(37.195005	,127.014364	),
+                        new LatLng(37.195054	,127.014212	),
+                        new LatLng(37.192996	,127.011587	),
+                        new LatLng(37.192744	,127.011596	),
+                        new LatLng(37.192333	,127.011216	),
+                        new LatLng(37.192342	,127.011193	),
+                        new LatLng(37.192842	,127.009943	),
+                        new LatLng(37.193036	,127.009909	),
+                        new LatLng(37.192248	,127.007837	),
+                        new LatLng(37.192212	,127.007848	),
+                        new LatLng(37.192144	,127.007893	),
+                        new LatLng(37.192057	,127.007975	),
+                        new LatLng(37.191933	,127.008096	),
+                        new LatLng(37.190932	,127.00867	),
+                        new LatLng(37.190707	,127.008918	),
+                        new LatLng(37.190549	,127.009109	),
+                        new LatLng(37.189149	,127.009098	),
+                        new LatLng(37.188702	,127.009064	),
+                        new LatLng(37.188344	,127.009116	),
+                        new LatLng(37.188332	,127.009122	),
+                        new LatLng(37.188333	,127.009131	),
+                        new LatLng(37.188322	,127.009132	),
+                        new LatLng(37.188117	,127.0093	),
+                        new LatLng(37.187999	,127.009458	),
+                        new LatLng(37.187846	,127.009734	),
+                        new LatLng(37.185972	,127.007144	),
+                        new LatLng(37.186184	,127.006879	),
+                        new LatLng(37.186517	,127.006096	),
+                        new LatLng(37.18649 	,127.005941	),
+                        new LatLng(37.186477	,127.005944	),
+                        new LatLng(37.186391	,127.005961	),
+                        new LatLng(37.18595 	,127.005527	),
+                        new LatLng(37.185017	,127.005302	),
+                        new LatLng(37.184823	,127.005184	),
+                        new LatLng(37.184468	,127.004919	),
+                        new LatLng(37.184377	,127.004784	),
+                        new LatLng(37.184034	,127.003933	),
+                        new LatLng(37.183972	,127.003883	),
+                        new LatLng(37.183913	,127.003872	),
+                        new LatLng(37.183652	,127.003742	),
+                        new LatLng(37.183503	,127.003557	),
+                        new LatLng(37.183346	,127.003472	),
+                        new LatLng(37.183134	,127.003247	),
+                        new LatLng(37.18272 	,127.002543	),
+                        new LatLng(37.1824  	,127.002334	),
+                        new LatLng(37.182373	,127.002318	),
+                        new LatLng(37.180769	,127.004913	),
+                        new LatLng(37.180507	,127.004756	),
+                        new LatLng(37.180269	,127.004542	),
+                        new LatLng(37.180012	,127.004232	),
+                        new LatLng(37.179579	,127.003686	),
+                        new LatLng(37.178214	,126.998776	),
+                        new LatLng(37.178476	,126.998934	),
+                        new LatLng(37.179223	,127.000099	),
+                        new LatLng(37.179458	,127.000263	),
+                        new LatLng(37.179656	,127.000415	),
+                        new LatLng(37.179674	,127.000409	),
+                        new LatLng(37.180516	,126.999131	),
+                        new LatLng(37.18035 	,126.999001	),
+                        new LatLng(37.179976	,126.998528	),
+                        new LatLng(37.179751	,126.998123	),
+                        new LatLng(37.179696	,126.997785	),
+                        new LatLng(37.179395	,126.997171	),
+                        new LatLng(37.179341	,126.997104	),
+                        new LatLng(37.178273	,126.996321	),
+                        new LatLng(37.178257	,126.996307	),
+                        new LatLng(37.178147	,126.996169	),
+                        new LatLng(37.17784 	,126.995854	),
+                        new LatLng(37.177475	,126.995426	),
+                        new LatLng(37.17698 	,126.99506	),
+                        new LatLng(37.176547	,126.99497	),
+                        new LatLng(37.168285	,127.006247	),
+                        new LatLng(37.16777 	,127.017371	),
+                        new LatLng(37.167633	,127.017534	),
+                        new LatLng(37.167581	,127.017596	),
+                        new LatLng(37.167274	,127.01857	),
+                        new LatLng(37.167013	,127.019133	),
+                        new LatLng(37.167229	,127.019842	),
+                        new LatLng(37.16722 	,127.020051	),
+                        new LatLng(37.166981	,127.02027	),
+                        new LatLng(37.166824	,127.0204	),
+                        new LatLng(37.166724	,127.020597	),
+                        new LatLng(37.166695	,127.020622	),
+                        new LatLng(37.166544	,127.020771	),
+                        new LatLng(37.166431	,127.021357	),
+                        new LatLng(37.166211	,127.021441	),
+                        new LatLng(37.165967	,127.021886	),
+                        new LatLng(37.165819	,127.02228	),
+                        new LatLng(37.165341	,127.022904	),
+                        new LatLng(37.165381	,127.023647	),
+                        new LatLng(37.165255	,127.023782	),
+                        new LatLng(37.165277	,127.0247	),
+                        new LatLng(37.164818	,127.02528	),
+                        new LatLng(37.164395	,127.025651	),
+                        new LatLng(37.163804	,127.026163	),
+                        new LatLng(37.163529	,127.026501	),
+                        new LatLng(37.163371	,127.026618	),
+                        new LatLng(37.162303	,127.0273	),
+                        new LatLng(37.162038	,127.027362	),
+                        new LatLng(37.161177	,127.027305	),
+                        new LatLng(37.160709	,127.02726	),
+                        new LatLng(37.156766	,127.030529	),
+                        new LatLng(37.156284	,127.030602	),
+                        new LatLng(37.156203	,127.030568	),
+                        new LatLng(37.156138	,127.030497	),
+                        new LatLng(37.15591 	,127.030248	),
+                        new LatLng(37.155464	,127.028964	),
+                        new LatLng(37.155018	,127.028851	),
+                        new LatLng(37.154973	,127.028834	),
+                        new LatLng(37.154734	,127.02853	),
+                        new LatLng(37.154694	,127.028467	),
+                        new LatLng(37.154189	,127.027804	),
+                        new LatLng(37.154112	,127.027821	),
+                        new LatLng(37.153964	,127.027843	),
+                        new LatLng(37.153717	,127.027726	),
+                        new LatLng(37.148904	,127.030122	),
+                        new LatLng(37.148877	,127.03012	),
+                        new LatLng(37.148003	,127.029709	),
+                        new LatLng(37.147611	,127.030154	),
+                        new LatLng(37.147557	,127.030555	),
+                        new LatLng(37.147471	,127.030801	),
+                        new LatLng(37.144876	,127.031039	),
+                        new LatLng(37.144498	,127.030929	),
+                        new LatLng(37.144344	,127.030881	),
+                        new LatLng(37.144327	,127.030873	),
+                        new LatLng(37.143971	,127.031177	),
+                        new LatLng(37.142984	,127.031756	),
+                        new LatLng(37.141736	,127.031818	),
+                        new LatLng(37.141556	,127.031891	),
+                        new LatLng(37.141425	,127.031947	),
+                        new LatLng(37.141393	,127.031941	),
+                        new LatLng(37.141342	,127.031976	),
+                        new LatLng(37.141168	,127.032076	),
+                        new LatLng(37.1411  	,127.032095	),
+                        new LatLng(37.140974	,127.032115	),
+                        new LatLng(37.140727	,127.032155	),
+                        new LatLng(37.140578	,127.032301	),
+                        new LatLng(37.140492	,127.032389	),
+                        new LatLng(37.14047 	,127.032402	),
+                        new LatLng(37.139699	,127.033083	),
+                        new LatLng(37.139609	,127.033184	),
+                        new LatLng(37.139521	,127.033283	),
+                        new LatLng(37.139517	,127.033299	),
+                        new LatLng(37.139352	,127.033499	),
+                        new LatLng(37.139258	,127.033606	),
+                        new LatLng(37.139217	,127.03364	),
+                        new LatLng(37.138861	,127.03373	),
+                        new LatLng(37.138834	,127.033735	),
+                        new LatLng(37.138663	,127.033685	),
+                        new LatLng(37.138631	,127.033673	),
+                        new LatLng(37.138433	,127.033623	),
+                        new LatLng(37.138402	,127.033611	),
+                        new LatLng(37.138271	,127.033572	),
+                        new LatLng(37.137916	,127.033687	),
+                        new LatLng(37.137681	,127.033763	),
+                        new LatLng(37.137397	,127.033994	),
+                        new LatLng(37.13737 	,127.034095	),
+                        new LatLng(37.137343	,127.03423	),
+                        new LatLng(37.137135	,127.034793	),
+                        new LatLng(37.136905	,127.035186	),
+                        new LatLng(37.136488	,127.035701	),
+                        new LatLng(37.136405	,127.035625	),
+                        new LatLng(37.136225	,127.035546	),
+                        new LatLng(37.135902	,127.035383	),
+                        new LatLng(37.135892	,127.035377	),
+                        new LatLng(37.135855	,127.035341	),
+                        new LatLng(37.135847	,127.035332	),
+                        new LatLng(37.135783	,127.035265	),
+                        new LatLng(37.135595	,127.033824	),
+                        new LatLng(37.135586	,127.033808	),
+                        new LatLng(37.135525	,127.03371	),
+                        new LatLng(37.135496	,127.033666	),
+                        new LatLng(37.135334	,127.032912	),
+                        new LatLng(37.135289	,127.032755	),
+                        new LatLng(37.135154	,127.032327	),
+                        new LatLng(37.135082	,127.032057	),
+                        new LatLng(37.135059	,127.031979	),
+                        new LatLng(37.134986	,127.031715	),
+                        new LatLng(37.13428 	,127.030278	),
+                        new LatLng(37.134082	,127.030154	),
+                        new LatLng(37.133974	,127.030076	),
+                        new LatLng(37.133857	,127.029986	),
+                        new LatLng(37.133812	,127.029918	),
+                        new LatLng(37.133558	,127.028775	),
+                        new LatLng(37.133551	,127.028702	),
+                        new LatLng(37.133479	,127.027127	),
+                        new LatLng(37.133402	,127.026928	),
+                        new LatLng(37.133329	,127.026787	),
+                        new LatLng(37.13329 	,127.026744	),
+                        new LatLng(37.133231	,127.026516	),
+                        new LatLng(37.133119	,127.026255	),
+                        new LatLng(37.13302 	,127.026046	),
+                        new LatLng(37.13292 	,127.025742	),
+                        new LatLng(37.132896	,127.02558	),
+                        new LatLng(37.132889	,127.025542	),
+                        new LatLng(37.132857	,127.025405	),
+                        new LatLng(37.13311 	,127.024246	),
+                        new LatLng(37.133103	,127.024155	),
+                        new LatLng(37.132724	,127.023572	),
+                        new LatLng(37.132705	,127.023537	),
+                        new LatLng(37.132479	,127.023176	),
+                        new LatLng(37.132402	,127.023061	),
+                        new LatLng(37.132389	,127.023041	),
+                        new LatLng(37.132227	,127.022265	),
+                        new LatLng(37.1322  	,127.021983	),
+                        new LatLng(37.13202 	,127.021151	),
+                        new LatLng(37.13201 	,127.021126	),
+                        new LatLng(37.131443	,127.020193	),
+                        new LatLng(37.131363	,127.020059	),
+                        new LatLng(37.131156	,127.019417	),
+                        new LatLng(37.130948	,127.019035	),
+                        new LatLng(37.130832	,127.018889	),
+                        new LatLng(37.130762	,127.018802	),
+                        new LatLng(37.130759	,127.018798	),
+                        new LatLng(37.130325	,127.018256	),
+                        new LatLng(37.130291	,127.018213	),
+                        new LatLng(37.130203	,127.017993	),
+                        new LatLng(37.130182	,127.017943	),
+                        new LatLng(37.130179	,127.017935	),
+                        new LatLng(37.130129	,127.017819	),
+                        new LatLng(37.130053	,127.017621	),
+                        new LatLng(37.129886	,127.017014	),
+                        new LatLng(37.129867	,127.016941	),
+                        new LatLng(37.129642	,127.015973	),
+                        new LatLng(37.129523	,127.015408	),
+                        new LatLng(37.129493	,127.015269	),
+                        new LatLng(37.129309	,127.01442	),
+                        new LatLng(37.12916 	,127.013743	),
+                        new LatLng(37.129157	,127.013727	),
+                        new LatLng(37.129156	,127.013723	),
+                        new LatLng(37.129084	,127.011854	),
+                        new LatLng(37.129049	,127.01169	),
+                        new LatLng(37.129047	,127.011686	),
+                        new LatLng(37.129038	,127.011666	),
+                        new LatLng(37.128517	,127.008929	),
+                        new LatLng(37.128432	,127.008801	),
+                        new LatLng(37.128429	,127.008797	),
+                        new LatLng(37.128426	,127.008793	),
+                        new LatLng(37.128282	,127.008535	),
+                        new LatLng(37.128218	,127.008479	),
+                        new LatLng(37.128048	,127.008392	),
+                        new LatLng(37.128039	,127.008388	),
+                        new LatLng(37.127976	,127.008323	),
+                        new LatLng(37.12819 	,127.006457	),
+                        new LatLng(37.128147	,127.006374	),
+                        new LatLng(37.128189	,127.005283	),
+                        new LatLng(37.128156	,127.005237	),
+                        new LatLng(37.128129	,127.004922	),
+                        new LatLng(37.128097	,127.004876	),
+                        new LatLng(37.128042	,127.004768	),
+                        new LatLng(37.127949	,127.004517	),
+                        new LatLng(37.127949	,127.001299	),
+                        new LatLng(37.127868	,127.001119	),
+                        new LatLng(37.126516	,127.001524	),
+                        new LatLng(37.126471	,127.001427	),
+                        new LatLng(37.126442	,127.001362	),
+                        new LatLng(37.126435	,127.001344	),
+                        new LatLng(37.126426	,127.001197	),
+                        new LatLng(37.126435	,127.001163	),
+                        new LatLng(37.126426	,127.001062	),
+                        new LatLng(37.127072	,126.999452	),
+                        new LatLng(37.127057	,126.999419	),
+                        new LatLng(37.127036	,126.999385	),
+                        new LatLng(37.125174	,127.00014	),
+                        new LatLng(37.125088	,126.999951	),
+                        new LatLng(37.125011	,126.999762	),
+                        new LatLng(37.124913	,126.99951	),
+                        new LatLng(37.125615	,126.99799	),
+                        new LatLng(37.125598	,126.997864	),
+                        new LatLng(37.125545	,126.997758	),
+                        new LatLng(37.125526	,126.997722	),
+                        new LatLng(37.12551 	,126.997706	),
+                        new LatLng(37.125417	,126.997619	),
+                        new LatLng(37.124561	,126.997439	),
+                        new LatLng(37.124309	,126.997608	),
+                        new LatLng(37.123441	,126.999194	),
+                        new LatLng(37.123345	,126.998981	),
+                        new LatLng(37.123237	,126.998853	),
+                        new LatLng(37.123146	,126.998744	),
+                        new LatLng(37.12232 	,126.999065	),
+                        new LatLng(37.122236	,126.999048	),
+                        new LatLng(37.120191	,126.999622	),
+                        new LatLng(37.120113	,126.999525	),
+                        new LatLng(37.120062	,126.999462	),
+                        new LatLng(37.119948	,126.999318	),
+                        new LatLng(37.119904	,126.99921	),
+                        new LatLng(37.119835	,126.999043	),
+                        new LatLng(37.119813	,126.998992	),
+                        new LatLng(37.119704	,126.998655	),
+                        new LatLng(37.119673	,126.998603	),
+                        new LatLng(37.11959 	,126.998485	),
+                        new LatLng(37.119506	,126.998373	),
+                        new LatLng(37.119497	,126.998362	),
+                        new LatLng(37.118875	,126.997913	),
+                        new LatLng(37.118569	,126.997901	),
+                        new LatLng(37.116262	,126.997777	),
+                        new LatLng(37.11618 	,126.997702	),
+                        new LatLng(37.116128	,126.99765	),
+                        new LatLng(37.115983	,126.997496	),
+                        new LatLng(37.116726	,126.995548	),
+                        new LatLng(37.116722	,126.995527	),
+                        new LatLng(37.116716	,126.995515	),
+                        new LatLng(37.116704	,126.995493	),
+                        new LatLng(37.116443	,126.995183	),
+                        new LatLng(37.116433	,126.995178	),
+                        new LatLng(37.116425	,126.995173	),
+                        new LatLng(37.114911	,126.998227	),
+                        new LatLng(37.114998	,126.998257	),
+                        new LatLng(37.114154	,126.998137	),
+                        new LatLng(37.114134	,126.998048	),
+                        new LatLng(37.114127	,126.998013	),
+                        new LatLng(37.11464 	,126.994255	),
+                        new LatLng(37.114541	,126.99421	),
+                        new LatLng(37.110955	,126.998002	),
+                        new LatLng(37.111045	,126.99843	),
+                        new LatLng(37.111271	,126.998824	),
+                        new LatLng(37.111451	,126.999049	),
+                        new LatLng(37.111478	,126.999094	),
+                        new LatLng(37.111631	,126.999487	),
+                        new LatLng(37.111541	,126.999802	),
+                        new LatLng(37.109928	,126.998205	),
+                        new LatLng(37.109955	,126.998002	),
+                        new LatLng(37.109909	,126.997778	),
+                        new LatLng(37.109906	,126.997754	),
+                        new LatLng(37.110125	,126.995873	),
+                        new LatLng(37.110072	,126.995786	),
+                        new LatLng(37.109916	,126.99564	),
+                        new LatLng(37.109901	,126.995629	),
+                        new LatLng(37.109895	,126.995625	),
+                        new LatLng(37.108261	,126.996181	),
+                        new LatLng(37.108207	,126.996169	),
+                        new LatLng(37.10718 	,126.996439	),
+                        new LatLng(37.107108	,126.996609	),
+                        new LatLng(37.107062	,126.99672	),
+                        new LatLng(37.106515	,126.99816	),
+                        new LatLng(37.106513	,126.998161	),
+                        new LatLng(37.106333	,126.998194	),
+                        new LatLng(37.105828	,126.998094	),
+                        new LatLng(37.105802	,126.998083	),
+                        new LatLng(37.105224	,126.998068	),
+                        new LatLng(37.105152	,126.998059	),
+                        new LatLng(37.105149	,126.998058	),
+                        new LatLng(37.104837	,126.997958	),
+                        new LatLng(37.104709	,126.997778	),
+                        new LatLng(37.104686	,126.997727	),
+                        new LatLng(37.10463 	,126.997485	),
+                        new LatLng(37.104891	,126.995832	),
+                        new LatLng(37.104882	,126.99582	),
+                        new LatLng(37.104783	,126.995494	),
+                        new LatLng(37.104769	,126.995485	),
+                        new LatLng(37.103801	,126.995595	),
+                        new LatLng(37.103768	,126.995587	),
+                        new LatLng(37.103729	,126.995539	),
+                        new LatLng(37.103519	,126.995407	),
+                        new LatLng(37.103509	,126.995401	),
+                        new LatLng(37.103494	,126.995393	),
+                        new LatLng(37.102855	,126.996529	),
+                        new LatLng(37.102857	,126.996534	),
+                        new LatLng(37.103287	,126.996698	),
+                        new LatLng(37.103292	,126.9967	),
+                        new LatLng(37.103409	,126.996748	),
+                        new LatLng(37.10351 	,126.996875	),
+                        new LatLng(37.103539	,126.996911	),
+                        new LatLng(37.103545	,126.996922	),
+                        new LatLng(37.103563	,126.996953	),
+                        new LatLng(37.103629	,126.997069	),
+                        new LatLng(37.103631	,126.997081	),
+                        new LatLng(37.101859	,126.99776	),
+                        new LatLng(37.101836	,126.997755	),
+                        new LatLng(37.101368	,126.996822	),
+                        new LatLng(37.10133 	,126.996719	),
+                        new LatLng(37.099698	,126.99797	),
+                        new LatLng(37.099674	,126.997958	),
+                        new LatLng(37.099196	,126.99744	),
+                        new LatLng(37.09915 	,126.997372	),
+                        new LatLng(37.099073	,126.997264	),
+                        new LatLng(37.099052	,126.997238	),
+                        new LatLng(37.099029	,126.997186	),
+                        new LatLng(37.098952	,126.997037	),
+                        new LatLng(37.09889 	,126.996923	),
+                        new LatLng(37.098877	,126.996909	),
+                        new LatLng(37.098827	,126.996855	),
+                        new LatLng(37.098091	,126.998583	),
+                        new LatLng(37.098085	,126.998587	),
+                        new LatLng(37.09808 	,126.99859	),
+                        new LatLng(37.097817	,126.998755	),
+                        new LatLng(37.097778	,126.99875	),
+                        new LatLng(37.097634	,126.998739	),
+                        new LatLng(37.097628	,126.998734	),
+                        new LatLng(37.097617	,126.998719	),
+                        new LatLng(37.09752 	,126.99859	),
+                        new LatLng(37.097457	,126.998453	),
+                        new LatLng(37.097367	,126.997677	),
+                        new LatLng(37.097349	,126.997519	),
+                        new LatLng(37.097348	,126.997517	),
+                        new LatLng(37.097277	,126.997339	),
+                        new LatLng(37.097187	,126.997204	),
+                        new LatLng(37.097107	,126.997098	),
+                        new LatLng(37.092862	,126.998172	),
+                        new LatLng(37.092806	,126.998102	),
+                        new LatLng(37.092715	,126.997973	),
+                        new LatLng(37.092555	,126.997711	),
+                        new LatLng(37.092357	,126.997362	),
+                        new LatLng(37.092343	,126.997335	),
+                        new LatLng(37.092262	,126.997198	),
+                        new LatLng(37.092222	,126.997137	),
+                        new LatLng(37.092006	,126.996743	),
+                        new LatLng(37.091969	,126.996653	),
+                        new LatLng(37.091889	,126.996473	),
+                        new LatLng(37.091835	,126.99635	),
+                        new LatLng(37.090816	,126.995562	),
+                        new LatLng(37.090502	,126.995445	),
+                        new LatLng(37.090337	,126.995394	),
+                        new LatLng(37.090195	,126.995371	),
+                        new LatLng(37.085573	,127.000094	),
+                        new LatLng(37.085482	,127.000062	),
+                        new LatLng(37.085212	,126.999927	),
+                        new LatLng(37.08519 	,126.99991	),
+                        new LatLng(37.084853	,126.999633	),
+                        new LatLng(37.084779	,126.999533	),
+                        new LatLng(37.084753	,126.999496	),
+                        new LatLng(37.084712	,126.999438	),
+                        new LatLng(37.08468 	,126.999398	),
+                        new LatLng(37.084545	,126.999072	),
+                        new LatLng(37.084527	,126.998971	),
+                        new LatLng(37.084521	,126.998942	),
+                        new LatLng(37.08451 	,126.998895	),
+                        new LatLng(37.087879	,126.991266	),
+                        new LatLng(37.08787 	,126.99112	),
+                        new LatLng(37.087869	,126.991118	),
+                        new LatLng(37.087806	,126.990873	),
+                        new LatLng(37.08779 	,126.990792	),
+                        new LatLng(37.087672	,126.990618	),
+                        new LatLng(37.087626	,126.990569	),
+                        new LatLng(37.087536	,126.990516	),
+                        new LatLng(37.087392	,126.99049	),
+                        new LatLng(37.08714 	,126.990479	),
+                        new LatLng(37.083337	,126.992808	),
+                        new LatLng(37.082832	,126.993198	),
+                        new LatLng(37.082689	,126.993348	),
+                        new LatLng(37.077904	,126.996193	),
+                        new LatLng(37.077832	,126.996131	),
+                        new LatLng(37.077526	,126.995822	),
+                        new LatLng(37.07736 	,126.995458	),
+                        new LatLng(37.077335	,126.995405	),
+                        new LatLng(37.077327	,126.995395	),
+                        new LatLng(37.07755 	,126.991134	),
+                        new LatLng(37.077534	,126.990953	),
+                        new LatLng(37.077518	,126.9909	),
+                        new LatLng(37.077372	,126.990601	),
+                        new LatLng(37.077363	,126.990593	),
+                        new LatLng(37.077237	,126.99048	),
+                        new LatLng(37.07712 	,126.990435	),
+                        new LatLng(37.077051	,126.990417	),
+                        new LatLng(37.077041	,126.990414	),
+                        new LatLng(37.077039	,126.990413	),
+                        new LatLng(37.070344	,126.997037	),
+                        new LatLng(37.070311	,126.997011	),
+                        new LatLng(37.069966	,126.995688	),
+                        new LatLng(37.070047	,126.995553	),
+                        new LatLng(37.070043	,126.995529	),
+                        new LatLng(37.070011	,126.995305	),
+                        new LatLng(37.070665	,126.991084	),
+                        new LatLng(37.070641	,126.991066	),
+                        new LatLng(37.070614	,126.990167	),
+                        new LatLng(37.070575	,126.99006	),
+                        new LatLng(37.07056 	,126.99002	),
+                        new LatLng(37.070506	,126.989975	),
+                        new LatLng(37.070474	,126.989943	),
+                        new LatLng(37.070025	,126.989624	),
+                        new LatLng(37.069992	,126.989571	),
+                        new LatLng(37.069965	,126.989143	),
+                        new LatLng(37.06991 	,126.988955	),
+                        new LatLng(37.069863	,126.988856	),
+                        new LatLng(37.069848	,126.988829	),
+                        new LatLng(37.069884	,126.98875	),
+                        new LatLng(37.069854	,126.988699	),
+                        new LatLng(37.069803	,126.988615	),
+                        new LatLng(37.069787	,126.988541	),
+                        new LatLng(37.069722	,126.988019	),
+                        new LatLng(37.069693	,126.987992	),
+                        new LatLng(37.069451	,126.98785	),
+                        new LatLng(37.069444	,126.987798	),
+                        new LatLng(37.069438	,126.987773	),
+                        new LatLng(37.069433	,126.98776	),
+                        new LatLng(37.071478	,126.982666	),
+                        new LatLng(37.071469	,126.982488	),
+                        new LatLng(37.071463	,126.982432	),
+                        new LatLng(37.071406	,126.981946	),
+                        new LatLng(37.070942	,126.977844	),
+                        new LatLng(37.070937	,126.977831	),
+                        new LatLng(37.070982	,126.977786	),
+                        new LatLng(37.070946	,126.977676	),
+                        new LatLng(37.070878	,126.977501	),
+                        new LatLng(37.070846	,126.977449	),
+                        new LatLng(37.070883	,126.977468	),
+                        new LatLng(37.070919	,126.977539	),
+                        new LatLng(37.070783	,126.976441	),
+                        new LatLng(37.070765	,126.976257	),
+                        new LatLng(37.073088	,126.968992	),
+                        new LatLng(37.072802	,126.968695	),
+                        new LatLng(37.070817	,126.967205	),
+                        new LatLng(37.070727	,126.967148	),
+                        new LatLng(37.070339	,126.966901	),
+                        new LatLng(37.069672	,126.966587	),
+                        new LatLng(37.069663	,126.966632	),
+                        new LatLng(37.069591	,126.966575	),
+                        new LatLng(37.06924 	,126.966407	),
+                        new LatLng(37.069147	,126.966378	),
+                        new LatLng(37.069132	,126.966374	),
+                        new LatLng(37.069126	,126.966372	),
+                        new LatLng(37.069092	,126.966318	),
+                        new LatLng(37.069117	,126.966323	),
+                        new LatLng(37.069141	,126.966328	),
+                        new LatLng(37.06914 	,126.966326	),
+                        new LatLng(37.069087	,126.966205	),
+                        new LatLng(37.06905 	,126.96612	),
+                        new LatLng(37.069032	,126.966081	),
+                        new LatLng(37.068968	,126.965958	),
+                        new LatLng(37.068915	,126.965856	),
+                        new LatLng(37.068347	,126.965069	),
+                        new LatLng(37.068209	,126.964853	),
+                        new LatLng(37.068184	,126.961482	),
+                        new LatLng(37.068182	,126.961477	),
+                        new LatLng(37.068139	,126.96138	),
+                        new LatLng(37.068121	,126.961347	),
+                        new LatLng(37.068112	,126.960909	),
+                        new LatLng(37.068117	,126.960902	),
+                        new LatLng(37.069048	,126.958457	),
+                        new LatLng(37.069006	,126.958321	),
+                        new LatLng(37.069003	,126.958311	),
+                        new LatLng(37.068995	,126.958291	),
+                        new LatLng(37.068734	,126.957698	),
+                        new LatLng(37.068723	,126.957681	),
+                        new LatLng(37.068317	,126.956332	),
+                        new LatLng(37.068282	,126.95621	),
+                        new LatLng(37.06824 	,126.956149	),
+                        new LatLng(37.0682  	,126.95604	),
+                        new LatLng(37.068262	,126.954016	),
+                        new LatLng(37.06828 	,126.953895	),
+                        new LatLng(37.068273	,126.953864	),
+                        new LatLng(37.068226	,126.953679	),
+                        new LatLng(37.06824 	,126.953448	),
+                        new LatLng(37.068244	,126.953454	),
+                        new LatLng(37.068325	,126.953105	),
+                        new LatLng(37.067941	,126.948757	),
+                        new LatLng(37.067936	,126.948754	),
+                        new LatLng(37.067861	,126.948667	),
+                        new LatLng(37.066314	,126.948384	),
+                        new LatLng(37.0663  	,126.948372	),
+                        new LatLng(37.06626 	,126.948339	),
+                        new LatLng(37.066205	,126.948283	),
+                        new LatLng(37.065907	,126.947938	),
+                        new LatLng(37.065854	,126.947732	),
+                        new LatLng(37.065819	,126.947623	),
+                        new LatLng(37.065818	,126.94762	),
+                        new LatLng(37.065805	,126.947604	),
+                        new LatLng(37.065791	,126.947586	),
+                        new LatLng(37.064421	,126.94725	),
+                        new LatLng(37.064106	,126.947149	),
+                        new LatLng(37.061628	,126.948533	),
+                        new LatLng(37.061681	,126.946453	),
+                        new LatLng(37.06164 	,126.946343	),
+                        new LatLng(37.061175	,126.942428	),
+                        new LatLng(37.061256	,126.942226	),
+                        new LatLng(37.061381	,126.941012	),
+                        new LatLng(37.061156	,126.940754	),
+                        new LatLng(37.061541	,126.936649	),
+                        new LatLng(37.061676	,126.936458	),
+                        new LatLng(37.06262 	,126.93151	),
+                        new LatLng(37.068042	,126.927805	),
+                        new LatLng(37.067969	,126.927434	),
+                        new LatLng(37.067628	,126.926972	),
+                        new LatLng(37.067555	,126.926895	),
+                        new LatLng(37.067392	,126.926457	),
+                        new LatLng(37.067328	,126.926244	),
+                        new LatLng(37.067282	,126.926137	),
+                        new LatLng(37.067239	,126.926063	),
+                        new LatLng(37.066336	,126.923489	),
+                        new LatLng(37.066083	,126.92278	),
+                        new LatLng(37.066017	,126.922654	),
+                        new LatLng(37.065999	,126.922631	),
+                        new LatLng(37.065984	,126.922613	),
+                        new LatLng(37.065968	,126.922601	),
+                        new LatLng(37.065921	,126.922568	),
+                        new LatLng(37.065894	,126.922534	),
+                        new LatLng(37.065849	,126.922444	),
+                        new LatLng(37.065329	,126.922047	),
+                        new LatLng(37.065317	,126.921939	),
+                        new LatLng(37.065406	,126.921151	),
+                        new LatLng(37.065234	,126.920218	),
+                        new LatLng(37.065099	,126.919949	),
+                        new LatLng(37.065846	,126.917552	),
+                        new LatLng(37.065764	,126.917429	),
+                        new LatLng(37.066106	,126.916385	),
+                        new LatLng(37.066079	,126.916293	),
+                        new LatLng(37.066033	,126.916201	),
+                        new LatLng(37.065979	,126.916091	),
+                        new LatLng(37.065933	,126.915975	),
+                        new LatLng(37.06588 	,126.915844	),
+                        new LatLng(37.06568 	,126.915173	),
+                        new LatLng(37.065645	,126.915113	),
+                        new LatLng(37.069003	,126.910038	),
+                        new LatLng(37.069112	,126.909871	),
+                        new LatLng(37.069101	,126.909858	),
+                        new LatLng(37.069164	,126.909397	),
+                        new LatLng(37.069102	,126.909166	),
+                        new LatLng(37.0691  	,126.909161	),
+                        new LatLng(37.069094	,126.909147	),
+                        new LatLng(37.06902 	,126.908801	),
+                        new LatLng(37.068997	,126.908677	),
+                        new LatLng(37.069451	,126.906833	),
+                        new LatLng(37.069418	,126.906796	),
+                        new LatLng(37.069289	,126.906659	),
+                        new LatLng(37.069261	,126.906631	),
+                        new LatLng(37.071675	,126.905053	),
+                        new LatLng(37.071765	,126.905166	),
+                        new LatLng(37.073513	,126.905332	),
+                        new LatLng(37.068623	,126.897703	),
+                        new LatLng(37.066988	,126.88374	),
+                        new LatLng(37.059868	,126.881772	),
+                        new LatLng(37.057947	,126.880617	),
+                        new LatLng(37.057496	,126.880337	),
+                        new LatLng(37.056703	,126.879855	),
+                        new LatLng(37.05487 	,126.878753	),
+                        new LatLng(37.054809	,126.878717	),
+                        new LatLng(37.054512	,126.878532	),
+                        new LatLng(37.051049	,126.876165	),
+                        new LatLng(37.050148	,126.875492	),
+                        new LatLng(37.049805	,126.875223	),
+                        new LatLng(37.048128	,126.873955	),
+                        new LatLng(37.047586	,126.87354	),
+                        new LatLng(37.042149	,126.869559	),
+                        new LatLng(37.040318	,126.868315	),
+                        new LatLng(37.039921	,126.868034	),
+                        new LatLng(37.037955	,126.8667	),
+                        new LatLng(37.037036	,126.866084	),
+                        new LatLng(37.035458	,126.865007	),
+                        new LatLng(37.030489	,126.861487	),
+                        new LatLng(37.027945	,126.859646	),
+                        new LatLng(37.027206	,126.859111	),
+                        new LatLng(37.026816	,126.858805	),
+                        new LatLng(37.022012	,126.85505	),
+                        new LatLng(37.021695	,126.854795	),
+                        new LatLng(37.021289	,126.854346	),
+                        new LatLng(37.021043	,126.854071	),
+                        new LatLng(37.018398	,126.851144	),
+                        new LatLng(37.018393	,126.851138	),
+                        new LatLng(37.017742	,126.849689	),
+                        new LatLng(37.017538	,126.849234	),
+                        new LatLng(37.016945	,126.847921	),
+                        new LatLng(37.015429	,126.844581	),
+                        new LatLng(37.013384	,126.813944	),
+                        new LatLng(37.013409	,126.812652	),
+                        new LatLng(37.01342 	,126.797713	),
+                        new LatLng(37.025826	,126.795255	),
+                        new LatLng(37.029799	,126.789424	),
+                        new LatLng(37.02988 	,126.750476	),
+                        new LatLng(37.036835	,126.748823	),
+                        new LatLng(37.034894	,126.747355	),
+                        new LatLng(37.037695	,126.745559	),
+                        new LatLng(37.050552	,126.750726	),
+                        new LatLng(37.056046	,126.756796	),
+                        new LatLng(37.058291	,126.763753	),
+                        new LatLng(37.056362	,126.764865	),
+                        new LatLng(37.058534	,126.764217	),
+                        new LatLng(37.060088	,126.769994	),
+                        new LatLng(37.0583  	,126.776126	),
+                        new LatLng(37.060699	,126.769808	),
+                        new LatLng(37.063212	,126.770078	),
+                        new LatLng(37.066351	,126.774638	),
+                        new LatLng(37.067358	,126.772173	),
+                        new LatLng(37.071071	,126.773622	),
+                        new LatLng(37.064413	,126.769498	),
+                        new LatLng(37.063083	,126.763095	),
+                        new LatLng(37.068141	,126.761607	),
+                        new LatLng(37.068774	,126.764475	),
+                        new LatLng(37.072161	,126.764904	),
+                        new LatLng(37.080224	,126.762879	),
+                        new LatLng(37.081281	,126.765078	),
+                        new LatLng(37.094283	,126.766509	),
+                        new LatLng(37.101122	,126.771671	),
+                        new LatLng(37.106527	,126.771313	),
+                        new LatLng(37.103852	,126.766549	),
+                        new LatLng(37.11146 	,126.758261	),
+                        new LatLng(37.117963	,126.760397	),
+                        new LatLng(37.132235	,126.776572	),
+                        new LatLng(37.1349  	,126.782638	),
+                        new LatLng(37.129612	,126.787233	),
+                        new LatLng(37.128745	,126.795012	),
+                        new LatLng(37.134302	,126.796115	),
+                        new LatLng(37.138356	,126.801366	),
+                        new LatLng(37.138877	,126.811929	),
+                        new LatLng(37.143231	,126.816682	),
+                        new LatLng(37.144842	,126.808037	),
+                        new LatLng(37.153467	,126.801648	),
+                        new LatLng(37.150352	,126.791137	),
+                        new LatLng(37.148592	,126.791453	),
+                        new LatLng(37.152121	,126.781556	),
+                        new LatLng(37.15463 	,126.785866	),
+                        new LatLng(37.154351	,126.791345	),
+                        new LatLng(37.155002	,126.789095	),
+                        new LatLng(37.163431	,126.8014	),
+                        new LatLng(37.166149	,126.795907	),
+                        new LatLng(37.170943	,126.79672	),
+                        new LatLng(37.172636	,126.800164	),
+                        new LatLng(37.171112	,126.796678	),
+                        new LatLng(37.173183	,126.79228	),
+                        new LatLng(37.176679	,126.793045	),
+                        new LatLng(37.177955	,126.798465	),
+                        new LatLng(37.17812 	,126.794265	),
+                        new LatLng(37.179708	,126.798456	),
+                        new LatLng(37.181939	,126.796324	),
+                        new LatLng(37.196096	,126.800582	),
+                        new LatLng(37.190685	,126.79712	),
+                        new LatLng(37.190871	,126.794163	),
+                        new LatLng(37.18611 	,126.795494	),
+                        new LatLng(37.187473	,126.790564	),
+                        new LatLng(37.1857  	,126.794729	),
+                        new LatLng(37.181496	,126.794713	),
+                        new LatLng(37.173787	,126.788757	),
+                        new LatLng(37.175686	,126.783592	),
+                        new LatLng(37.172593	,126.786121	),
+                        new LatLng(37.169715	,126.783817	),
+                        new LatLng(37.170274	,126.779647	),
+                        new LatLng(37.165193	,126.777461	),
+                        new LatLng(37.164782	,126.760134	),
+                        new LatLng(37.167587	,126.747183	),
+                        new LatLng(37.161683	,126.746927	),
+                        new LatLng(37.152924	,126.741555	),
+                        new LatLng(37.149359	,126.73083	),
+                        new LatLng(37.146252	,126.73173	),
+                        new LatLng(37.139348	,126.726856	),
+                        new LatLng(37.138763	,126.727353	),
+                        new LatLng(37.137412	,126.722497	),
+                        new LatLng(37.13233 	,126.719155	),
+                        new LatLng(37.129821	,126.713799	),
+                        new LatLng(37.131729	,126.706187	),
+                        new LatLng(37.122182	,126.697544	),
+                        new LatLng(37.121462	,126.69146	),
+                        new LatLng(37.115177	,126.683687	),
+                        new LatLng(37.115393	,126.680855	),
+                        new LatLng(37.11719 	,126.680979	),
+                        new LatLng(37.116773	,126.683825	),
+                        new LatLng(37.119214	,126.685628	),
+                        new LatLng(37.128576	,126.682498	),
+                        new LatLng(37.1374  	,126.674362	),
+                        new LatLng(37.140691	,126.679579	),
+                        new LatLng(37.143834	,126.67897	),
+                        new LatLng(37.148695	,126.683426	),
+                        new LatLng(37.151247	,126.697789	),
+                        new LatLng(37.160459	,126.68265	),
+                        new LatLng(37.155972	,126.669649	),
+                        new LatLng(37.156985	,126.663689	),
+                        new LatLng(37.15401 	,126.657723	),
+                        new LatLng(37.154461	,126.649747	),
+                        new LatLng(37.163817	,126.661786	),
+                        new LatLng(37.174933	,126.655004	),
+                        new LatLng(37.182555	,126.667326	),
+                        new LatLng(37.182881	,126.665252	),
+                        new LatLng(37.188291	,126.665505	),
+                        new LatLng(37.189232	,126.669627	),
+                        new LatLng(37.191971	,126.665932	),
+                        new LatLng(37.189895	,126.655236	),
+                        new LatLng(37.196088	,126.660434	),
+                        new LatLng(37.193386	,126.672967	),
+                        new LatLng(37.200811	,126.683303	),
+                        new LatLng(37.202876	,126.693906	),
+                        new LatLng(37.206396	,126.692794	),
+                        new LatLng(37.213822	,126.69918	),
+                        new LatLng(37.215486	,126.691192	),
+                        new LatLng(37.207635	,126.688402	),
+                        new LatLng(37.209424	,126.684123	),
+                        new LatLng(37.207343	,126.679046	),
+                        new LatLng(37.200966	,126.676784	),
+                        new LatLng(37.200142	,126.672757	),
+                        new LatLng(37.208689	,126.666437	),
+                        new LatLng(37.216734	,126.666313	),
+                        new LatLng(37.223694	,126.677457	),
+                        new LatLng(37.229525	,126.673293	),
+                        new LatLng(37.229569	,126.667489	),
+                        new LatLng(37.23322 	,126.66476	),
+                        new LatLng(37.236819	,126.664729	),
+                        new LatLng(37.238586	,126.661453	),
+                        new LatLng(37.242143	,126.664849	),
+                        new LatLng(37.245618	,126.662498	),
+                        new LatLng(37.24508 	,126.666658	),
+                        new LatLng(37.242108	,126.668615	),
+                        new LatLng(37.243531	,126.673682	),
+                        new LatLng(37.256662	,126.681162	),
+                        new LatLng(37.262226	,126.68779	),
+                        new LatLng(37.260006	,126.702081	),
+                        new LatLng(37.257439	,126.703606	),
+                        new LatLng(37.258195	,126.709737	),
+                        new LatLng(37.25474 	,126.716148	),
+                        new LatLng(37.256492	,126.725708	),
+                        new LatLng(37.252466	,126.727682	),
+                        new LatLng(37.253975	,126.729372	),
+                        new LatLng(37.249349	,126.734925	),
+                        new LatLng(37.254374	,126.740752	),
+                        new LatLng(37.254288	,126.756314	),
+                        new LatLng(37.248892	,126.757746	),
+                        new LatLng(37.249124	,126.763701	),
+                        new LatLng(37.244706	,126.763443	),
+                        new LatLng(37.244957	,126.766749	),
+                        new LatLng(37.239513	,126.766632	),
+                        new LatLng(37.235147	,126.757101	),
+                        new LatLng(37.2375  	,126.766473	),
+                        new LatLng(37.227189	,126.764746	),
+                        new LatLng(37.230774	,126.767655	),
+                        new LatLng(37.247861	,126.767042	),
+                        new LatLng(37.248317	,126.773594	),
+                        new LatLng(37.23646 	,126.776441	),
+                        new LatLng(37.230138	,126.781582	),
+                        new LatLng(37.220548	,126.77222	),
+                        new LatLng(37.221043	,126.766044	),
+                        new LatLng(37.218018	,126.772887	),
+                        new LatLng(37.210284	,126.773452	),
+                        new LatLng(37.212234	,126.760336	),
+                        new LatLng(37.210321	,126.761199	),
+                        new LatLng(37.20998 	,126.773661	),
+                        new LatLng(37.218294	,126.774442	),
+                        new LatLng(37.217435	,126.778677	),
+                        new LatLng(37.220107	,126.775433	),
+                        new LatLng(37.226305	,126.783473	),
+                        new LatLng(37.229793	,126.782861	),
+                        new LatLng(37.232998	,126.786511	),
+                        new LatLng(37.239014	,126.778134	),
+                        new LatLng(37.245444	,126.778081	),
+                        new LatLng(37.244046	,126.789398	),
+                        new LatLng(37.255106	,126.788117	),
+                        new LatLng(37.259152	,126.793171	),
+                        new LatLng(37.267118	,126.790104	),
+                        new LatLng(37.27071 	,126.796051	),
+                        new LatLng(37.266335	,126.808665	),
+                        new LatLng(37.267573	,126.811005	),
+                        new LatLng(37.27677 	,126.803844	),
+                        new LatLng(37.277908	,126.800052	),
+                        new LatLng(37.284582	,126.804908	),
+                        new LatLng(37.286053	,126.812342	),
+                        new LatLng(37.28474 	,126.813826	),
+                        new LatLng(37.280456	,126.809475	),
+                        new LatLng(37.269642	,126.827874	),
+                        new LatLng(37.273755	,126.831056	),
+                        new LatLng(37.2707  	,126.83715	),
+                        new LatLng(37.256166	,126.849805	),
+                        new LatLng(37.266002	,126.849844	),
+                        new LatLng(37.269827	,126.858501	),
+                        new LatLng(37.266082	,126.860748	),
+                        new LatLng(37.265117	,126.865455	),
+                        new LatLng(37.259603	,126.867443	),
+                        new LatLng(37.26023 	,126.874022	),
+                        new LatLng(37.257126	,126.882619	),
+                        new LatLng(37.260739	,126.874539	),
+                        new LatLng(37.260119	,126.8675	),
+                        new LatLng(37.266657	,126.865441	),
+                        new LatLng(37.266428	,126.861781	),
+                        new LatLng(37.271402	,126.859977	),
+                        new LatLng(37.271503	,126.856959	),
+                        new LatLng(37.273018	,126.864145	),
+                        new LatLng(37.274099	,126.863135	),
+                        new LatLng(37.274326	,126.862949	),
+                        new LatLng(37.274333	,126.862943	),
+                        new LatLng(37.274436	,126.862895	),
+                        new LatLng(37.274604	,126.862773	),
+                        new LatLng(37.274741	,126.862684	),
+                        new LatLng(37.274925	,126.862555	),
+                        new LatLng(37.275107	,126.862419	),
+                        new LatLng(37.275344	,126.862247	),
+                        new LatLng(37.275382	,126.862219	),
+                        new LatLng(37.278971	,126.8629	),
+                        new LatLng(37.27905 	,126.862823	),
+                        new LatLng(37.278934	,126.862234	),
+                        new LatLng(37.278979	,126.862133	),
+                        new LatLng(37.279293	,126.862102	),
+                        new LatLng(37.279373	,126.861966	),
+                        new LatLng(37.279743	,126.862075	),
+                        new LatLng(37.279682	,126.862177	),
+                        new LatLng(37.279626	,126.862237	),
+                        new LatLng(37.27966 	,126.862315	),
+                        new LatLng(37.281082	,126.862677	),
+                        new LatLng(37.281049	,126.862708	),
+                        new LatLng(37.28109 	,126.862736	),
+                        new LatLng(37.281483	,126.863782	),
+                        new LatLng(37.281455	,126.863871	),
+                        new LatLng(37.281389	,126.864009	),
+                        new LatLng(37.281371	,126.864035	),
+                        new LatLng(37.281369	,126.864038	),
+                        new LatLng(37.281429	,126.864068	),
+                        new LatLng(37.281697	,126.867146	),
+                        new LatLng(37.281643	,126.86727	),
+                        new LatLng(37.281544	,126.867495	),
+                        new LatLng(37.281474	,126.867648	),
+                        new LatLng(37.281391	,126.867835	),
+                        new LatLng(37.281338	,126.86789	),
+                        new LatLng(37.281326	,126.8679	),
+                        new LatLng(37.281318	,126.867908	),
+                        new LatLng(37.281302	,126.867938	),
+                        new LatLng(37.281216	,126.868105	),
+                        new LatLng(37.281211	,126.868114	),
+                        new LatLng(37.281192	,126.868195	),
+                        new LatLng(37.281172	,126.868282	),
+                        new LatLng(37.280419	,126.871703	),
+                        new LatLng(37.280138	,126.871834	),
+                        new LatLng(37.279875	,126.871961	),
+                        new LatLng(37.279863	,126.871972	),
+                        new LatLng(37.27983 	,126.871986	),
+                        new LatLng(37.27965 	,126.872065	),
+                        new LatLng(37.279506	,126.87216	),
+                        new LatLng(37.279459	,126.872232	),
+                        new LatLng(37.281943	,126.876358	),
+                        new LatLng(37.282039	,126.876434	),
+                        new LatLng(37.282574	,126.87691	),
+                        new LatLng(37.282609	,126.876966	),
+                        new LatLng(37.282635	,126.87704	),
+                        new LatLng(37.282664	,126.877125	),
+                        new LatLng(37.282727	,126.877177	),
+                        new LatLng(37.282771	,126.877166	),
+                        new LatLng(37.28285 	,126.877101	),
+                        new LatLng(37.282916	,126.87708	),
+                        new LatLng(37.282922	,126.877078	),
+                        new LatLng(37.282996	,126.877064	),
+                        new LatLng(37.283103	,126.877033	),
+                        new LatLng(37.283484	,126.877062	),
+                        new LatLng(37.283513	,126.877073	),
+                        new LatLng(37.284741	,126.878278	),
+                        new LatLng(37.284725	,126.87831	),
+                        new LatLng(37.284689	,126.878361	),
+                        new LatLng(37.285613	,126.879042	),
+                        new LatLng(37.285551	,126.879177	),
+                        new LatLng(37.285452	,126.879335	),
+                        new LatLng(37.285258	,126.879651	),
+                        new LatLng(37.285213	,126.879685	),
+                        new LatLng(37.285168	,126.879725	),
+                        new LatLng(37.28511 	,126.879793	),
+                        new LatLng(37.284727	,126.880475	),
+                        new LatLng(37.284709	,126.880526	),
+                        new LatLng(37.284822	,126.880616	),
+                        new LatLng(37.284849	,126.880684	),
+                        new LatLng(37.284831	,126.880701	),
+                        new LatLng(37.28484 	,126.880718	),
+                        new LatLng(37.284809	,126.880808	),
+                        new LatLng(37.28471 	,126.880887	),
+                        new LatLng(37.284705	,126.880994	),
+                        new LatLng(37.284665	,126.881084	),
+                        new LatLng(37.284521	,126.881169	),
+                        new LatLng(37.284503	,126.881372	),
+                        new LatLng(37.284494	,126.881463	),
+                        new LatLng(37.284485	,126.881485	),
+                        new LatLng(37.284467	,126.88157	),
+                        new LatLng(37.284458	,126.881592	),
+                        new LatLng(37.284443	,126.881642	),
+                        new LatLng(37.284428	,126.881678	),
+                        new LatLng(37.284413	,126.881733	),
+                        new LatLng(37.284409	,126.881869	),
+                        new LatLng(37.284319	,126.881779	),
+                        new LatLng(37.283787	,126.881661	),
+                        new LatLng(37.283751	,126.88174	),
+                        new LatLng(37.283711	,126.88183	),
+                        new LatLng(37.283666	,126.881915	),
+                        new LatLng(37.283639	,126.882022	),
+                        new LatLng(37.283639	,126.882084	),
+                        new LatLng(37.283648	,126.882107	),
+                        new LatLng(37.283685	,126.88311	),
+                        new LatLng(37.283667	,126.883183	),
+                        new LatLng(37.283629	,126.883333	),
+                        new LatLng(37.283622	,126.883347	),
+                        new LatLng(37.283595	,126.88346	),
+                        new LatLng(37.283568	,126.883556	),
+                        new LatLng(37.283523	,126.883646	),
+                        new LatLng(37.283517	,126.883662	),
+                        new LatLng(37.283487	,126.883719	),
+                        new LatLng(37.28347 	,126.883756	),
+                        new LatLng(37.282593	,126.88557	),
+                        new LatLng(37.282714	,126.885701	),
+                        new LatLng(37.283364	,126.886351	),
+                        new LatLng(37.28335 	,126.886403	),
+                        new LatLng(37.282974	,126.886835	),
+                        new LatLng(37.282931	,126.886935	),
+                        new LatLng(37.281985	,126.889842	),
+                        new LatLng(37.282036	,126.889936	),
+                        new LatLng(37.287755	,126.894324	),
+                        new LatLng(37.291405	,126.901793	),
+                        new LatLng(37.29119 	,126.902152	),
+                        new LatLng(37.29074 	,126.902474	),
+                        new LatLng(37.29079 	,126.914287	),
+                        new LatLng(37.290709	,126.914442	),
+                        new LatLng(37.284988	,126.918595	),
+                        new LatLng(37.284877	,126.919027	),
+                        new LatLng(37.284842	,126.919165	),
+                        new LatLng(37.283172	,126.920864	),
+                        new LatLng(37.282987	,126.920994	),
+                        new LatLng(37.282911	,126.921496	),
+                        new LatLng(37.282825	,126.921597	),
+                        new LatLng(37.281914	,126.922471	),
+                        new LatLng(37.281749	,126.922681	),
+                        new LatLng(37.281457	,126.924283	),
+                        new LatLng(37.28116 	,126.924881	),
+                        new LatLng(37.279971	,126.925513	),
+                        new LatLng(37.279634	,126.925745	),
+                        new LatLng(37.278981	,126.927031	),
+                        new LatLng(37.278815	,126.927234	),
+                        new LatLng(37.278806	,126.927287	),
+                        new LatLng(37.278806	,126.927288	),
+                        new LatLng(37.278598	,126.92733	),
+                        new LatLng(37.27818 	,126.927781	),
+                        new LatLng(37.277662	,126.927688	),
+                        new LatLng(37.276779	,126.928448	),
+                        new LatLng(37.276504	,126.928538	),
+                        new LatLng(37.275792	,126.928364	),
+                        new LatLng(37.275049	,126.927993	),
+                        new LatLng(37.273995	,126.928096	),
+                        new LatLng(37.27362 	,126.927622	),
+                        new LatLng(37.273418	,126.927346	),
+                        new LatLng(37.272061	,126.926981	),
+                        new LatLng(37.271336	,126.927061	),
+                        new LatLng(37.27126 	,126.927467	),
+                        new LatLng(37.271274	,126.928115	),
+                        new LatLng(37.271121	,126.928589	),
+                        new LatLng(37.270823	,126.928623	),
+                        new LatLng(37.270576	,126.928488	),
+                        new LatLng(37.270599	,126.929587	),
+                        new LatLng(37.269522	,126.928962	),
+                        new LatLng(37.269287	,126.928754	),
+                        new LatLng(37.268293	,126.928668	),
+                        new LatLng(37.267999	,126.928907	),
+                        new LatLng(37.267091	,126.92916	),
+                        new LatLng(37.266788	,126.929608	),
+                        new LatLng(37.266193	,126.929422	),
+                        new LatLng(37.265989	,126.929549	),
+                        new LatLng(37.265859	,126.929597	),
+                        new LatLng(37.265701	,126.929516	),
+                        new LatLng(37.265684	,126.929507	),
+                        new LatLng(37.26512 	,126.929653	),
+                        new LatLng(37.264494	,126.929593	),
+                        new LatLng(37.263084	,126.930247	),
+                        new LatLng(37.262328	,126.930322	),
+                        new LatLng(37.261075	,126.930639	),
+                        new LatLng(37.260927	,126.930814	),
+                        new LatLng(37.260811	,126.932296	),
+                        new LatLng(37.260306	,126.93286	),
+                        new LatLng(37.258816	,126.934293	),
+                        new LatLng(37.258091	,126.935173	),
+                        new LatLng(37.256974	,126.935574	),
+                        new LatLng(37.256862	,126.935794	),
+                        new LatLng(37.256799	,126.936223	),
+                        new LatLng(37.256821	,126.936487	),
+                        new LatLng(37.25683 	,126.936583	),
+                        new LatLng(37.25667 	,126.939075	),
+                        new LatLng(37.256778	,126.939492	),
+                        new LatLng(37.256844	,126.940354	),
+                        new LatLng(37.256896	,126.940501	),
+                        new LatLng(37.256878	,126.940664	),
+                        new LatLng(37.256927	,126.940811	),
+                        new LatLng(37.256874	,126.941402	),
+                        new LatLng(37.256716	,126.94156	),
+                        new LatLng(37.25696 	,126.942665	),
+                        new LatLng(37.257077	,126.9432	),
+                        new LatLng(37.256967	,126.943719	),
+                        new LatLng(37.257031	,126.944465	),
+                        new LatLng(37.257155	,126.945494	),
+                        new LatLng(37.257254	,126.945789	),
+                        new LatLng(37.257439	,126.946345	),
+                        new LatLng(37.257158	,126.947373	),
+                        new LatLng(37.25703 	,126.947884	),
+                        new LatLng(37.256859	,126.948228	),
+                        new LatLng(37.256779	,126.948386	),
+                        new LatLng(37.256481	,126.948679	),
+                        new LatLng(37.256384	,126.948951	),
+                        new LatLng(37.256368	,126.949006	),
+                        new LatLng(37.256146	,126.949253	),
+                        new LatLng(37.256073	,126.94934	),
+                        new LatLng(37.256044	,126.949378	),
+                        new LatLng(37.255989	,126.949509	),
+                        new LatLng(37.255711	,126.950083	),
+                        new LatLng(37.255504	,126.9501	),
+                        new LatLng(37.255482	,126.950096	),
+                        new LatLng(37.255301	,126.950032	),
+                        new LatLng(37.255121	,126.950066	),
+                        new LatLng(37.255026	,126.949999	),
+                        new LatLng(37.254769	,126.949931	),
+                        new LatLng(37.254671	,126.949916	),
+                        new LatLng(37.254499	,126.949878	),
+                        new LatLng(37.25435 	,126.949858	),
+                        new LatLng(37.254323	,126.949768	),
+                        new LatLng(37.254013	,126.949855	),
+                        new LatLng(37.253715	,126.9501	),
+                        new LatLng(37.253643	,126.950191	),
+                        new LatLng(37.25312 	,126.950372	),
+                        new LatLng(37.252463	,126.950592	),
+                        new LatLng(37.252385	,126.950825	),
+                        new LatLng(37.252107	,126.951697	),
+                        new LatLng(37.251747	,126.952441	),
+                        new LatLng(37.251744	,126.952449	),
+                        new LatLng(37.251599	,126.952505	),
+                        new LatLng(37.251536	,126.952504	),
+                        new LatLng(37.251236	,126.952561	),
+                        new LatLng(37.250644	,126.952662	),
+                        new LatLng(37.2505  	,126.952698	),
+                        new LatLng(37.250149	,126.952712	),
+                        new LatLng(37.249824	,126.952709	),
+                        new LatLng(37.249695	,126.952719	),
+                        new LatLng(37.249673	,126.952723	),
+                        new LatLng(37.249603	,126.952736	),
+                        new LatLng(37.249544	,126.95273	),
+                        new LatLng(37.249468	,126.952736	),
+                        new LatLng(37.249058	,126.952826	),
+                        new LatLng(37.248576	,126.953035	),
+                        new LatLng(37.248211	,126.95339	),
+                        new LatLng(37.248225	,126.953424	),
+                        new LatLng(37.247802	,126.954307	),
+                        new LatLng(37.247383	,126.955138	),
+                        new LatLng(37.247194	,126.955341	),
+                        new LatLng(37.247086	,126.955448	),
+                        new LatLng(37.247027	,126.95564	),
+                        new LatLng(37.246802	,126.956057	),
+                        new LatLng(37.246761	,126.956175	),
+                        new LatLng(37.246694	,126.956192	),
+                        new LatLng(37.24618 	,126.956294	),
+                        new LatLng(37.245117	,126.9567	),
+                        new LatLng(37.245082	,126.956707	),
+                        new LatLng(37.244788	,126.956766	),
+                        new LatLng(37.244433	,126.957146	),
+                        new LatLng(37.244218	,126.957325	),
+                        new LatLng(37.244168	,126.957352	),
+                        new LatLng(37.243478	,126.957721	),
+                        new LatLng(37.243425	,126.957761	),
+                        new LatLng(37.243368	,126.957784	),
+                        new LatLng(37.243311	,126.957805	),
+                        new LatLng(37.243195	,126.957853	),
+                        new LatLng(37.242933	,126.957975	),
+                        new LatLng(37.242806	,126.957981	),
+                        new LatLng(37.24246 	,126.957998	),
+                        new LatLng(37.242338	,126.957994	),
+                        new LatLng(37.242086	,126.957976	),
+                        new LatLng(37.241186	,126.957947	),
+                        new LatLng(37.240964	,126.957869	),
+                        new LatLng(37.240599	,126.957655	),
+                        new LatLng(37.240392	,126.957548	),
+                        new LatLng(37.24027 	,126.957492	),
+                        new LatLng(37.240126	,126.957526	),
+                        new LatLng(37.239806	,126.957763	),
+                        new LatLng(37.239036	,126.959324	),
+                        new LatLng(37.238563	,126.960181	),
+                        new LatLng(37.238284	,126.960722	),
+                        new LatLng(37.23805 	,126.961319	),
+                        new LatLng(37.23788 	,126.961731	),
+                        new LatLng(37.237753	,126.962159	),
+                        new LatLng(37.237627	,126.962813	),
+                        new LatLng(37.237524	,126.963185	),
+                        new LatLng(37.237367	,126.963687	),
+                        new LatLng(37.237222	,126.964058	),
+                        new LatLng(37.237078	,126.964346	),
+                        new LatLng(37.23687 	,126.964673	),
+                        new LatLng(37.236857	,126.964667	),
+                        new LatLng(37.236806	,126.964738	),
+                        new LatLng(37.236565	,126.96505	),
+                        new LatLng(37.236182	,126.965659	),
+                        new LatLng(37.236146	,126.965738	),
+                        new LatLng(37.235799	,126.966437	),
+                        new LatLng(37.235489	,126.96695	),
+                        new LatLng(37.235105	,126.967475	),
+                        new LatLng(37.235115	,126.967491	),
+                        new LatLng(37.234962	,126.967694	),
+                        new LatLng(37.234818	,126.96788	),
+                        new LatLng(37.234655	,126.968004	),
+                        new LatLng(37.234588	,126.968055	),
+                        new LatLng(37.234376	,126.96814	),
+                        new LatLng(37.234331	,126.968143	),
+                        new LatLng(37.23416 	,126.968129	),
+                        new LatLng(37.233999	,126.968142	),
+                        new LatLng(37.233916	,126.968169	),
+                        new LatLng(37.233781	,126.96819	),
+                        new LatLng(37.233683	,126.968189	),
+                        new LatLng(37.233601	,126.968196	),
+                        new LatLng(37.233579	,126.96819	),
+                        new LatLng(37.23301 	,126.968588	),
+                        new LatLng(37.232908	,126.968664	),
+                        new LatLng(37.232691	,126.968751	),
+                        new LatLng(37.232507	,126.968838	),
+                        new LatLng(37.232511	,126.968811	),
+                        new LatLng(37.232183	,126.968922	),
+                        new LatLng(37.232005	,126.968967	),
+                        new LatLng(37.231881	,126.968991	),
+                        new LatLng(37.231475	,126.969287	),
+                        new LatLng(37.231007	,126.96932	),
+                        new LatLng(37.230628	,126.969395	),
+                        new LatLng(37.23043 	,126.96942	),
+                        new LatLng(37.229826	,126.969803	),
+                        new LatLng(37.229745	,126.969865	),
+                        new LatLng(37.229684	,126.969975	),
+                        new LatLng(37.229584	,126.970162	),
+                        new LatLng(37.229402	,126.97041	),
+                        new LatLng(37.229322	,126.970536	),
+                        new LatLng(37.229372	,126.970581	),
+                        new LatLng(37.229124	,126.971133	),
+                        new LatLng(37.229013	,126.971428	),
+                        new LatLng(37.228813	,126.972581	),
+                        new LatLng(37.2288  	,126.972593	),
+                        new LatLng(37.228803	,126.972608	),
+                        new LatLng(37.228815	,126.972613	),
+                        new LatLng(37.228819	,126.972616	),
+                        new LatLng(37.228795	,126.972649	),
+                        new LatLng(37.2293 	    ,126.974637	),
+                        new LatLng(37.229413	,126.974964	),
+                        new LatLng(37.230215	,126.976536	),
+                        new LatLng(37.22954 	,126.97817	),
+                        new LatLng(37.229455	,126.978964	),
+                        new LatLng(37.229842	,126.979021	),
+                        new LatLng(37.230365	,126.978953	),
+                        new LatLng(37.230617	,126.97906	),
+                        new LatLng(37.232244	,126.982327	),
+                        new LatLng(37.232253	,126.982378	),
+                        new LatLng(37.232167	,126.982592	),
+                        new LatLng(37.2321  	,126.982632	),
+                        new LatLng(37.231879	,126.982598	),
+                        new LatLng(37.231555	,126.982902	),
+                        new LatLng(37.231494	,126.983087	),
+                        new LatLng(37.231456	,126.983218	),
+                        new LatLng(37.231397	,126.983556	),
+                        new LatLng(37.230947	,126.98408	),
+                        new LatLng(37.230938	,126.984159	),
+                        new LatLng(37.230927	,126.984293	),
+                        new LatLng(37.230924	,126.984328	),
+                        new LatLng(37.230903	,126.984385	),
+                        new LatLng(37.230803	,126.984672	),
+                        new LatLng(37.230812	,126.984739	),
+                        new LatLng(37.230911	,126.984829	),
+                        new LatLng(37.231077	,126.984897	),
+                        new LatLng(37.231109	,126.984896	),
+                        new LatLng(37.231429	,126.984925	),
+                        new LatLng(37.231695	,126.985083	),
+                        new LatLng(37.231911	,126.985119	),
+                        new LatLng(37.232064	,126.985105	),
+                        new LatLng(37.23224 	,126.985009	),
+                        new LatLng(37.232312	,126.985178	),
+                        new LatLng(37.232421	,126.985247	),
+                        new LatLng(37.232533	,126.985404	),
+                        new LatLng(37.232668	,126.98568	),
+                        new LatLng(37.232704	,126.98586	),
+                        new LatLng(37.232794	,126.986159	),
+                        new LatLng(37.232857	,126.986311	),
+                        new LatLng(37.232901	,126.986295	),
+                        new LatLng(37.232974	,126.986243	),
+                        new LatLng(37.233046	,126.986232	),
+                        new LatLng(37.233087	,126.986226	),
+                        new LatLng(37.233112	,126.986218	),
+                        new LatLng(37.233127	,126.986198	),
+                        new LatLng(37.233207	,126.986169	),
+                        new LatLng(37.233272	,126.986142	),
+                        new LatLng(37.23347 	,126.986068	),
+                        new LatLng(37.23356 	,126.986029	),
+                        new LatLng(37.233561	,126.986035	),
+                        new LatLng(37.234042	,126.986192	),
+                        new LatLng(37.234192	,126.986429	),
+                        new LatLng(37.234263	,126.986795	),
+                        new LatLng(37.234209	,126.986829	),
+                        new LatLng(37.234125	,126.986804	),
+                        new LatLng(37.233767	,126.986615	),
+                        new LatLng(37.233682	,126.986615	),
+                        new LatLng(37.233646	,126.986626	),
+                        new LatLng(37.233609	,126.986643	),
+                        new LatLng(37.233601	,126.986649	),
+                        new LatLng(37.23356 	,126.986688	),
+                        new LatLng(37.233411	,126.987663	),
+                        new LatLng(37.233434	,126.987691	),
+                        new LatLng(37.233442	,126.987683	),
+                        new LatLng(37.233498	,126.98767	),
+                        new LatLng(37.233537	,126.987653	),
+                        new LatLng(37.233551	,126.98764	),
+                        new LatLng(37.233637	,126.987477	),
+                        new LatLng(37.233659	,126.987438	),
+                        new LatLng(37.233736	,126.987342	),
+                        new LatLng(37.233853	,126.987336	),
+                        new LatLng(37.234042	,126.987381	),
+                        new LatLng(37.23415 	,126.98746	),
+                        new LatLng(37.23424 	,126.987674	),
+                        new LatLng(37.23415 	,126.988018	),
+                        new LatLng(37.233585	,126.98933	),
+                        new LatLng(37.233051	,126.98959	),
+                        new LatLng(37.232754	,126.989579	),
+                        new LatLng(37.232402	,126.989342	),
+                        new LatLng(37.232222	,126.989252	),
+                        new LatLng(37.232074	,126.989224	),
+                        new LatLng(37.231947	,126.989252	),
+                        new LatLng(37.231812	,126.989297	),
+                        new LatLng(37.231686	,126.989466	),
+                        new LatLng(37.231601	,126.989737	),
+                        new LatLng(37.231614	,126.989759	),
+                        new LatLng(37.231875	,126.989934	),
+                        new LatLng(37.231979	,126.989951	),
+                        new LatLng(37.2322  	,126.989973	),
+                        new LatLng(37.232218	,126.989979	),
+                        new LatLng(37.232276	,126.990008	),
+                        new LatLng(37.232285	,126.990086	),
+                        new LatLng(37.23229 	,126.99013	),
+                        new LatLng(37.23229 	,126.990131	),
+                        new LatLng(37.232285	,126.990154	),
+                        new LatLng(37.232286	,126.990198	),
+                        new LatLng(37.23215 	,126.990559	),
+                        new LatLng(37.231898	,126.990565	),
+                        new LatLng(37.231628	,126.990334	),
+                        new LatLng(37.231438	,126.990368	),
+                        new LatLng(37.231312	,126.990559	),
+                        new LatLng(37.231321	,126.990942	),
+                        new LatLng(37.23097 	,126.991596	),
+                        new LatLng(37.2312  	,126.991968	),
+                        new LatLng(37.231218	,126.992024	),
+                        new LatLng(37.231252	,126.99225	),
+                        new LatLng(37.231285	,126.992453	),
+                        new LatLng(37.231272	,126.992689	),
+                        new LatLng(37.230894	,126.993078	),
+                        new LatLng(37.230883	,126.993092	),
+                        new LatLng(37.230819	,126.993158	),
+                        new LatLng(37.230623	,126.993332	),
+                        new LatLng(37.230533	,126.993844	),
+                        new LatLng(37.230508	,126.993896	),
+                        new LatLng(37.230565	,126.99443	),
+                        new LatLng(37.230119	,126.995208	),
+                        new LatLng(37.230001	,126.995326	),
+                        new LatLng(37.229952	,126.995394	),
+                        new LatLng(37.229931	,126.995418	),
+                        new LatLng(37.22983 	,126.995557	),
+                        new LatLng(37.229574	,126.99598	),
+                        new LatLng(37.22952 	,126.996329	),
+                        new LatLng(37.229473	,126.996555	),
+                        new LatLng(37.229475	,126.99656	),
+                        new LatLng(37.229312	,126.996842	),
+                        new LatLng(37.229267	,126.99696	),
+                        new LatLng(37.229254	,126.997005	),
+                        new LatLng(37.229248	,126.997084	),
+                        new LatLng(37.229267	,126.997355	),
+                        new LatLng(37.229236	,126.99758	),
+                        new LatLng(37.229195	,126.997664	),
+                        new LatLng(37.229179	,126.997686	),
+                        new LatLng(37.228966	,126.997873	),
+                        new LatLng(37.228904	,126.997854	),
+                        new LatLng(37.228767	,126.997811	),
+                        new LatLng(37.228285	,126.996938	),
+                        new LatLng(37.228303	,126.996921	),
+                        new LatLng(37.228425	,126.996825	),
+                        new LatLng(37.228433	,126.996818	),
+                        new LatLng(37.228438	,126.996813	),
+                        new LatLng(37.228186	,126.996611	),
+                        new LatLng(37.228055	,126.996588	),
+                        new LatLng(37.227943	,126.996594	),
+                        new LatLng(37.227848	,126.996605	),
+                        new LatLng(37.227826	,126.996611	),
+                        new LatLng(37.227691	,126.99669	),
+                        new LatLng(37.227638	,126.996773	),
+                        new LatLng(37.227614	,126.996808	),
+                        new LatLng(37.227618	,126.996825	),
+                        new LatLng(37.227705	,126.997111	),
+                        new LatLng(37.227745	,126.997231	),
+                        new LatLng(37.227736	,126.997625	),
+                        new LatLng(37.227718	,126.997659	),
+                        new LatLng(37.227416	,126.997681	),
+                        new LatLng(37.227371	,126.997642	),
+                        new LatLng(37.227154	,126.997535	),
+                        new LatLng(37.227019	,126.997642	),
+                        new LatLng(37.227006	,126.997749	),
+                        new LatLng(37.226988	,126.997845	),
+                        new LatLng(37.226979	,126.997896	),
+                        new LatLng(37.226938	,126.9982	),
+                        new LatLng(37.226862	,126.998222	),
+                        new LatLng(37.226582	,126.998245	),
+                        new LatLng(37.226294	,126.998031	),
+                        new LatLng(37.226064	,126.99816	),
+                        new LatLng(37.226033	,126.998177	),
+                        new LatLng(37.225866	,126.998194	),
+                        new LatLng(37.225807	,126.9982	),
+                        new LatLng(37.225591	,126.998481	),
+                        new LatLng(37.225641	,126.998707	),
+                        new LatLng(37.225807	,126.998791	),
+                        new LatLng(37.226118	,126.998932	),
+                        new LatLng(37.226159	,126.998961	),
+                        new LatLng(37.226781	,127.000125	),
+                        new LatLng(37.226799	,127.000217	),
+                        new LatLng(37.226799	,127.00025	),
+                        new LatLng(37.226808	,127.000278	),
+                        new LatLng(37.226623	,127.000431	),
+                        new LatLng(37.226447	,127.00056	),
+                        new LatLng(37.226609	,127.001163	),
+                        new LatLng(37.226853	,127.001186	),
+                        new LatLng(37.226983	,127.001186	),
+                        new LatLng(37.227402	,127.001298	),
+                        new LatLng(37.227537	,127.00127	),
+                        new LatLng(37.227637	,127.001242	),
+                        new LatLng(37.227763	,127.0014	),
+                        new LatLng(37.228416	,127.002166	),
+                        new LatLng(37.228553	,127.002234	),
+                        new LatLng(37.22888 	,127.002301	),
+                        new LatLng(37.229033	,127.002622	),
+                        new LatLng(37.228995	,127.002776	),
+                        new LatLng(37.228957	,127.00291	),
+                        new LatLng(37.228822	,127.003203	),
+                        new LatLng(37.228803	,127.003237	),
+                        new LatLng(37.228901	,127.003317	),
+                        new LatLng(37.228885	,127.00336	),
+                        new LatLng(37.228929	,127.003357	),
+                        new LatLng(37.229114	,127.003372	),
+                        new LatLng(37.229137	,127.003365	),
+                        new LatLng(37.229367	,127.003293	),
+                        new LatLng(37.229443	,127.003197	),
+                        new LatLng(37.229475	,127.003141	),
+                        new LatLng(37.229596	,127.002842	),
+                        new LatLng(37.22979 	,127.002741	),
+                        new LatLng(37.229945	,127.002704	),
+                        new LatLng(37.229966	,127.002718	),
+                        new LatLng(37.229998	,127.00282	),
+                        new LatLng(37.230005	,127.002841	),
+                        new LatLng(37.230196	,127.003327	),
+                        new LatLng(37.230119	,127.00358	),
+                        new LatLng(37.229997	,127.003732	),
+                        new LatLng(37.229679	,127.003819	),
+                        new LatLng(37.229209	,127.003997	),
+                        new LatLng(37.229168	,127.004059	),
+                        new LatLng(37.229177	,127.004079	),
+                        new LatLng(37.229006	,127.004617	),
+                        new LatLng(37.228934	,127.005135	),
+                        new LatLng(37.228984	,127.006162	),
+                        new LatLng(37.229074	,127.006347	),
+                        new LatLng(37.229056	,127.006482	),
+                        new LatLng(37.22891 	,127.006538	),
+                        new LatLng(37.228803	,127.006547	),
+                        new LatLng(37.227641	,127.00722	),
+                        new LatLng(37.227555	,127.007282	),
+                        new LatLng(37.227474	,127.007545	),
+                        new LatLng(37.227449	,127.007627	),
+                        new LatLng(37.227434	,127.007676	),
+                        new LatLng(37.227019	,127.008442	),
+                        new LatLng(37.22693 	,127.008862	),
+                        new LatLng(37.226888	,127.009162	),
+                        new LatLng(37.226785	,127.009693	),
+                        new LatLng(37.226663	,127.010104	),
+                        new LatLng(37.226641	,127.0102	),
+                        new LatLng(37.226616	,127.010403	),
+                        new LatLng(37.226605	,127.010611	),
+                        new LatLng(37.226577	,127.010666	),
+                        new LatLng(37.226555	,127.010718	),
+                        new LatLng(37.226514	,127.010771	),
+                        new LatLng(37.226406	,127.011063	),
+                        new LatLng(37.226361	,127.011383	),
+                        new LatLng(37.226376	,127.011607	),
+                        new LatLng(37.226397	,127.011934	),
+                        new LatLng(37.226433	,127.012566	),
+                        new LatLng(37.226433	,127.012676	),
+                        new LatLng(37.226504	,127.012986	),
+                        new LatLng(37.226704	,127.013702	),
+                        new LatLng(37.226687	,127.013791	),
+                        new LatLng(37.226686	,127.013795	),
+                        new LatLng(37.226713	,127.013907	),
+                        new LatLng(37.226684	,127.014131	),
+                        new LatLng(37.225981	,127.015247	),
+                        new LatLng(37.225806	,127.015778	),
+                        new LatLng(37.225787	,127.016308	),
+                        new LatLng(37.225789	,127.016373	),
+                        new LatLng(37.22582 	,127.016995	),
+                        new LatLng(37.225824	,127.017304	),
+                        new LatLng(37.225846	,127.017695	),
+                        new LatLng(37.225847	,127.017716	),
+                        new LatLng(37.225829	,127.018402	),
+                        new LatLng(37.225874	,127.018697	),
+                        new LatLng(37.225648	,127.019639	),
+                        new LatLng(37.225558	,127.020187	),
+                        new LatLng(37.225282	,127.021181	),
+                        new LatLng(37.22472 	,127.021479	),
+                        new LatLng(37.224699	,127.021523	),
+                        new LatLng(37.224544	,127.021871	),
+                        new LatLng(37.224774	,127.022301	),
+                        new LatLng(37.225092	,127.022705	),
+                        new LatLng(37.225667	,127.023053	),
+                        new LatLng(37.225882	,127.02328	),
+                        new LatLng(37.226215	,127.023102	),
+                        new LatLng(37.226954	,127.023406	),
+                        new LatLng(37.226999	,127.023485	),
+                        new LatLng(37.227044	,127.023474	),
+                        new LatLng(37.227246	,127.023798	),
+                        new LatLng(37.22731 	,127.023957	),
+                        new LatLng(37.227321	,127.024037	),
+                        new LatLng(37.227519	,127.024135	),
+                        new LatLng(37.227645	,127.023774	),
+                        new LatLng(37.227856	,127.023739	),
+                        new LatLng(37.228308	,127.023999	),
+                        new LatLng(37.228837	,127.02392	),
+                        new LatLng(37.228901	,127.023931	),
+                        new LatLng(37.229264	,127.024057	),
+                        new LatLng(37.2293  	,127.024137	),
+                        new LatLng(37.229353	,127.02427	),
+                        new LatLng(37.229537	,127.024215	),
+                        new LatLng(37.229608	,127.024016	),
+                        new LatLng(37.229536	,127.023813	),
+                        new LatLng(37.229672	,127.023798	),
+                        new LatLng(37.229658	,127.02377	),
+                        new LatLng(37.229653	,127.0237	),
+                        new LatLng(37.229653	,127.023597	),
+                        new LatLng(37.229675	,127.023531	),
+                        new LatLng(37.229765	,127.023447	),
+                        new LatLng(37.230019	,127.023526	),
+                        new LatLng(37.230816	,127.023247	),
+                        new LatLng(37.230894	,127.0232	),
+                        new LatLng(37.230896	,127.023232	),
+                        new LatLng(37.230896	,127.023237	),
+                        new LatLng(37.230923	,127.023361	),
+                        new LatLng(37.230923	,127.023442	),
+                        new LatLng(37.230824	,127.023802	),
+                        new LatLng(37.230859	,127.024263	),
+                        new LatLng(37.230889	,127.024428	),
+                        new LatLng(37.230941	,127.024668	),
+                        new LatLng(37.230986	,127.024905	),
+                        new LatLng(37.231013	,127.025109	),
+                        new LatLng(37.231013	,127.025211	),
+                        new LatLng(37.230995	,127.025335	),
+                        new LatLng(37.230962	,127.025662	),
+                        new LatLng(37.230949	,127.025741	),
+                        new LatLng(37.230747	,127.026247	),
+                        new LatLng(37.230639	,127.026326	),
+                        new LatLng(37.230648	,127.026528	),
+                        new LatLng(37.230603	,127.026675	),
+                        new LatLng(37.230602	,127.026844	),
+                        new LatLng(37.230603	,127.026855	),
+                        new LatLng(37.230702	,127.027171	),
+                        new LatLng(37.230873	,127.02752	),
+                        new LatLng(37.231052	,127.028	),
+                        new LatLng(37.231216	,127.028292	),
+                        new LatLng(37.231261	,127.028492	),
+                        new LatLng(37.231261	,127.028493	),
+                        new LatLng(37.231146	,127.028608	),
+                        new LatLng(37.231127	,127.028626	),
+                        new LatLng(37.23112 	,127.028694	),
+                        new LatLng(37.231226	,127.029335	),
+                        new LatLng(37.231173	,127.029706	),
+                        new LatLng(37.23122 	,127.029991	),
+                        new LatLng(37.231511	,127.029938	),
+                        new LatLng(37.231728	,127.029915	),
+                        new LatLng(37.2319  	,127.029921	),
+                        new LatLng(37.232071	,127.02991	),
+                        new LatLng(37.23226 	,127.030135	),
+                        new LatLng(37.23271 	,127.030124	),
+                        new LatLng(37.233017	,127.030124	),
+                        new LatLng(37.233519	,127.030482	),
+                        new LatLng(37.233566	,127.031352	),
+                        new LatLng(37.233569	,127.031359	),
+                        new LatLng(37.233629	,127.031516	),
+                        new LatLng(37.233881	,127.031629	),
+                        new LatLng(37.234055	,127.032016	),
+                        new LatLng(37.234102	,127.032164	),
+                        new LatLng(37.234224	,127.032333	),
+                        new LatLng(37.234417	,127.03235	),
+                        new LatLng(37.234643	,127.032407	),
+                        new LatLng(37.234769	,127.032497	),
+                        new LatLng(37.235091	,127.032837	),
+                        new LatLng(37.235255	,127.033106	),
+                        new LatLng(37.235498	,127.033478	),
+                        new LatLng(37.235944	,127.034075	),
+                        new LatLng(37.235943	,127.034092	),
+                        new LatLng(37.235913	,127.034576	),
+                        new LatLng(37.236142	,127.034847	),
+                        new LatLng(37.236214	,127.034825	),
+                        new LatLng(37.236483	,127.034639	),
+                        new LatLng(37.236494	,127.034633	),
+                        new LatLng(37.236656	,127.034673	),
+                        new LatLng(37.236845	,127.035276	),
+                        new LatLng(37.23684 	,127.03558	),
+                        new LatLng(37.236759	,127.035722	),
+                        new LatLng(37.236674	,127.035856	),
+                        new LatLng(37.236633	,127.036115	),
+                        new LatLng(37.236765	,127.036783	),
+                        new LatLng(37.236844	,127.037225	),
+                        new LatLng(37.237033	,127.037389	),
+                        new LatLng(37.237223	,127.037259	),
+                        new LatLng(37.237421	,127.036848	),
+                        new LatLng(37.237592	,127.036899	),
+                        new LatLng(37.237867	,127.037226	),
+                        new LatLng(37.237889	,127.037197	),
+                        new LatLng(37.237966	,127.037096	),
+                        new LatLng(37.237971	,127.037085	),
+                        new LatLng(37.237974	,127.037078	),
+                        new LatLng(37.238029	,127.036961	),
+                        new LatLng(37.238074	,127.036923	),
+                        new LatLng(37.238124	,127.036899	),
+                        new LatLng(37.238268	,127.03695	),
+                        new LatLng(37.238539	,127.03735	),
+                        new LatLng(37.23889 	,127.037328	),
+                        new LatLng(37.238894	,127.037131	),
+                        new LatLng(37.238872	,127.036956	),
+                        new LatLng(37.238881	,127.036809	),
+                        new LatLng(37.238882	,127.036776	),
+                        new LatLng(37.23898 	,127.036471	),
+                        new LatLng(37.239106	,127.036449	),
+                        new LatLng(37.239259	,127.036449	),
+                        new LatLng(37.239358	,127.036364	),
+                        new LatLng(37.239566	,127.036269	),
+                        new LatLng(37.239675	,127.036296	),
+                        new LatLng(37.239714	,127.0364	),
+                        new LatLng(37.239745	,127.03643	),
+                        new LatLng(37.23991 	,127.03651	),
+                        new LatLng(37.239994	,127.036556	),
+                        new LatLng(37.240162	,127.036564	),
+                        new LatLng(37.240345	,127.036505	),
+                        new LatLng(37.240467	,127.0365	),
+                        new LatLng(37.240682	,127.036665	),
+                        new LatLng(37.240732	,127.03672	),
+                        new LatLng(37.240765	,127.036765	),
+                        new LatLng(37.240904	,127.036979	),
+                        new LatLng(37.240786	,127.037143	),
+                        new LatLng(37.240678	,127.037289	),
+                        new LatLng(37.240565	,127.037593	),
+                        new LatLng(37.240577	,127.037643	),
+                        new LatLng(37.2406  	,127.037736	),
+                        new LatLng(37.240658	,127.037874	),
+                        new LatLng(37.240748	,127.03797	),
+                        new LatLng(37.240815	,127.038026	),
+                        new LatLng(37.241081	,127.038241	),
+                        new LatLng(37.241232	,127.038501	),
+                        new LatLng(37.241433	,127.038666	),
+                        new LatLng(37.24152 	,127.038687	),
+                        new LatLng(37.241547	,127.038439	),
+                        new LatLng(37.241552	,127.038315	),
+                        new LatLng(37.241642	,127.038276	),
+                        new LatLng(37.241775	,127.038218	),
+                        new LatLng(37.241926	,127.038208	),
+                        new LatLng(37.242219	,127.038507	),
+                        new LatLng(37.242358	,127.038676	),
+                        new LatLng(37.242457	,127.038885	),
+                        new LatLng(37.242669	,127.039116	),
+                        new LatLng(37.242768	,127.039037	),
+                        new LatLng(37.243047	,127.038941	),
+                        new LatLng(37.243223	,127.038913	),
+                        new LatLng(37.243314	,127.03893	),
+                        new LatLng(37.243421	,127.038933	),
+                        new LatLng(37.243552	,127.038947	),
+                        new LatLng(37.243678	,127.039082	),
+                        new LatLng(37.243565	,127.039223	),
+                        new LatLng(37.243563	,127.039264	),
+                        new LatLng(37.243561	,127.03933	),
+                        new LatLng(37.243637	,127.039398	),
+                        new LatLng(37.243921	,127.039635	),
+                        new LatLng(37.244252	,127.039918	),
+                        new LatLng(37.244315	,127.039963	),
+                        new LatLng(37.244547	,127.040111	),
+                        new LatLng(37.244569	,127.040125	),
+                        new LatLng(37.24443 	,127.040148	),
+                        new LatLng(37.244421	,127.040148	),
+                        new LatLng(37.244253	,127.040228	),
+                        new LatLng(37.244252	,127.040228	),
+                        new LatLng(37.244224	,127.040241	),
+                        new LatLng(37.243694	,127.040273	),
+                        new LatLng(37.243566	,127.040373	),
+                        new LatLng(37.243581	,127.040395	),
+                        new LatLng(37.243758	,127.0406	),
+                        new LatLng(37.243931	,127.040711	),
+                        new LatLng(37.244268	,127.040884	),
+                        new LatLng(37.244421	,127.040791	),
+                        new LatLng(37.244477	,127.04078	),
+                        new LatLng(37.244531	,127.040769	),
+                        new LatLng(37.24472 	,127.040649	),
+                        new LatLng(37.244851	,127.040661	),
+                        new LatLng(37.245164	,127.040726	),
+                        new LatLng(37.245223	,127.040737	),
+                        new LatLng(37.24528 	,127.040748	),
+                        new LatLng(37.245298	,127.040735	),
+                        new LatLng(37.245489	,127.040692	),
+                        new LatLng(37.245519	,127.040685	),
+                        new LatLng(37.245571	,127.040651	),
+                        new LatLng(37.245611	,127.040598	),
+                        new LatLng(37.245655	,127.040497	),
+                        new LatLng(37.245924	,127.040172	),
+                        new LatLng(37.246138	,127.040054	),
+                        new LatLng(37.246179	,127.04008	),
+                        new LatLng(37.246395	,127.040048	),
+                        new LatLng(37.246591	,127.040051	),
+                        new LatLng(37.246938	,127.040229	),
+                        new LatLng(37.24694 	,127.040223	),
+                        new LatLng(37.246971	,127.040138	),
+                        new LatLng(37.247056	,127.040182	),
+                        new LatLng(37.24711 	,127.04021	),
+                        new LatLng(37.247096	,127.040254	),
+                        new LatLng(37.247008	,127.04053	),
+                        new LatLng(37.247449	,127.040601	),
+                        new LatLng(37.247455	,127.040601	),
+                        new LatLng(37.247547	,127.040746	),
+                        new LatLng(37.247588	,127.040965	),
+                        new LatLng(37.247593	,127.041052	),
+                        new LatLng(37.247588	,127.041074	),
+                        new LatLng(37.247565	,127.041174	),
+                        new LatLng(37.247449	,127.041101	),
+                        new LatLng(37.247384	,127.041247	),
+                        new LatLng(37.247339	,127.04137	),
+                        new LatLng(37.247256	,127.041591	),
+                        new LatLng(37.247166	,127.041828	),
+                        new LatLng(37.247151	,127.041893	),
+                        new LatLng(37.247109	,127.042074	),
+                        new LatLng(37.247029	,127.042505	),
+                        new LatLng(37.247011	,127.04258	),
+                        new LatLng(37.246995	,127.042646	),
+                        new LatLng(37.246986	,127.04267	),
+                        new LatLng(37.246961	,127.042731	),
+                        new LatLng(37.246891	,127.043425	),
+                        new LatLng(37.246904	,127.043428	),
+                        new LatLng(37.246899	,127.043466	),
+                        new LatLng(37.246886	,127.043465	),
+                        new LatLng(37.246828	,127.044045	),
+                        new LatLng(37.246798	,127.044081	),
+                        new LatLng(37.246813	,127.043879	),
+                        new LatLng(37.246849	,127.043514	),
+                        new LatLng(37.246633	,127.04254	),
+                        new LatLng(37.246443	,127.042472	),
+                        new LatLng(37.246119	,127.042355	),
+                        new LatLng(37.245406	,127.042098	),
+                        new LatLng(37.245119	,127.041993	),
+                        new LatLng(37.24478 	,127.041868	),
+                        new LatLng(37.244365	,127.041716	),
+                        new LatLng(37.243313	,127.04133	),
+                        new LatLng(37.242863	,127.041166	),
+                        new LatLng(37.239708	,127.04002	),
+                        new LatLng(37.239168	,127.039817	),
+                        new LatLng(37.238015	,127.03939	),
+                        new LatLng(37.237362	,127.039217	),
+                        new LatLng(37.237243	,127.039173	),
+                        new LatLng(37.237263	,127.039217	),
+                        new LatLng(37.237163	,127.039217	),
+                        new LatLng(37.237409	,127.039748	),
+                        new LatLng(37.2374  	,127.039767	),
+                        new LatLng(37.236249	,127.040505	),
+                        new LatLng(37.236209	,127.040531	),
+                        new LatLng(37.236223	,127.040549	),
+                        new LatLng(37.236242	,127.040574	),
+                        new LatLng(37.235619	,127.041282	),
+                        new LatLng(37.235299	,127.041555	),
+                        new LatLng(37.235223	,127.041648	),
+                        new LatLng(37.235213	,127.041661	),
+                        new LatLng(37.235232	,127.041916	),
+                        new LatLng(37.235234	,127.042038	),
+                        new LatLng(37.2352  	,127.042182	),
+                        new LatLng(37.235058	,127.042578	),
+                        new LatLng(37.234834	,127.042644	),
+                        new LatLng(37.234798	,127.042706	),
+                        new LatLng(37.234799	,127.042749	),
+                        new LatLng(37.234784	,127.0429	),
+                        new LatLng(37.234709	,127.043211	),
+                        new LatLng(37.234623	,127.043528	),
+                        new LatLng(37.234585	,127.043712	),
+                        new LatLng(37.234512	,127.0439	),
+                        new LatLng(37.234356	,127.044199	),
+                        new LatLng(37.23428 	,127.044332	),
+                        new LatLng(37.234213	,127.044428	),
+                        new LatLng(37.23397 	,127.044764	),
+                        new LatLng(37.233933	,127.044813	),
+                        new LatLng(37.233833	,127.044946	),
+                        new LatLng(37.233771	,127.045007	),
+                        new LatLng(37.233684	,127.045053	),
+                        new LatLng(37.233477	,127.045018	),
+                        new LatLng(37.233246	,127.044995	),
+                        new LatLng(37.233231	,127.044994	),
+                        new LatLng(37.233218	,127.045028	),
+                        new LatLng(37.233158	,127.045218	),
+                        new LatLng(37.233046	,127.04538	),
+                        new LatLng(37.233017	,127.045422	),
+                        new LatLng(37.233079	,127.045488	),
+                        new LatLng(37.233253	,127.045698	),
+                        new LatLng(37.233305	,127.04575	),
+                        new LatLng(37.232856	,127.045826	),
+                        new LatLng(37.232783	,127.045899	),
+                        new LatLng(37.232774	,127.045947	),
+                        new LatLng(37.232779	,127.045982	),
+                        new LatLng(37.232811	,127.046253	),
+                        new LatLng(37.233194	,127.047469	),
+                        new LatLng(37.233275	,127.047661	),
+                        new LatLng(37.233218	,127.047705	),
+                        new LatLng(37.234019	,127.049454	),
+                        new LatLng(37.234068	,127.04958	),
+                        new LatLng(37.234102	,127.049788	),
+                        new LatLng(37.234104	,127.049842	),
+                        new LatLng(37.234119	,127.050007	),
+                        new LatLng(37.234125	,127.050059	),
+                        new LatLng(37.23423 	,127.050679	),
+                        new LatLng(37.23424 	,127.050737	),
+                        new LatLng(37.234221	,127.050728	),
+                        new LatLng(37.234206	,127.050758	),
+                        new LatLng(37.234308	,127.051152	),
+                        new LatLng(37.234325	,127.051301	),
+                        new LatLng(37.234337	,127.051429	),
+                        new LatLng(37.234326	,127.051528	),
+                        new LatLng(37.234163	,127.051948	),
+                        new LatLng(37.234152	,127.051979	),
+                        new LatLng(37.233902	,127.052587	),
+                        new LatLng(37.233763	,127.05291	),
+                        new LatLng(37.233656	,127.053121	),
+                        new LatLng(37.233649	,127.053136	),
+                        new LatLng(37.233645	,127.053146	),
+                        new LatLng(37.233652	,127.053155	),
+                        new LatLng(37.233659	,127.053164	),
+                        new LatLng(37.233581	,127.053354	),
+                        new LatLng(37.233481	,127.053523	),
+                        new LatLng(37.233464	,127.053539	),
+                        new LatLng(37.233399	,127.053586	),
+                        new LatLng(37.23334 	,127.053604	),
+                        new LatLng(37.233153	,127.053637	),
+                        new LatLng(37.232805	,127.0537	),
+                        new LatLng(37.232382	,127.053764	),
+                        new LatLng(37.23235 	,127.053757	),
+                        new LatLng(37.232184	,127.053612	),
+                        new LatLng(37.232109	,127.05347	),
+                        new LatLng(37.231949	,127.053188	),
+                        new LatLng(37.231821	,127.052966	),
+                        new LatLng(37.231478	,127.052467	),
+                        new LatLng(37.231433	,127.052457	),
+                        new LatLng(37.231386	,127.052454	),
+                        new LatLng(37.231376	,127.052521	),
+                        new LatLng(37.231348	,127.052787	),
+                        new LatLng(37.231427	,127.052957	),
+                        new LatLng(37.231436	,127.053004	),
+                        new LatLng(37.231571	,127.053275	),
+                        new LatLng(37.231617	,127.053366	),
+                        new LatLng(37.231667	,127.053468	),
+                        new LatLng(37.231919	,127.054147	),
+                        new LatLng(37.231972	,127.054305	),
+                        new LatLng(37.232066	,127.054571	),
+                        new LatLng(37.232435	,127.055182	),
+                        new LatLng(37.232528	,127.055335	),
+                        new LatLng(37.232593	,127.055441	),
+                        new LatLng(37.23264 	,127.055527	),
+                        new LatLng(37.232764	,127.05596	),
+                        new LatLng(37.232864	,127.056067	),
+                        new LatLng(37.232978	,127.056318	),
+                        new LatLng(37.233086	,127.056484	),
+                        new LatLng(37.23322 	,127.056703	),
+                        new LatLng(37.233336	,127.056896	),
+                        new LatLng(37.233379	,127.05694	),
+                        new LatLng(37.233566	,127.057271	),
+                        new LatLng(37.233744	,127.057613	),
+                        new LatLng(37.233786	,127.05768	),
+                        new LatLng(37.233932	,127.057903	),
+                        new LatLng(37.234068	,127.058136	),
+                        new LatLng(37.234184	,127.058316	),
+                        new LatLng(37.234409	,127.058529	),
+                        new LatLng(37.234769	,127.058927	),
+                        new LatLng(37.234858	,127.059039	),
+                        new LatLng(37.235175	,127.059436	),
+                        new LatLng(37.235549	,127.059702	),
+                        new LatLng(37.235886	,127.059899	),
+                        new LatLng(37.236303	,127.060021	),
+                        new LatLng(37.236729	,127.060039	),
+                        new LatLng(37.236862	,127.060201	),
+                        new LatLng(37.237026	,127.0606	),
+                        new LatLng(37.237069	,127.060677	),
+                        new LatLng(37.237265	,127.061003	),
+                        new LatLng(37.237396	,127.061386	),
+                        new LatLng(37.23747 	,127.061519	),
+                        new LatLng(37.237481	,127.061537	),
+                        new LatLng(37.237563	,127.061656	),
+                        new LatLng(37.237645	,127.061769	),
+                        new LatLng(37.237738	,127.061873	),
+                        new LatLng(37.23816 	,127.062251	),
+                        new LatLng(37.238483	,127.062702	),
+                        new LatLng(37.238733	,127.063109	),
+                        new LatLng(37.238813	,127.063174	),
+                        new LatLng(37.239327	,127.064559	),
+                        new LatLng(37.239708	,127.064836	),
+                        new LatLng(37.239784	,127.064877	),
+                        new LatLng(37.239886	,127.06498	),
+                        new LatLng(37.239963	,127.065026	),
+                        new LatLng(37.239997	,127.065051	),
+                        new LatLng(37.240127	,127.065147	),
+                        new LatLng(37.24016 	,127.065429	),
+                        new LatLng(37.240204	,127.065943	),
+                        new LatLng(37.240178	,127.066178	),
+                        new LatLng(37.240171	,127.066251	),
+                        new LatLng(37.240088	,127.066469	),
+                        new LatLng(37.240078	,127.066505	),
+                        new LatLng(37.240103	,127.066675	),
+                        new LatLng(37.240185	,127.066917	),
+                        new LatLng(37.240141	,127.067383	),
+                        new LatLng(37.240145	,127.06754	),
+                        new LatLng(37.240125	,127.067625	),
+                        new LatLng(37.240102	,127.067521	),
+                        new LatLng(37.240073	,127.067499	),
+                        new LatLng(37.239751	,127.067457	),
+                        new LatLng(37.239705	,127.06745	),
+                        new LatLng(37.239674	,127.067451	),
+                        new LatLng(37.23935 	,127.067396	),
+                        new LatLng(37.23917 	,127.067401	),
+                        new LatLng(37.239083	,127.067381	),
+                        new LatLng(37.238958	,127.067363	),
+                        new LatLng(37.238921	,127.067357	),
+                        new LatLng(37.238785	,127.067335	),
+                        new LatLng(37.238632	,127.06731	),
+                        new LatLng(37.238603	,127.067323	),
+                        new LatLng(37.238353	,127.067329	),
+                        new LatLng(37.238219	,127.06735	),
+                        new LatLng(37.238064	,127.067409	),
+                        new LatLng(37.237904	,127.067454	),
+                        new LatLng(37.237775	,127.067499	),
+                        new LatLng(37.237726	,127.067517	),
+                        new LatLng(37.23762 	,127.067569	),
+                        new LatLng(37.237345	,127.067688	),
+                        new LatLng(37.237264	,127.067722	),
+                        new LatLng(37.237011	,127.067833	),
+                        new LatLng(37.236939	,127.067878	),
+                        new LatLng(37.23684 	,127.067911	),
+                        new LatLng(37.236796	,127.067925	),
+                        new LatLng(37.236777	,127.067932	),
+                        new LatLng(37.236209	,127.067975	),
+                        new LatLng(37.235984	,127.067947	),
+                        new LatLng(37.235633	,127.067953	),
+                        new LatLng(37.235613	,127.067963	),
+                        new LatLng(37.235559	,127.067973	),
+                        new LatLng(37.235542	,127.067972	),
+                        new LatLng(37.235331	,127.067832	),
+                        new LatLng(37.235173	,127.067728	),
+                        new LatLng(37.235166	,127.067726	),
+                        new LatLng(37.235112	,127.06776	),
+                        new LatLng(37.235095	,127.06777	),
+                        new LatLng(37.235076	,127.06779	),
+                        new LatLng(37.235068	,127.067797	),
+                        new LatLng(37.235019	,127.067876	),
+                        new LatLng(37.234966	,127.067923	),
+                        new LatLng(37.234894	,127.06794	),
+                        new LatLng(37.234883	,127.067947	),
+                        new LatLng(37.23485 	,127.067952	),
+                        new LatLng(37.234722	,127.067982	),
+                        new LatLng(37.234448	,127.067955	),
+                        new LatLng(37.234391	,127.068002	),
+                        new LatLng(37.234343	,127.068055	),
+                        new LatLng(37.234269	,127.06814	),
+                        new LatLng(37.234255	,127.068142	),
+                        new LatLng(37.2341  	,127.06819	),
+                        new LatLng(37.234039	,127.068238	),
+                        new LatLng(37.23403 	,127.068243	),
+                        new LatLng(37.233993	,127.06827	),
+                        new LatLng(37.233868	,127.068322	),
+                        new LatLng(37.233839	,127.068347	),
+                        new LatLng(37.233813	,127.068361	),
+                        new LatLng(37.23374 	,127.068495	),
+                        new LatLng(37.23351 	,127.06867	),
+                        new LatLng(37.23338 	,127.068683	),
+                        new LatLng(37.233323	,127.06868	),
+                        new LatLng(37.233026	,127.06864	),
+                        new LatLng(37.232976	,127.068618	),
+                        new LatLng(37.232908	,127.068609	),
+                        new LatLng(37.232811	,127.068639	),
+                        new LatLng(37.232769	,127.068651	),
+                        new LatLng(37.232743	,127.068682	),
+                        new LatLng(37.232635	,127.068791	),
+                        new LatLng(37.232572	,127.068849	),
+                        new LatLng(37.232555	,127.068872	),
+                        new LatLng(37.232501	,127.068939	),
+                        new LatLng(37.232456	,127.069006	),
+                        new LatLng(37.232446	,127.069032	),
+                        new LatLng(37.232396	,127.069139	),
+                        new LatLng(37.232286	,127.069299	),
+                        new LatLng(37.232147	,127.06937	),
+                        new LatLng(37.232046	,127.069404	),
+                        new LatLng(37.231881	,127.069429	),
+                        new LatLng(37.231848	,127.069434	),
+                        new LatLng(37.231793	,127.069446	),
+                        new LatLng(37.231685	,127.069466	),
+                        new LatLng(37.231627	,127.069468	),
+                        new LatLng(37.231573	,127.06945	),
+                        new LatLng(37.231483	,127.069451	),
+                        new LatLng(37.231093	,127.069404	),
+                        new LatLng(37.230638	,127.069129	),
+                        new LatLng(37.230435	,127.06895	),
+                        new LatLng(37.230347	,127.068889	),
+                        new LatLng(37.230208	,127.068868	),
+                        new LatLng(37.230163	,127.068863	),
+                        new LatLng(37.230072	,127.068867	),
+                        new LatLng(37.230051	,127.068879	),
+                        new LatLng(37.22997 	,127.068915	),
+                        new LatLng(37.229952	,127.068903	),
+                        new LatLng(37.229923	,127.068893	),
+                        new LatLng(37.22991 	,127.068887	),
+                        new LatLng(37.229852	,127.068904	),
+                        new LatLng(37.229817	,127.068939	),
+                        new LatLng(37.22964 	,127.069156	),
+                        new LatLng(37.229619	,127.069185	),
+                        new LatLng(37.22961 	,127.069246	),
+                        new LatLng(37.22958 	,127.069328	),
+                        new LatLng(37.229487	,127.069455	),
+                        new LatLng(37.229145	,127.069675	),
+                        new LatLng(37.229099	,127.069694	),
+                        new LatLng(37.228875	,127.069729	),
+                        new LatLng(37.228827	,127.069712	),
+                        new LatLng(37.228766	,127.069691	),
+                        new LatLng(37.22871 	,127.069697	),
+                        new LatLng(37.228685	,127.069693	),
+                        new LatLng(37.228661	,127.069796	),
+                        new LatLng(37.228699	,127.06989	),
+                        new LatLng(37.228699	,127.06991	),
+                        new LatLng(37.228721	,127.069978	),
+                        new LatLng(37.228721	,127.069989	),
+                        new LatLng(37.22873 	,127.070102	),
+                        new LatLng(37.228738	,127.070192	),
+                        new LatLng(37.228811	,127.07035	),
+                        new LatLng(37.228855	,127.070441	),
+                        new LatLng(37.228889	,127.070565	),
+                        new LatLng(37.228902	,127.070621	),
+                        new LatLng(37.228896	,127.070636	),
+                        new LatLng(37.228899	,127.070645	),
+                        new LatLng(37.229001	,127.071386	),
+                        new LatLng(37.229042	,127.071568	),
+                        new LatLng(37.229055	,127.071725	),
+                        new LatLng(37.229065	,127.071815	),
+                        new LatLng(37.229103	,127.07249	),
+                        new LatLng(37.229123	,127.072582	),
+                        new LatLng(37.229122	,127.072615	),
+                        new LatLng(37.229099	,127.072673	),
+                        new LatLng(37.228809	,127.073139	),
+                        new LatLng(37.228777	,127.073263	),
+                        new LatLng(37.228457	,127.073539	),
+                        new LatLng(37.228394	,127.073584	),
+                        new LatLng(37.228306	,127.073688	),
+                        new LatLng(37.228224	,127.073843	),
+                        new LatLng(37.228114	,127.074285	),
+                        new LatLng(37.228155	,127.074607	),
+                        new LatLng(37.228195	,127.074726	),
+                        new LatLng(37.228203	,127.074783	),
+                        new LatLng(37.228191	,127.074823	),
+                        new LatLng(37.228153	,127.074837	),
+                        new LatLng(37.228057	,127.074873	),
+                        new LatLng(37.227501	,127.075042	),
+                        new LatLng(37.227303	,127.075149	),
+                        new LatLng(37.226501	,127.075316	),
+                        new LatLng(37.226099	,127.075412	),
+                        new LatLng(37.225681	,127.075835	),
+                        new LatLng(37.225564	,127.075952	),
+                        new LatLng(37.22546 	,127.076143	),
+                        new LatLng(37.225357	,127.07628	),
+                        new LatLng(37.2251  	,127.076562	),
+                        new LatLng(37.225044	,127.076601	),
+                        new LatLng(37.224883	,127.076727	),
+                        new LatLng(37.224742	,127.076924	),
+                        new LatLng(37.224185	,127.077254	),
+                        new LatLng(37.22392 	,127.077411	),
+                        new LatLng(37.223788	,127.077638	),
+                        new LatLng(37.2235  	,127.077935	),
+                        new LatLng(37.223332	,127.078052	),
+                        new LatLng(37.222927	,127.077759	),
+                        new LatLng(37.222761	,127.077974	),
+                        new LatLng(37.222669	,127.078138	),
+                        new LatLng(37.222622	,127.078278	),
+                        new LatLng(37.222627	,127.078409	),
+                        new LatLng(37.222665	,127.078559	),
+                        new LatLng(37.22265 	,127.07869	),
+                        new LatLng(37.222493	,127.079161	),
+                        new LatLng(37.222304	,127.079223	),
+                        new LatLng(37.222192	,127.079269	),
+                        new LatLng(37.221722	,127.080067	),
+                        new LatLng(37.221441	,127.080299	),
+                        new LatLng(37.221409	,127.080342	),
+                        new LatLng(37.221366	,127.080427	),
+                        new LatLng(37.221434	,127.080557	),
+                        new LatLng(37.221496	,127.080788	),
+                        new LatLng(37.221456	,127.08085	),
+                        new LatLng(37.22141 	,127.080895	),
+                        new LatLng(37.221229	,127.081063	),
+                        new LatLng(37.221163	,127.081137	),
+                        new LatLng(37.221101	,127.081195	),
+                        new LatLng(37.220996	,127.081297	),
+                        new LatLng(37.220949	,127.081325	),
+                        new LatLng(37.220811	,127.081413	),
+                        new LatLng(37.220645	,127.081418	),
+                        new LatLng(37.220534	,127.081524	),
+                        new LatLng(37.220492	,127.081569	),
+                        new LatLng(37.220457	,127.081595	),
+                        new LatLng(37.22037 	,127.081668	),
+                        new LatLng(37.220365	,127.081673	),
+                        new LatLng(37.220311	,127.08173	),
+                        new LatLng(37.220131	,127.08193	),
+                        new LatLng(37.220005	,127.0821	),
+                        new LatLng(37.219953	,127.082159	),
+                        new LatLng(37.219864	,127.082296	),
+                        new LatLng(37.21985 	,127.082321	),
+                        new LatLng(37.219782	,127.082498	),
+                        new LatLng(37.219559	,127.083364	),
+                        new LatLng(37.219442	,127.083697	),
+                        new LatLng(37.219226	,127.083954	),
+                        new LatLng(37.219172	,127.084044	),
+                        new LatLng(37.219141	,127.084097	),
+                        new LatLng(37.219077	,127.084365	),
+                        new LatLng(37.218831	,127.084876	),
+                        new LatLng(37.218673	,127.085117	),
+                        new LatLng(37.218561	,127.085223	),
+                        new LatLng(37.218399	,127.085386	),
+                        new LatLng(37.218137	,127.085721	),
+                        new LatLng(37.21799 	,127.085902	),
+                        new LatLng(37.217823	,127.086088	),
+                        new LatLng(37.21739 	,127.086718	),
+                        new LatLng(37.217229	,127.087032	),
+                        new LatLng(37.217145	,127.087217	),
+                        new LatLng(37.217016	,127.087653	),
+                        new LatLng(37.216955	,127.087729	),
+                        new LatLng(37.216655	,127.088167	),
+                        new LatLng(37.216406	,127.088497	),
+                        new LatLng(37.216179	,127.08881	),
+                        new LatLng(37.216647	,127.090029	),
+                        new LatLng(37.216809	,127.090405	),
+                        new LatLng(37.216844	,127.090963	),
+                        new LatLng(37.216829	,127.09101	),
+                        new LatLng(37.216831	,127.091128	),
+                        new LatLng(37.216817	,127.091177	),
+                        new LatLng(37.216831	,127.091396	),
+                        new LatLng(37.216864	,127.091504	),
+                        new LatLng(37.216956	,127.091616	),
+                        new LatLng(37.217203	,127.091866	),
+                        new LatLng(37.217496	,127.092372	),
+                        new LatLng(37.217838	,127.093138	),
+                        new LatLng(37.217925	,127.09388	),
+                        new LatLng(37.218001	,127.094241	),
+                        new LatLng(37.218081	,127.094541	),
+                        new LatLng(37.218217	,127.094973	),
+                        new LatLng(37.218342	,127.095458	),
+                        new LatLng(37.218377	,127.095657	),
+                        new LatLng(37.218431	,127.09622	),
+                        new LatLng(37.218434	,127.097713	),
+                        new LatLng(37.218448	,127.097888	),
+                        new LatLng(37.218453	,127.097965	),
+                        new LatLng(37.21876 	,127.099205	),
+                        new LatLng(37.218883	,127.099691	),
+                        new LatLng(37.218912	,127.100015	),
+                        new LatLng(37.219036	,127.100574	),
+                        new LatLng(37.21916 	,127.101618	),
+                        new LatLng(37.219178	,127.101979	),
+                        new LatLng(37.219238	,127.102334	),
+                        new LatLng(37.219325	,127.102595	),
+                        new LatLng(37.219434	,127.102829	),
+                        new LatLng(37.219459	,127.102931	),
+                        new LatLng(37.219751	,127.10403	),
+                        new LatLng(37.219765	,127.104154	),
+                        new LatLng(37.219811	,127.104492	),
+                        new LatLng(37.219843	,127.104831	),
+                        new LatLng(37.219842	,127.104864	),
+                        new LatLng(37.219822	,127.10536	),
+                        new LatLng(37.219823	,127.105381	),
+                        new LatLng(37.219816	,127.105447	),
+                        new LatLng(37.219784	,127.105699	),
+                        new LatLng(37.219781	,127.105821	),
+                        new LatLng(37.219784	,127.106024	),
+                        new LatLng(37.219789	,127.106418	),
+                        new LatLng(37.219785	,127.106442	),
+                        new LatLng(37.219746	,127.106655	),
+                        new LatLng(37.219723	,127.106836	),
+                        new LatLng(37.219724	,127.10688	),
+                        new LatLng(37.21972 	,127.106982	),
+                        new LatLng(37.219415	,127.108907	),
+                        new LatLng(37.219375	,127.109122	),
+                        new LatLng(37.219326	,127.109516	),
+                        new LatLng(37.219307	,127.109736	),
+                        new LatLng(37.219311	,127.110136	),
+                        new LatLng(37.219324	,127.110261	),
+                        new LatLng(37.219335	,127.110418	),
+                        new LatLng(37.219361	,127.110585	),
+                        new LatLng(37.2194  	,127.110739	),
+                        new LatLng(37.219419	,127.110822	),
+                        new LatLng(37.219469	,127.110972	),
+                        new LatLng(37.219488	,127.111018	),
+                        new LatLng(37.219501	,127.111072	),
+                        new LatLng(37.219499	,127.111086	),
+                        new LatLng(37.219496	,127.111118	),
+                        new LatLng(37.21949 	,127.111218	),
+                        new LatLng(37.219485	,127.111256	),
+                        new LatLng(37.219444	,127.111369	),
+                        new LatLng(37.21941 	,127.1115	),
+                        new LatLng(37.219395	,127.111553	),
+                        new LatLng(37.219349	,127.111653	),
+                        new LatLng(37.21931 	,127.111873	),
+                        new LatLng(37.219306	,127.111984	),
+                        new LatLng(37.219322	,127.112042	),
+                        new LatLng(37.219351	,127.11221	),
+                        new LatLng(37.21935 	,127.112242	),
+                        new LatLng(37.219351	,127.112246	),
+                        new LatLng(37.219357	,127.112278	),
+                        new LatLng(37.219356	,127.112307	),
+                        new LatLng(37.219387	,127.11241	),
+                        new LatLng(37.219405	,127.112462	),
+                        new LatLng(37.219455	,127.112539	),
+                        new LatLng(37.219458	,127.112546	),
+                        new LatLng(37.219459	,127.112575	),
+                        new LatLng(37.219308	,127.112947	),
+                        new LatLng(37.219314	,127.113156	),
+                        new LatLng(37.219317	,127.113268	),
+                        new LatLng(37.219401	,127.113453	),
+                        new LatLng(37.219438	,127.113539	),
+                        new LatLng(37.219237	,127.114097	),
+                        new LatLng(37.21921 	,127.114204	),
+                        new LatLng(37.219192	,127.114261	),
+                        new LatLng(37.219181	,127.114384	),
+                        new LatLng(37.219144	,127.115037	),
+                        new LatLng(37.219133	,127.115116	),
+                        new LatLng(37.219136	,127.115196	),
+                        new LatLng(37.219136	,127.115201	),
+                        new LatLng(37.219193	,127.115378	),
+                        new LatLng(37.219229	,127.115497	),
+                        new LatLng(37.219267	,127.115613	),
+                        new LatLng(37.219513	,127.115905	),
+                        new LatLng(37.21972 	,127.116039	),
+                        new LatLng(37.219745	,127.116097	),
+                        new LatLng(37.2198  	,127.116525	),
+                        new LatLng(37.219868	,127.116784	),
+                        new LatLng(37.219886	,127.116861	),
+                        new LatLng(37.21993 	,127.117038	),
+                        new LatLng(37.219962	,127.117167	),
+                        new LatLng(37.21998 	,127.117224	),
+                        new LatLng(37.220015	,127.117417	),
+                        new LatLng(37.220015	,127.117584	),
+                        new LatLng(37.220012	,127.117675	),
+                        new LatLng(37.22    	,127.117888	),
+                        new LatLng(37.219948	,127.118214	),
+                        new LatLng(37.219907	,127.118384	),
+                        new LatLng(37.219881	,127.118453	),
+                        new LatLng(37.219854	,127.118512	),
+                        new LatLng(37.219735	,127.118649	),
+                        new LatLng(37.219633	,127.118704	),
+                        new LatLng(37.21951 	,127.118778	),
+                        new LatLng(37.219422	,127.118999	),
+                        new LatLng(37.219381	,127.119087	),
+                        new LatLng(37.219338	,127.119217	),
+                        new LatLng(37.219329	,127.119398	),
+                        new LatLng(37.21933 	,127.119409	),
+                        new LatLng(37.219328	,127.119454	),
+                        new LatLng(37.219319	,127.119589	),
+                        new LatLng(37.21933 	,127.119713	),
+                        new LatLng(37.219337	,127.120295	),
+                        new LatLng(37.219385	,127.120432	),
+                        new LatLng(37.219436	,127.120716	),
+                        new LatLng(37.219421	,127.120803	),
+                        new LatLng(37.219388	,127.120884	),
+                        new LatLng(37.219298	,127.12112	),
+                        new LatLng(37.219237	,127.121324	),
+                        new LatLng(37.219178	,127.121507	),
+                        new LatLng(37.219098	,127.121738	),
+                        new LatLng(37.219045	,127.121879	),
+                        new LatLng(37.219024	,127.121964	),
+                        new LatLng(37.218997	,127.122058	),
+                        new LatLng(37.218948	,127.122236	),
+                        new LatLng(37.218875	,127.12245	),
+                        new LatLng(37.21883 	,127.122574	),
+                        new LatLng(37.218799	,127.122666	),
+                        new LatLng(37.218795	,127.122698	),
+                        new LatLng(37.21879 	,127.12272	),
+                        new LatLng(37.218798	,127.12289	),
+                        new LatLng(37.218758	,127.123295	),
+                        new LatLng(37.21875 	,127.123364	),
+                        new LatLng(37.218756	,127.123407	),
+                        new LatLng(37.218691	,127.123755	),
+                        new LatLng(37.218662	,127.123841	),
+                        new LatLng(37.21859 	,127.123942	),
+                        new LatLng(37.218492	,127.124057	),
+                        new LatLng(37.218441	,127.124173	),
+                        new LatLng(37.218351	,127.124342	),
+                        new LatLng(37.21833 	,127.124369	),
+                        new LatLng(37.218267	,127.124566	),
+                        new LatLng(37.218254	,127.124602	),
+                        new LatLng(37.218232	,127.124667	),
+                        new LatLng(37.218221	,127.124729	),
+                        new LatLng(37.218195	,127.125042	),
+                        new LatLng(37.218187	,127.125153	),
+                        new LatLng(37.218084	,127.125591	),
+                        new LatLng(37.217983	,127.125843	),
+                        new LatLng(37.21793 	,127.126048	),
+                        new LatLng(37.217961	,127.126134	),
+                        new LatLng(37.217885	,127.126659	),
+                        new LatLng(37.217858	,127.126739	),
+                        new LatLng(37.217809	,127.126944	),
+                        new LatLng(37.217798	,127.127168	),
+                        new LatLng(37.217778	,127.12736	),
+                        new LatLng(37.217741	,127.127441	),
+                        new LatLng(37.21771 	,127.127619	),
+                        new LatLng(37.217672	,127.127777	),
+                        new LatLng(37.217636	,127.127958	),
+                        new LatLng(37.217621	,127.128053	),
+                        new LatLng(37.217522	,127.128312	),
+                        new LatLng(37.217428	,127.128532	),
+                        new LatLng(37.217391	,127.128643	),
+                        new LatLng(37.217344	,127.128801	),
+                        new LatLng(37.21733 	,127.128837	),
+                        new LatLng(37.217241	,127.129119	),
+                        new LatLng(37.217228	,127.129252	),
+                        new LatLng(37.217205	,127.129534	),
+                        new LatLng(37.217232	,127.129805	),
+                        new LatLng(37.217236	,127.129928	),
+                        new LatLng(37.217218	,127.13012	),
+                        new LatLng(37.217214	,127.130244	),
+                        new LatLng(37.217199	,127.13031	),
+                        new LatLng(37.217192	,127.130334	),
+                        new LatLng(37.217186	,127.130353	),
+                        new LatLng(37.217015	,127.130753	),
+                        new LatLng(37.216928	,127.131077	),
+                        new LatLng(37.216905	,127.131179	),
+                        new LatLng(37.216848	,127.131742	),
+                        new LatLng(37.216843	,127.13176	),
+                        new LatLng(37.216748	,127.13191	),
+                        new LatLng(37.216667	,127.132069	),
+                        new LatLng(37.216603	,127.132237	),
+                        new LatLng(37.216528	,127.132631	),
+                        new LatLng(37.216522	,127.132766	),
+                        new LatLng(37.216493	,127.132867	),
+                        new LatLng(37.21643 	,127.133002	),
+                        new LatLng(37.216406	,127.133049	),
+                        new LatLng(37.216336	,127.133197	),
+                        new LatLng(37.216172	,127.133522	),
+                        new LatLng(37.216133	,127.133622	),
+                        new LatLng(37.215895	,127.133769	),
+                        new LatLng(37.215878	,127.133859	),
+                        new LatLng(37.215883	,127.133893	),
+                        new LatLng(37.215879	,127.133936	),
+                        new LatLng(37.215804	,127.134209	),
+                        new LatLng(37.21572 	,127.134723	),
+                        new LatLng(37.21574 	,127.134806	),
+                        new LatLng(37.215744	,127.135007	),
+                        new LatLng(37.215713	,127.135213	),
+                        new LatLng(37.215712	,127.135222	),
+                        new LatLng(37.215712	,127.135224	),
+                        new LatLng(37.215703	,127.135305	),
+                        new LatLng(37.215726	,127.13547	),
+                        new LatLng(37.215728	,127.135604	),
+                        new LatLng(37.215707	,127.135705	),
+                        new LatLng(37.215635	,127.135908	),
+                        new LatLng(37.215582	,127.136055	),
+                        new LatLng(37.215577	,127.136075	),
+                        new LatLng(37.215541	,127.136201	),
+                        new LatLng(37.215539	,127.13628	),
+                        new LatLng(37.215537	,127.136402	),
+                        new LatLng(37.215537	,127.136405	),
+                        new LatLng(37.215536	,127.136493	),
+                        new LatLng(37.215535	,127.136528	),
+                        new LatLng(37.215533	,127.136685	),
+                        new LatLng(37.215544	,127.136809	),
+                        new LatLng(37.215576	,127.137024	),
+                        new LatLng(37.215608	,127.137338	),
+                        new LatLng(37.21567 	,127.137466	),
+                        new LatLng(37.215898	,127.137798	),
+                        new LatLng(37.21597 	,127.137919	),
+                        new LatLng(37.216041	,127.138067	),
+                        new LatLng(37.216145	,127.138266	),
+                        new LatLng(37.216242	,127.138341	),
+                        new LatLng(37.216303	,127.138394	),
+                        new LatLng(37.216354	,127.138453	),
+                        new LatLng(37.216379	,127.138557	),
+                        new LatLng(37.216396	,127.138636	),
+                        new LatLng(37.216406	,127.138696	),
+                        new LatLng(37.216519	,127.13896	),
+                        new LatLng(37.216559	,127.139045	),
+                        new LatLng(37.216636	,127.139115	),
+                        new LatLng(37.216799	,127.139284	),
+                        new LatLng(37.216871	,127.139325	),
+                        new LatLng(37.216951	,127.139457	),
+                        new LatLng(37.216994	,127.139559	),
+                        new LatLng(37.21702 	,127.139604	),
+                        new LatLng(37.217086	,127.13969	),
+                        new LatLng(37.217149	,127.13979	),
+                        new LatLng(37.217213	,127.139946	),
+                        new LatLng(37.217228	,127.139999	),
+                        new LatLng(37.217261	,127.140102	),
+                        new LatLng(37.217266	,127.140125	),
+                        new LatLng(37.217266	,127.140181	),
+                        new LatLng(37.21727 	,127.140316	),
+                        new LatLng(37.217278	,127.140835	),
+                        new LatLng(37.217289	,127.141008	),
+                        new LatLng(37.217305	,127.141071	),
+                        new LatLng(37.217804	,127.141899	),
+                        new LatLng(37.217886	,127.142055	),
+                        new LatLng(37.218036	,127.142228	),
+                        new LatLng(37.218116	,127.14231	),
+                        new LatLng(37.218192	,127.142439	),
+                        new LatLng(37.218255	,127.142562	),
+                        new LatLng(37.21827 	,127.142615	),
+                        new LatLng(37.218319	,127.142766	),
+                        new LatLng(37.218422	,127.14293	),
+                        new LatLng(37.21849 	,127.143014	),
+                        new LatLng(37.218607	,127.143227	),
+                        new LatLng(37.218617	,127.143271	),
+                        new LatLng(37.218627	,127.143338	),
+                        new LatLng(37.218644	,127.143462	),
+                        new LatLng(37.218701	,127.14372	),
+                        new LatLng(37.218761	,127.144104	),
+                        new LatLng(37.218765	,127.144204	),
+                        new LatLng(37.218792	,127.144271	),
+                        new LatLng(37.218856	,127.144439	),
+                        new LatLng(37.218878	,127.144521	),
+                        new LatLng(37.218902	,127.144601	),
+                        new LatLng(37.218926	,127.144692	),
+                        new LatLng(37.218936	,127.144905	),
+                        new LatLng(37.218934	,127.145006	),
+                        new LatLng(37.218936	,127.14504	),
+                        new LatLng(37.21893 	,127.145221	),
+                        new LatLng(37.218938	,127.145345	),
+                        new LatLng(37.219193	,127.145953	),
+                        new LatLng(37.219194	,127.146043	),
+                        new LatLng(37.219166	,127.146159	),
+                        new LatLng(37.219114	,127.146353	),
+                        new LatLng(37.219075	,127.146485	),
+                        new LatLng(37.219045	,127.146572	),
+                        new LatLng(37.219013	,127.146664	),
+                        new LatLng(37.219006	,127.146775	),
+                        new LatLng(37.21904 	,127.146895	),
+                        new LatLng(37.219157	,127.147314	),
+                        new LatLng(37.219209	,127.147566	),
+                        new LatLng(37.219252	,127.147739	),
+                        new LatLng(37.219392	,127.148095	),
+                        new LatLng(37.219478	,127.148325	),
+                        new LatLng(37.219526	,127.148415	),
+                        new LatLng(37.219459	,127.148449	),
+                        new LatLng(37.219444	,127.148629	),
+                        new LatLng(37.219463	,127.148679	),
+                        new LatLng(37.21956 	,127.148966	),
+                        new LatLng(37.219545	,127.149018	),
+                        new LatLng(37.219564	,127.149176	),
+                        new LatLng(37.219563	,127.149232	),
+                        new LatLng(37.219678	,127.149451	),
+                        new LatLng(37.219741	,127.149496	),
+                        new LatLng(37.219921	,127.14979	),
+                        new LatLng(37.22001 	,127.150691	),
+                        new LatLng(37.219636	,127.150993	),
+                        new LatLng(37.219259	,127.151097	),
+                        new LatLng(37.218924	,127.151374	),
+                        new LatLng(37.218791	,127.151491	),
+                        new LatLng(37.21817 	,127.152007	),
+                        new LatLng(37.217633	,127.151503	),
+                        new LatLng(37.217285	,127.151596	),
+                        new LatLng(37.217035	,127.151497	),
+                        new LatLng(37.216647	,127.151417	),
+                        new LatLng(37.215752	,127.151374	),
+                        new LatLng(37.215089	,127.151477	),
+                        new LatLng(37.214332	,127.15149	),
+                        new LatLng(37.214095	,127.151687	),
+                        new LatLng(37.213875	,127.151727	),
+                        new LatLng(37.213549	,127.152091	),
+                        new LatLng(37.212701	,127.152845	),
+                        new LatLng(37.212569	,127.152987	),
+                        new LatLng(37.212105	,127.153287	),
+                        new LatLng(37.211525	,127.1536	),
+                        new LatLng(37.21118 	,127.15387	),
+                        new LatLng(37.211024	,127.153919	),
+                        new LatLng(37.21097 	,127.153937	),
+                        new LatLng(37.210541	,127.154015	),
+                        new LatLng(37.210144	,127.154103	),
+                        new LatLng(37.209738	,127.15444	),
+                        new LatLng(37.208957	,127.156009	),
+                        new LatLng(37.208646	,127.156426	),
+                        new LatLng(37.208214	,127.156726	),
+                        new LatLng(37.207371	,127.15721	),
+                        new LatLng(37.206949	,127.157327	),
+                        new LatLng(37.206482	,127.156439	),
+                        new LatLng(37.205988	,127.155672	),
+                        new LatLng(37.20483 	,127.155354	),
+                        new LatLng(37.204358	,127.155345	),
+                        new LatLng(37.203622	,127.155388	),
+                        new LatLng(37.20347 	,127.155306	),
+                        new LatLng(37.202679	,127.154694	),
+                        new LatLng(37.201894	,127.153377	),
+                        new LatLng(37.200986	,127.152744	),
+                        new LatLng(37.200548	,127.152607	),
+                        new LatLng(37.200176	,127.152608	),
+                        new LatLng(37.200176	,127.15254	),
+                        new LatLng(37.199536	,127.152061	),
+                        new LatLng(37.199185	,127.152002	),
+                        new LatLng(37.198886	,127.152118	),
+                        new LatLng(37.197798	,127.152767	),
+                        new LatLng(37.197279	,127.152924	),
+                        new LatLng(37.197498	,127.153785	),
+                        new LatLng(37.197393	,127.154731	),
+                        new LatLng(37.196164	,127.156221	),
+                        new LatLng(37.195299	,127.156743	),
+                        new LatLng(37.194361	,127.158064	),
+                        new LatLng(37.19335 	,127.159391	),
+                        new LatLng(37.192857	,127.160252	),
+                        new LatLng(37.190897	,127.16134	)
+                )
+                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .fillColor(clr));
+        polygon.setClickable(true);
+        namehmap.put(polygon.hashCode(),name);
+        colorhmap.put(polygon.hashCode(),clr);
+
+        IconGenerator iconFactory = new IconGenerator(this);
+        iconFactory.setColor(clr);
+        if(mclr == 2){
+            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
+        }else if(mclr == 3){
+            iconFactory.setStyle(IconGenerator.STYLE_RED);
+        }else if(mclr == 7){
+            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
+        }else if(mclr == 5){
+            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
+        }else {
+            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
+        }
+        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.155413, 126.796033));
+
+    }//화성시 엄청김...
+    public void drawPolygon26(GoogleMap googlemap) { //
+        String name = "여주군";
+        int clr = Color.argb(100,255,0,0);
+        int mclr;
+        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
+        if(hmap.get(name)==null){
+            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
+            mclr = 1;
+        } else if(hmap.get(name).equals("-")){
+            clr = Color.argb(100,140,140,140);
+            mclr = 2;
+        }else if(Integer.parseInt(hmap.get(name))>150){
+            clr = Color.argb(100,255,0,0);
+            mclr = 3;
+        }else if(Integer.parseInt(hmap.get(name))>80){
+            clr = Color.argb(100,255,255,0);
+            mclr = 7;
+        }else if(Integer.parseInt(hmap.get(name))>30){
+            clr = Color.argb(100,0,255,0);
+            mclr = 5;
+        }else {
+            clr = Color.argb(100,0,0,255);
+            mclr = 4;
+        }
+        Log.d("log","kbc   ++))++))++  "+clr);
+        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+                .add(
+                        new LatLng(37.308313	,127.768412	),
+                        new LatLng(37.307525	,127.768221	),
+                        new LatLng(37.306323	,127.768178	),
+                        new LatLng(37.305649	,127.768022	),
+                        new LatLng(37.303927	,127.767585	),
+                        new LatLng(37.303391	,127.767599	),
+                        new LatLng(37.302483	,127.768075	),
+                        new LatLng(37.301499	,127.76758	),
+                        new LatLng(37.301534	,127.767568	),
+                        new LatLng(37.301651	,127.767471	),
+                        new LatLng(37.301736	,127.76735	),
+                        new LatLng(37.30178 	,127.76726	),
+                        new LatLng(37.301785	,127.767246	),
+                        new LatLng(37.301797	,127.767154	),
+                        new LatLng(37.301523	,127.766534	),
+                        new LatLng(37.301407	,127.765666	),
+                        new LatLng(37.301448	,127.765541	),
+                        new LatLng(37.302242	,127.762144	),
+                        new LatLng(37.301918	,127.761295	),
+                        new LatLng(37.300221	,127.757972	),
+                        new LatLng(37.298901	,127.756693	),
+                        new LatLng(37.297742	,127.754613	),
+                        new LatLng(37.297705	,127.751772	),
+                        new LatLng(37.297968	,127.750695	),
+                        new LatLng(37.297977	,127.750656	),
+                        new LatLng(37.29766	    ,127.750268	),
+                        new LatLng(37.295978	,127.749634	),
+                        new LatLng(37.294702	,127.749835	),
+                        new LatLng(37.293157	,127.750248	),
+                        new LatLng(37.292637	,127.750244	),
+                        new LatLng(37.292607	,127.750235	),
+                        new LatLng(37.291039	,127.750823	),
+                        new LatLng(37.289753	,127.752368	),
+                        new LatLng(37.289714	,127.752411	),
+                        new LatLng(37.288977	,127.753531	),
+                        new LatLng(37.288165	,127.754039	),
+                        new LatLng(37.287701	,127.754352	),
+                        new LatLng(37.286626	,127.754463	),
+                        new LatLng(37.285907	,127.754992	),
+                        new LatLng(37.284999	,127.755546	),
+                        new LatLng(37.284959	,127.755554	),
+                        new LatLng(37.284955	,127.755257	),
+                        new LatLng(37.28493 	,127.755201	),
+                        new LatLng(37.284971	,127.754985	),
+                        new LatLng(37.284973	,127.754938	),
+                        new LatLng(37.284971	,127.754917	),
+                        new LatLng(37.284956	,127.754888	),
+                        new LatLng(37.284919	,127.754849	),
+                        new LatLng(37.284239	,127.753993	),
+                        new LatLng(37.283874	,127.754277	),
+                        new LatLng(37.282501	,127.754893	),
+                        new LatLng(37.282367	,127.755369	),
+                        new LatLng(37.282228	,127.755316	),
+                        new LatLng(37.28173 	,127.755595	),
+                        new LatLng(37.279464	,127.756328	),
+                        new LatLng(37.279428	,127.756311	),
+                        new LatLng(37.279198	,127.756696	),
+                        new LatLng(37.27911 	,127.756822	),
+                        new LatLng(37.279035	,127.757086	),
+                        new LatLng(37.278887	,127.757332	),
+                        new LatLng(37.278879	,127.757351	),
+                        new LatLng(37.278876	,127.757357	),
+                        new LatLng(37.278885	,127.757381	),
+                        new LatLng(37.278831	,127.757302	),
+                        new LatLng(37.278812	,127.757446	),
+                        new LatLng(37.278295	,127.757136	),
+                        new LatLng(37.27764 	,127.756644	),
+                        new LatLng(37.27736 	,127.756722	),
+                        new LatLng(37.277204	,127.756538	),
+                        new LatLng(37.277142	,127.756954	),
+                        new LatLng(37.277046	,127.759084	),
+                        new LatLng(37.275758	,127.75943	),
+                        new LatLng(37.274842	,127.759635	),
+                        new LatLng(37.274609	,127.759315	),
+                        new LatLng(37.27329 	,127.760408	),
+                        new LatLng(37.272171	,127.76009	),
+                        new LatLng(37.272117	,127.75991	),
+                        new LatLng(37.272079	,127.759787	),
+                        new LatLng(37.270088	,127.759324	),
+                        new LatLng(37.269306	,127.76012	),
+                        new LatLng(37.269012	,127.76066	),
+                        new LatLng(37.268261	,127.760198	),
+                        new LatLng(37.265995	,127.759869	),
+                        new LatLng(37.265267	,127.759857	),
+                        new LatLng(37.264476	,127.759532	),
+                        new LatLng(37.263364	,127.758771	),
+                        new LatLng(37.263348	,127.758753	),
+                        new LatLng(37.263184	,127.758572	),
+                        new LatLng(37.262692	,127.758559	),
+                        new LatLng(37.261512	,127.757986	),
+                        new LatLng(37.260297	,127.757511	),
+                        new LatLng(37.259008	,127.75761	),
+                        new LatLng(37.258251	,127.757611	),
+                        new LatLng(37.25821 	,127.757548	),
+                        new LatLng(37.25609 	,127.75546	),
+                        new LatLng(37.252609	,127.752671	),
+                        new LatLng(37.248209	,127.749967	),
+                        new LatLng(37.2453		,127.748632	),
+                        new LatLng(37.243571	,127.747917	),
+                        new LatLng(37.243016	,127.747765	),
+                        new LatLng(37.242187	,127.747528	),
+                        new LatLng(37.240919	,127.747163	),
+                        new LatLng(37.239086	,127.746969	),
+                        new LatLng(37.238128	,127.746976	),
+                        new LatLng(37.236081	,127.747018	),
+                        new LatLng(37.235763	,127.747051	),
+                        new LatLng(37.235175	,127.747112	),
+                        new LatLng(37.234466	,127.747191	),
+                        new LatLng(37.233943	,127.747245	),
+                        new LatLng(37.231043	,127.747421	),
+                        new LatLng(37.230152	,127.747068	),
+                        new LatLng(37.228802	,127.747137	),
+                        new LatLng(37.227158	,127.747179	),
+                        new LatLng(37.226223	,127.747731	),
+                        new LatLng(37.224771	,127.74837	),
+                        new LatLng(37.221068	,127.749136	),
+                        new LatLng(37.218336	,127.748935	),
+                        new LatLng(37.217586	,127.74853	),
+                        new LatLng(37.217353	,127.748401	),
+                        new LatLng(37.214789	,127.74658	),
+                        new LatLng(37.213646	,127.744751	),
+                        new LatLng(37.214783	,127.744215	),
+                        new LatLng(37.214861	,127.74413	),
+                        new LatLng(37.214576	,127.743508	),
+                        new LatLng(37.213794	,127.742898	),
+                        new LatLng(37.212184	,127.741798	),
+                        new LatLng(37.211991	,127.740452	),
+                        new LatLng(37.210193	,127.73674	),
+                        new LatLng(37.208315	,127.735878	),
+                        new LatLng(37.208296	,127.735555	),
+                        new LatLng(37.207055	,127.735139	),
+                        new LatLng(37.205852	,127.735299	),
+                        new LatLng(37.205834	,127.735304	),
+                        new LatLng(37.203154	,127.734435	),
+                        new LatLng(37.202834	,127.733834	),
+                        new LatLng(37.201961	,127.73353	),
+                        new LatLng(37.20166 	,127.733145	),
+                        new LatLng(37.201377	,127.732178	),
+                        new LatLng(37.199865	,127.732212	),
+                        new LatLng(37.196813	,127.732714	),
+                        new LatLng(37.196453	,127.732699	),
+                        new LatLng(37.1958		,127.732501	),
+                        new LatLng(37.195037	,127.731467	),
+                        new LatLng(37.189554	,127.727854	),
+                        new LatLng(37.188823	,127.727757	),
+                        new LatLng(37.188325	,127.728266	),
+                        new LatLng(37.187729	,127.728301	),
+                        new LatLng(37.185602	,127.727468	),
+                        new LatLng(37.184543	,127.727118	),
+                        new LatLng(37.183226	,127.726621	),
+                        new LatLng(37.182549	,127.726408	),
+                        new LatLng(37.18254 	,127.726407	),
+                        new LatLng(37.182111	,127.724159	),
+                        new LatLng(37.181569	,127.722799	),
+                        new LatLng(37.181587	,127.722757	),
+                        new LatLng(37.181834	,127.722175	),
+                        new LatLng(37.181842	,127.722171	),
+                        new LatLng(37.182763	,127.721748	),
+                        new LatLng(37.183062	,127.721519	),
+                        new LatLng(37.183541	,127.719071	),
+                        new LatLng(37.183826	,127.718502	),
+                        new LatLng(37.183808	,127.717831	),
+                        new LatLng(37.183831	,127.717637	),
+                        new LatLng(37.18343 	,127.716904	),
+                        new LatLng(37.18235 	,127.716608	),
+                        new LatLng(37.181486	,127.715238	),
+                        new LatLng(37.181122	,127.714517	),
+                        new LatLng(37.180821	,127.714499	),
+                        new LatLng(37.180541	,127.714772	),
+                        new LatLng(37.179871	,127.714472	),
+                        new LatLng(37.179478	,127.714176	),
+                        new LatLng(37.176799	,127.712339	),
+                        new LatLng(37.17661 	,127.711852	),
+                        new LatLng(37.174597	,127.710259	),
+                        new LatLng(37.173291	,127.709645	),
+                        new LatLng(37.170938	,127.708676	),
+                        new LatLng(37.170766	,127.708368	),
+                        new LatLng(37.170933	,127.707531	),
+                        new LatLng(37.170824	,127.707129	),
+                        new LatLng(37.170695	,127.70675	),
+                        new LatLng(37.169827	,127.706609	),
+                        new LatLng(37.16752 	,127.704855	),
+                        new LatLng(37.166052	,127.704893	),
+                        new LatLng(37.165069	,127.704785	),
+                        new LatLng(37.16268 	,127.704813	),
+                        new LatLng(37.162379	,127.704765	),
+                        new LatLng(37.160837	,127.704533	),
+                        new LatLng(37.159882	,127.704827	),
+                        new LatLng(37.159618	,127.704356	),
+                        new LatLng(37.158569	,127.704061	),
+                        new LatLng(37.157659	,127.70427	),
+                        new LatLng(37.156415	,127.703046	),
+                        new LatLng(37.15598 	,127.70278	),
+                        new LatLng(37.155489	,127.702446	),
+                        new LatLng(37.152596	,127.698462	),
+                        new LatLng(37.15051 	,127.69493	),
+                        new LatLng(37.150183	,127.694806	),
+                        new LatLng(37.149383	,127.694607	),
+                        new LatLng(37.145596	,127.694083	),
+                        new LatLng(37.143475	,127.694573	),
+                        new LatLng(37.142202	,127.694456	),
+                        new LatLng(37.140422	,127.695484	),
+                        new LatLng(37.140426	,127.695456	),
+                        new LatLng(37.14003 	,127.69481	),
+                        new LatLng(37.138526	,127.692832	),
+                        new LatLng(37.137919	,127.692143	),
+                        new LatLng(37.137361	,127.690451	),
+                        new LatLng(37.135788	,127.688818	),
+                        new LatLng(37.135541	,127.688593	),
+                        new LatLng(37.135055	,127.686798	),
+                        new LatLng(37.135593	,127.685189	),
+                        new LatLng(37.136142	,127.683158	),
+                        new LatLng(37.136409	,127.682461	),
+                        new LatLng(37.135654	,127.680643	),
+                        new LatLng(37.136063	,127.679697	),
+                        new LatLng(37.136683	,127.676791	),
+                        new LatLng(37.136422	,127.676268	),
+                        new LatLng(37.136613	,127.673367	),
+                        new LatLng(37.136346	,127.672375	),
+                        new LatLng(37.136173	,127.671635	),
+                        new LatLng(37.136462	,127.671269	),
+                        new LatLng(37.13925 	,127.66434	),
+                        new LatLng(37.139508	,127.663716	),
+                        new LatLng(37.139753	,127.66058	),
+                        new LatLng(37.140818	,127.659312	),
+                        new LatLng(37.142419	,127.655828	),
+                        new LatLng(37.142388	,127.655618	),
+                        new LatLng(37.145426	,127.655365	),
+                        new LatLng(37.146333	,127.654379	),
+                        new LatLng(37.146364	,127.65433	),
+                        new LatLng(37.1466		,127.653969	),
+                        new LatLng(37.146944	,127.653531	),
+                        new LatLng(37.147406	,127.652936	),
+                        new LatLng(37.148046	,127.652368	),
+                        new LatLng(37.14739 	,127.651183	),
+                        new LatLng(37.148475	,127.649774	),
+                        new LatLng(37.149191	,127.649282	),
+                        new LatLng(37.149831	,127.648368	),
+                        new LatLng(37.150335	,127.648187	),
+                        new LatLng(37.150677	,127.64757	),
+                        new LatLng(37.150915	,127.646971	),
+                        new LatLng(37.151204	,127.646406	),
+                        new LatLng(37.151094	,127.646045	),
+                        new LatLng(37.151081	,127.646036	),
+                        new LatLng(37.15104 	,127.645806	),
+                        new LatLng(37.150927	,127.645189	),
+                        new LatLng(37.151869	,127.642925	),
+                        new LatLng(37.151606	,127.642025	),
+                        new LatLng(37.151144	,127.641222	),
+                        new LatLng(37.15125 	,127.640866	),
+                        new LatLng(37.15278 	,127.639228	),
+                        new LatLng(37.153107	,127.638674	),
+                        new LatLng(37.152971	,127.636779	),
+                        new LatLng(37.153081	,127.636057	),
+                        new LatLng(37.152933	,127.635676	),
+                        new LatLng(37.153178	,127.635165	),
+                        new LatLng(37.152944	,127.634545	),
+                        new LatLng(37.15323 	,127.633684	),
+                        new LatLng(37.152981	,127.633297	),
+                        new LatLng(37.153567	,127.632895	),
+                        new LatLng(37.153888	,127.632234	),
+                        new LatLng(37.153845	,127.632098	),
+                        new LatLng(37.153905	,127.631973	),
+                        new LatLng(37.154029	,127.631775	),
+                        new LatLng(37.154064	,127.631646	),
+                        new LatLng(37.154063	,127.63119	),
+                        new LatLng(37.154069	,127.63119	),
+                        new LatLng(37.153975	,127.630851	),
+                        new LatLng(37.153957	,127.630717	),
+                        new LatLng(37.154099	,127.630212	),
+                        new LatLng(37.154124	,127.630051	),
+                        new LatLng(37.154133	,127.62988	),
+                        new LatLng(37.154136	,127.62988	),
+                        new LatLng(37.154136	,127.629871	),
+                        new LatLng(37.154245	,127.629883	),
+                        new LatLng(37.154391	,127.629898	),
+                        new LatLng(37.154483	,127.62966	),
+                        new LatLng(37.154703	,127.629412	),
+                        new LatLng(37.154763	,127.629265	),
+                        new LatLng(37.154835	,127.629093	),
+                        new LatLng(37.154844	,127.629079	),
+                        new LatLng(37.154958	,127.6289	),
+                        new LatLng(37.155287	,127.628314	),
+                        new LatLng(37.159532	,127.630542	),
+                        new LatLng(37.159581	,127.630589	),
+                        new LatLng(37.160208	,127.631211	),
+                        new LatLng(37.160246	,127.631248	),
+                        new LatLng(37.161459	,127.632413	),
+                        new LatLng(37.161547	,127.632513	),
+                        new LatLng(37.161559	,127.632526	),
+                        new LatLng(37.161808	,127.632808	),
+                        new LatLng(37.162376	,127.632776	),
+                        new LatLng(37.16245 	,127.632738	),
+                        new LatLng(37.162766	,127.632556	),
+                        new LatLng(37.162949	,127.632458	),
+                        new LatLng(37.16302 	,127.632405	),
+                        new LatLng(37.163022	,127.632403	),
+                        new LatLng(37.163025	,127.632399	),
+                        new LatLng(37.163289	,127.632013	),
+                        new LatLng(37.163514	,127.631647	),
+                        new LatLng(37.163555	,127.631525	),
+                        new LatLng(37.163772	,127.631243	),
+                        new LatLng(37.164242	,127.630996	),
+                        new LatLng(37.164962	,127.630625	),
+                        new LatLng(37.165927	,127.626949	),
+                        new LatLng(37.162577	,127.619516	),
+                        new LatLng(37.162191	,127.61947	),
+                        new LatLng(37.161757	,127.619611	),
+                        new LatLng(37.161524	,127.619407	),
+                        new LatLng(37.16125 	,127.619157	),
+                        new LatLng(37.16138 	,127.618936	),
+                        new LatLng(37.161543	,127.618877	),
+                        new LatLng(37.161871	,127.618295	),
+                        new LatLng(37.16223 	,127.618462	),
+                        new LatLng(37.162773	,127.618084	),
+                        new LatLng(37.163045	,127.618016	),
+                        new LatLng(37.163261	,127.617728	),
+                        new LatLng(37.1631		,127.617612	),
+                        new LatLng(37.163101	,127.617129	),
+                        new LatLng(37.163101	,127.617111	),
+                        new LatLng(37.163107	,127.616749	),
+                        new LatLng(37.16328 	,127.616246	),
+                        new LatLng(37.163333	,127.616031	),
+                        new LatLng(37.164332	,127.6152	),
+                        new LatLng(37.164637	,127.615063	),
+                        new LatLng(37.165601	,127.614723	),
+                        new LatLng(37.166002	,127.613986	),
+                        new LatLng(37.16944 	,127.61437	),
+                        new LatLng(37.169846	,127.614193	),
+                        new LatLng(37.169958	,127.614151	),
+                        new LatLng(37.172335	,127.61228	),
+                        new LatLng(37.172667	,127.612704	),
+                        new LatLng(37.172805	,127.612634	),
+                        new LatLng(37.173397	,127.61278	),
+                        new LatLng(37.173745	,127.612081	),
+                        new LatLng(37.174532	,127.611424	),
+                        new LatLng(37.174749	,127.610372	),
+                        new LatLng(37.175012	,127.610126	),
+                        new LatLng(37.175014	,127.610124	),
+                        new LatLng(37.175016	,127.610122	),
+                        new LatLng(37.175021	,127.610118	),
+                        new LatLng(37.175185	,127.608566	),
+                        new LatLng(37.175281	,127.608509	),
+                        new LatLng(37.175426	,127.608335	),
+                        new LatLng(37.176572	,127.608056	),
+                        new LatLng(37.176817	,127.607551	),
+                        new LatLng(37.177173	,127.607367	),
+                        new LatLng(37.177262	,127.607144	),
+                        new LatLng(37.178161	,127.606007	),
+                        new LatLng(37.178107	,127.605784	),
+                        new LatLng(37.177979	,127.605247	),
+                        new LatLng(37.178847	,127.605014	),
+                        new LatLng(37.180422	,127.603508	),
+                        new LatLng(37.180531	,127.603463	),
+                        new LatLng(37.180862	,127.603218	),
+                        new LatLng(37.180929	,127.603103	),
+                        new LatLng(37.18114 	,127.603114	),
+                        new LatLng(37.181153	,127.603114	),
+                        new LatLng(37.182648	,127.602575	),
+                        new LatLng(37.182878	,127.601872	),
+                        new LatLng(37.183123	,127.601759	),
+                        new LatLng(37.183234	,127.601707	),
+                        new LatLng(37.183369	,127.60151	),
+                        new LatLng(37.183421	,127.601429	),
+                        new LatLng(37.183347	,127.601092	),
+                        new LatLng(37.183128	,127.599252	),
+                        new LatLng(37.18325 	,127.599207	),
+                        new LatLng(37.183379	,127.599173	),
+                        new LatLng(37.18969 	,127.595782	),
+                        new LatLng(37.189883	,127.59568	),
+                        new LatLng(37.189714	,127.595363	),
+                        new LatLng(37.189691	,127.595321	),
+                        new LatLng(37.18962 	,127.592891	),
+                        new LatLng(37.189556	,127.592846	),
+                        new LatLng(37.189199	,127.592404	),
+                        new LatLng(37.188695	,127.591982	),
+                        new LatLng(37.188615	,127.590066	),
+                        new LatLng(37.18819 	,127.589821	),
+                        new LatLng(37.188126	,127.589761	),
+                        new LatLng(37.188122	,127.589754	),
+                        new LatLng(37.187988	,127.589374	),
+                        new LatLng(37.187982	,127.58937	),
+                        new LatLng(37.187421	,127.588132	),
+                        new LatLng(37.187111	,127.5878	),
+                        new LatLng(37.187293	,127.581439	),
+                        new LatLng(37.187399	,127.580829	),
+                        new LatLng(37.189382	,127.57796	),
+                        new LatLng(37.189127	,127.577161	),
+                        new LatLng(37.189124	,127.576352	),
+                        new LatLng(37.187935	,127.57535	),
+                        new LatLng(37.187864	,127.574919	),
+                        new LatLng(37.187538	,127.574638	),
+                        new LatLng(37.187162	,127.573829	),
+                        new LatLng(37.18647 	,127.573782	),
+                        new LatLng(37.186379	,127.573679	),
+                        new LatLng(37.178381	,127.576213	),
+                        new LatLng(37.178232	,127.576678	),
+                        new LatLng(37.177469	,127.577335	),
+                        new LatLng(37.177467	,127.577346	),
+                        new LatLng(37.172747	,127.573768	),
+                        new LatLng(37.17278 	,127.573472	),
+                        new LatLng(37.172279	,127.572718	),
+                        new LatLng(37.172223	,127.572637	),
+                        new LatLng(37.171677	,127.572556	),
+                        new LatLng(37.170732	,127.57126	),
+                        new LatLng(37.170728	,127.571255	),
+                        new LatLng(37.170453	,127.570949	),
+                        new LatLng(37.1703		,127.570874	),
+                        new LatLng(37.170202	,127.570834	),
+                        new LatLng(37.172479	,127.569355	),
+                        new LatLng(37.172912	,127.569294	),
+                        new LatLng(37.173932	,127.568742	),
+                        new LatLng(37.174515	,127.568176	),
+                        new LatLng(37.175182	,127.567512	),
+                        new LatLng(37.175968	,127.566793	),
+                        new LatLng(37.176198	,127.566486	),
+                        new LatLng(37.177512	,127.564416	),
+                        new LatLng(37.17766 	,127.564343	),
+                        new LatLng(37.177759	,127.564336	),
+                        new LatLng(37.177927	,127.564325	),
+                        new LatLng(37.178044	,127.564289	),
+                        new LatLng(37.178219	,127.564148	),
+                        new LatLng(37.178317	,127.564054	),
+                        new LatLng(37.178436	,127.5639	),
+                        new LatLng(37.178498	,127.563793	),
+                        new LatLng(37.178401	,127.563096	),
+                        new LatLng(37.179445	,127.560852	),
+                        new LatLng(37.179462	,127.56085	),
+                        new LatLng(37.179728	,127.560711	),
+                        new LatLng(37.179728	,127.560816	),
+                        new LatLng(37.179752	,127.560792	),
+                        new LatLng(37.180197	,127.560279	),
+                        new LatLng(37.180532	,127.559805	),
+                        new LatLng(37.180611	,127.55966	),
+                        new LatLng(37.180427	,127.55856	),
+                        new LatLng(37.180423	,127.55856	),
+                        new LatLng(37.180196	,127.558454	),
+                        new LatLng(37.180068	,127.558383	),
+                        new LatLng(37.179998	,127.55834	),
+                        new LatLng(37.179925	,127.558295	),
+                        new LatLng(37.17957 	,127.558276	),
+                        new LatLng(37.179037	,127.558213	),
+                        new LatLng(37.178957	,127.558201	),
+                        new LatLng(37.178944	,127.558199	),
+                        new LatLng(37.178908	,127.558193	),
+                        new LatLng(37.178757	,127.55818	),
+                        new LatLng(37.177767	,127.557911	),
+                        new LatLng(37.177262	,127.556998	),
+                        new LatLng(37.17702 	,127.556789	),
+                        new LatLng(37.176921	,127.556684	),
+                        new LatLng(37.176857	,127.556614	),
+                        new LatLng(37.176695	,127.556349	),
+                        new LatLng(37.176691	,127.556347	),
+                        new LatLng(37.176662	,127.556328	),
+                        new LatLng(37.176576	,127.556235	),
+                        new LatLng(37.176542	,127.556224	),
+                        new LatLng(37.176541	,127.556224	),
+                        new LatLng(37.176415	,127.554455	),
+                        new LatLng(37.176222	,127.554437	),
+                        new LatLng(37.176154	,127.554423	),
+                        new LatLng(37.176103	,127.55439	),
+                        new LatLng(37.175975	,127.554083	),
+                        new LatLng(37.175321	,127.551948	),
+                        new LatLng(37.175366	,127.551752	),
+                        new LatLng(37.175396	,127.551677	),
+                        new LatLng(37.175459	,127.551492	),
+                        new LatLng(37.175279	,127.551002	),
+                        new LatLng(37.175269	,127.550977	),
+                        new LatLng(37.17526 	,127.550904	),
+                        new LatLng(37.175306	,127.550812	),
+                        new LatLng(37.175324	,127.550775	),
+                        new LatLng(37.175343	,127.550532	),
+                        new LatLng(37.175151	,127.550161	),
+                        new LatLng(37.175114	,127.549877	),
+                        new LatLng(37.175121	,127.549793	),
+                        new LatLng(37.175193	,127.549643	),
+                        new LatLng(37.175172	,127.549558	),
+                        new LatLng(37.175133	,127.549459	),
+                        new LatLng(37.174507	,127.548643	),
+                        new LatLng(37.174423	,127.548536	),
+                        new LatLng(37.174039	,127.548279	),
+                        new LatLng(37.174039	,127.548136	),
+                        new LatLng(37.174039	,127.548135	),
+                        new LatLng(37.174036	,127.548127	),
+                        new LatLng(37.174012	,127.548008	),
+                        new LatLng(37.173996	,127.547993	),
+                        new LatLng(37.173835	,127.547907	),
+                        new LatLng(37.173816	,127.547733	),
+                        new LatLng(37.173385	,127.547453	),
+                        new LatLng(37.17328 	,127.547158	),
+                        new LatLng(37.174893	,127.545627	),
+                        new LatLng(37.174838	,127.545435	),
+                        new LatLng(37.174787	,127.54519	),
+                        new LatLng(37.174767	,127.545095	),
+                        new LatLng(37.174638	,127.544455	),
+                        new LatLng(37.174609	,127.544229	),
+                        new LatLng(37.174744	,127.54137	),
+                        new LatLng(37.174785	,127.541304	),
+                        new LatLng(37.17479 	,127.541296	),
+                        new LatLng(37.174855	,127.541149	),
+                        new LatLng(37.175037	,127.540615	),
+                        new LatLng(37.175422	,127.539779	),
+                        new LatLng(37.175465	,127.539304	),
+                        new LatLng(37.175473	,127.539276	),
+                        new LatLng(37.175263	,127.538955	),
+                        new LatLng(37.173688	,127.537006	),
+                        new LatLng(37.173528	,127.53669	),
+                        new LatLng(37.173481	,127.53659	),
+                        new LatLng(37.17349 	,127.536505	),
+                        new LatLng(37.173497	,127.536429	),
+                        new LatLng(37.173587	,127.536199	),
+                        new LatLng(37.173647	,127.536034	),
+                        new LatLng(37.173536	,127.535702	),
+                        new LatLng(37.173537	,127.535697	),
+                        new LatLng(37.173687	,127.535395	),
+                        new LatLng(37.173678	,127.535242	),
+                        new LatLng(37.173648	,127.535145	),
+                        new LatLng(37.173654	,127.535061	),
+                        new LatLng(37.173656	,127.535015	),
+                        new LatLng(37.173624	,127.534747	),
+                        new LatLng(37.17361 	,127.534697	),
+                        new LatLng(37.173569	,127.534582	),
+                        new LatLng(37.173445	,127.534425	),
+                        new LatLng(37.173418	,127.534425	),
+                        new LatLng(37.173365	,127.534414	),
+                        new LatLng(37.173309	,127.534363	),
+                        new LatLng(37.173269	,127.53431	),
+                        new LatLng(37.173254	,127.534245	),
+                        new LatLng(37.173259	,127.534214	),
+                        new LatLng(37.173259	,127.534054	),
+                        new LatLng(37.173246	,127.534017	),
+                        new LatLng(37.173269	,127.533885	),
+                        new LatLng(37.173276	,127.533873	),
+                        new LatLng(37.173329	,127.533402	),
+                        new LatLng(37.173612	,127.532775	),
+                        new LatLng(37.173352	,127.531936	),
+                        new LatLng(37.173298	,127.531834	),
+                        new LatLng(37.173182	,127.527273	),
+                        new LatLng(37.173219	,127.527262	),
+                        new LatLng(37.173577	,127.526814	),
+                        new LatLng(37.173803	,127.526859	),
+                        new LatLng(37.174143	,127.526931	),
+                        new LatLng(37.17478 	,127.526985	),
+                        new LatLng(37.174823	,127.527002	),
+                        new LatLng(37.174977	,127.526947	),
+                        new LatLng(37.178971	,127.523148	),
+                        new LatLng(37.179371	,127.523368	),
+                        new LatLng(37.179396	,127.5234	),
+                        new LatLng(37.179847	,127.523747	),
+                        new LatLng(37.180441	,127.523216	),
+                        new LatLng(37.180684	,127.522338	),
+                        new LatLng(37.180707	,127.522061	),
+                        new LatLng(37.181302	,127.521799	),
+                        new LatLng(37.182193	,127.519946	),
+                        new LatLng(37.182078	,127.519561	),
+                        new LatLng(37.182061	,127.519489	),
+                        new LatLng(37.182061	,127.519367	),
+                        new LatLng(37.182301	,127.517836	),
+                        new LatLng(37.182261	,127.517334	),
+                        new LatLng(37.182339	,127.517243	),
+                        new LatLng(37.182427	,127.517151	),
+                        new LatLng(37.184483	,127.517486	),
+                        new LatLng(37.184713	,127.517632	),
+                        new LatLng(37.185032	,127.518154	),
+                        new LatLng(37.185838	,127.518387	),
+                        new LatLng(37.185868	,127.518524	),
+                        new LatLng(37.186326	,127.518706	),
+                        new LatLng(37.186863	,127.519651	),
+                        new LatLng(37.187681	,127.51968	),
+                        new LatLng(37.197628	,127.528739	),
+                        new LatLng(37.197672	,127.528802	),
+                        new LatLng(37.198093	,127.53075	),
+                        new LatLng(37.198539	,127.530904	),
+                        new LatLng(37.199815	,127.531121	),
+                        new LatLng(37.199937	,127.531286	),
+                        new LatLng(37.202567	,127.530085	),
+                        new LatLng(37.202654	,127.530047	),
+                        new LatLng(37.203547	,127.529897	),
+                        new LatLng(37.20378 	,127.530612	),
+                        new LatLng(37.207417	,127.530903	),
+                        new LatLng(37.207499	,127.531008	),
+                        new LatLng(37.208679	,127.531152	),
+                        new LatLng(37.208805	,127.5311	),
+                        new LatLng(37.209587	,127.53074	),
+                        new LatLng(37.209739	,127.530641	),
+                        new LatLng(37.211477	,127.529921	),
+                        new LatLng(37.21225 	,127.529929	),
+                        new LatLng(37.21425 	,127.529443	),
+                        new LatLng(37.214739	,127.529632	),
+                        new LatLng(37.217496	,127.529614	),
+                        new LatLng(37.218037	,127.528413	),
+                        new LatLng(37.218105	,127.528088	),
+                        new LatLng(37.218416	,127.527749	),
+                        new LatLng(37.218425	,127.527744	),
+                        new LatLng(37.218651	,127.527708	),
+                        new LatLng(37.219031	,127.5277	),
+                        new LatLng(37.21925 	,127.527576	),
+                        new LatLng(37.219306	,127.527542	),
+                        new LatLng(37.219526	,127.527498	),
+                        new LatLng(37.219845	,127.528252	),
+                        new LatLng(37.219929	,127.528277	),
+                        new LatLng(37.220426	,127.528413	),
+                        new LatLng(37.220841	,127.52847	),
+                        new LatLng(37.22119 	,127.528447	),
+                        new LatLng(37.221541	,127.528513	),
+                        new LatLng(37.222365	,127.528613	),
+                        new LatLng(37.222386	,127.528606	),
+                        new LatLng(37.222395	,127.528597	),
+                        new LatLng(37.224346	,127.527766	),
+                        new LatLng(37.22449 	,127.527748	),
+                        new LatLng(37.22636 	,127.527737	),
+                        new LatLng(37.226472	,127.527571	),
+                        new LatLng(37.226716	,127.527192	),
+                        new LatLng(37.226916	,127.52681	),
+                        new LatLng(37.226976	,127.526781	),
+                        new LatLng(37.22737 	,127.526882	),
+                        new LatLng(37.228252	,127.526068	),
+                        new LatLng(37.22937 	,127.526208	),
+                        new LatLng(37.23034 	,127.527102	),
+                        new LatLng(37.231544	,127.528565	),
+                        new LatLng(37.231524	,127.527868	),
+                        new LatLng(37.231487	,127.527742	),
+                        new LatLng(37.231762	,127.526127	),
+                        new LatLng(37.23176 	,127.526116	),
+                        new LatLng(37.231759	,127.526113	),
+                        new LatLng(37.231754	,127.526097	),
+                        new LatLng(37.232822	,127.525955	),
+                        new LatLng(37.233262	,127.525917	),
+                        new LatLng(37.23331 	,127.525876	),
+                        new LatLng(37.23342 	,127.525911	),
+                        new LatLng(37.233606	,127.525912	),
+                        new LatLng(37.234645	,127.525982	),
+                        new LatLng(37.234806	,127.526006	),
+                        new LatLng(37.235589	,127.526111	),
+                        new LatLng(37.236527	,127.525676	),
+                        new LatLng(37.236928	,127.525774	),
+                        new LatLng(37.237217	,127.525621	),
+                        new LatLng(37.240055	,127.526121	),
+                        new LatLng(37.240359	,127.527277	),
+                        new LatLng(37.240408	,127.527366	),
+                        new LatLng(37.241224	,127.52827	),
+                        new LatLng(37.241501	,127.528545	),
+                        new LatLng(37.242094	,127.529041	),
+                        new LatLng(37.242927	,127.529727	),
+                        new LatLng(37.243014	,127.530197	),
+                        new LatLng(37.243117	,127.531288	),
+                        new LatLng(37.243348	,127.531667	),
+                        new LatLng(37.243398	,127.53197	),
+                        new LatLng(37.244998	,127.535333	),
+                        new LatLng(37.245113	,127.535814	),
+                        new LatLng(37.245146	,127.535887	),
+                        new LatLng(37.245461	,127.536094	),
+                        new LatLng(37.246692	,127.536667	),
+                        new LatLng(37.246796	,127.536691	),
+                        new LatLng(37.246933	,127.537051	),
+                        new LatLng(37.248734	,127.536035	),
+                        new LatLng(37.249059	,127.535782	),
+                        new LatLng(37.249064	,127.535779	),
+                        new LatLng(37.24967 	,127.535547	),
+                        new LatLng(37.249692	,127.535569	),
+                        new LatLng(37.249896	,127.535779	),
+                        new LatLng(37.249921	,127.535805	),
+                        new LatLng(37.251322	,127.537153	),
+                        new LatLng(37.251408	,127.537133	),
+                        new LatLng(37.251919	,127.537312	),
+                        new LatLng(37.25192 	,127.53722	),
+                        new LatLng(37.251957	,127.537214	),
+                        new LatLng(37.252096	,127.53731	),
+                        new LatLng(37.252162	,127.537323	),
+                        new LatLng(37.252236	,127.537331	),
+                        new LatLng(37.252296	,127.537357	),
+                        new LatLng(37.252414	,127.537475	),
+                        new LatLng(37.253003	,127.537904	),
+                        new LatLng(37.253062	,127.537886	),
+                        new LatLng(37.253059	,127.537627	),
+                        new LatLng(37.253046	,127.53755	),
+                        new LatLng(37.253138	,127.536848	),
+                        new LatLng(37.253171	,127.536774	),
+                        new LatLng(37.253336	,127.53613	),
+                        new LatLng(37.253366	,127.536007	),
+                        new LatLng(37.253607	,127.535656	),
+                        new LatLng(37.253975	,127.535483	),
+                        new LatLng(37.254289	,127.53536	),
+                        new LatLng(37.25443 	,127.53529	),
+                        new LatLng(37.255011	,127.534933	),
+                        new LatLng(37.255027	,127.534907	),
+                        new LatLng(37.255122	,127.534517	),
+                        new LatLng(37.255184	,127.534414	),
+                        new LatLng(37.255219	,127.534414	),
+                        new LatLng(37.255241	,127.534421	),
+                        new LatLng(37.255538	,127.53417	),
+                        new LatLng(37.255538	,127.534168	),
+                        new LatLng(37.256632	,127.533097	),
+                        new LatLng(37.257284	,127.532658	),
+                        new LatLng(37.257983	,127.532374	),
+                        new LatLng(37.258029	,127.532357	),
+                        new LatLng(37.258499	,127.532186	),
+                        new LatLng(37.258503	,127.532183	),
+                        new LatLng(37.258705	,127.532174	),
+                        new LatLng(37.258776	,127.532174	),
+                        new LatLng(37.259231	,127.532138	),
+                        new LatLng(37.259686	,127.532159	),
+                        new LatLng(37.259741	,127.532182	),
+                        new LatLng(37.259966	,127.532216	),
+                        new LatLng(37.260417	,127.532207	),
+                        new LatLng(37.260812	,127.532199	),
+                        new LatLng(37.26172 	,127.532277	),
+                        new LatLng(37.261806	,127.532254	),
+                        new LatLng(37.262448	,127.532108	),
+                        new LatLng(37.262463	,127.532108	),
+                        new LatLng(37.262702	,127.532055	),
+                        new LatLng(37.263002	,127.531984	),
+                        new LatLng(37.263281	,127.531966	),
+                        new LatLng(37.263287	,127.531966	),
+                        new LatLng(37.263602	,127.531827	),
+                        new LatLng(37.263644	,127.53179	),
+                        new LatLng(37.263672	,127.531783	),
+                        new LatLng(37.263861	,127.531737	),
+                        new LatLng(37.263882	,127.53173	),
+                        new LatLng(37.264056	,127.53169	),
+                        new LatLng(37.264237	,127.531652	),
+                        new LatLng(37.264487	,127.531627	),
+                        new LatLng(37.264564	,127.531594	),
+                        new LatLng(37.265247	,127.531413	),
+                        new LatLng(37.265339	,127.531337	),
+                        new LatLng(37.265402	,127.531273	),
+                        new LatLng(37.265425	,127.531262	),
+                        new LatLng(37.265436	,127.531264	),
+                        new LatLng(37.266396	,127.530761	),
+                        new LatLng(37.266603	,127.530641	),
+                        new LatLng(37.26665 	,127.530612	),
+                        new LatLng(37.266828	,127.53046	),
+                        new LatLng(37.266897	,127.530394	),
+                        new LatLng(37.266969	,127.53036	),
+                        new LatLng(37.266997	,127.530293	),
+                        new LatLng(37.267007	,127.530269	),
+                        new LatLng(37.267094	,127.530288	),
+                        new LatLng(37.267109	,127.530309	),
+                        new LatLng(37.267178	,127.530229	),
+                        new LatLng(37.267422	,127.53016	),
+                        new LatLng(37.267675	,127.530105	),
+                        new LatLng(37.267917	,127.530145	),
+                        new LatLng(37.267983	,127.530153	),
+                        new LatLng(37.268008	,127.530163	),
+                        new LatLng(37.268093	,127.530196	),
+                        new LatLng(37.268101	,127.530196	),
+                        new LatLng(37.268155	,127.530187	),
+                        new LatLng(37.26891 	,127.529896	),
+                        new LatLng(37.268953	,127.52987	),
+                        new LatLng(37.270293	,127.529665	),
+                        new LatLng(37.271433	,127.529358	),
+                        new LatLng(37.272234	,127.529203	),
+                        new LatLng(37.272766	,127.529233	),
+                        new LatLng(37.274135	,127.528867	),
+                        new LatLng(37.274193	,127.528888	),
+                        new LatLng(37.274455	,127.529139	),
+                        new LatLng(37.27545 	,127.529923	),
+                        new LatLng(37.275463	,127.529934	),
+                        new LatLng(37.27758 	,127.530149	),
+                        new LatLng(37.277692	,127.530218	),
+                        new LatLng(37.278471	,127.530557	),
+                        new LatLng(37.278532	,127.530587	),
+                        new LatLng(37.278951	,127.530631	),
+                        new LatLng(37.279074	,127.530633	),
+                        new LatLng(37.27931 	,127.530667	),
+                        new LatLng(37.279352	,127.530695	),
+                        new LatLng(37.281817	,127.532073	),
+                        new LatLng(37.281901	,127.532072	),
+                        new LatLng(37.288983	,127.53412	),
+                        new LatLng(37.289406	,127.534202	),
+                        new LatLng(37.289487	,127.534623	),
+                        new LatLng(37.289513	,127.53668	),
+                        new LatLng(37.289513	,127.536687	),
+                        new LatLng(37.289615	,127.536843	),
+                        new LatLng(37.28965 	,127.536888	),
+                        new LatLng(37.290062	,127.537217	),
+                        new LatLng(37.290974	,127.538147	),
+                        new LatLng(37.291634	,127.538425	),
+                        new LatLng(37.291752	,127.538547	),
+                        new LatLng(37.291768	,127.538579	),
+                        new LatLng(37.291788	,127.539019	),
+                        new LatLng(37.292108	,127.539305	),
+                        new LatLng(37.293118	,127.540333	),
+                        new LatLng(37.293141	,127.540833	),
+                        new LatLng(37.293288	,127.541174	),
+                        new LatLng(37.293411	,127.541312	),
+                        new LatLng(37.294029	,127.541702	),
+                        new LatLng(37.29426 	,127.542321	),
+                        new LatLng(37.294269	,127.542342	),
+                        new LatLng(37.29428 	,127.542358	),
+                        new LatLng(37.294607	,127.542648	),
+                        new LatLng(37.294615	,127.542637	),
+                        new LatLng(37.294713	,127.542616	),
+                        new LatLng(37.29671 	,127.543346	),
+                        new LatLng(37.296763	,127.543405	),
+                        new LatLng(37.296826	,127.543424	),
+                        new LatLng(37.297237	,127.543587	),
+                        new LatLng(37.298946	,127.544477	),
+                        new LatLng(37.299095	,127.544542	),
+                        new LatLng(37.306227	,127.546219	),
+                        new LatLng(37.306548	,127.546246	),
+                        new LatLng(37.306592	,127.546247	),
+                        new LatLng(37.309248	,127.545538	),
+                        new LatLng(37.309319	,127.545587	),
+                        new LatLng(37.309462	,127.545768	),
+                        new LatLng(37.309823	,127.546159	),
+                        new LatLng(37.310665	,127.546086	),
+                        new LatLng(37.310854	,127.546034	),
+                        new LatLng(37.311741	,127.545297	),
+                        new LatLng(37.311821	,127.545191	),
+                        new LatLng(37.31215 	,127.544811	),
+                        new LatLng(37.312651	,127.543839	),
+                        new LatLng(37.312845	,127.543361	),
+                        new LatLng(37.312892	,127.543137	),
+                        new LatLng(37.312893	,127.543133	),
+                        new LatLng(37.313166	,127.542438	),
+                        new LatLng(37.313209	,127.542154	),
+                        new LatLng(37.313214	,127.542131	),
+                        new LatLng(37.313249	,127.541843	),
+                        new LatLng(37.313222	,127.541456	),
+                        new LatLng(37.313259	,127.541285	),
+                        new LatLng(37.313598	,127.538898	),
+                        new LatLng(37.313606	,127.538754	),
+                        new LatLng(37.313605	,127.538689	),
+                        new LatLng(37.313627	,127.538405	),
+                        new LatLng(37.313665	,127.538104	),
+                        new LatLng(37.313675	,127.537918	),
+                        new LatLng(37.31371 	,127.537733	),
+                        new LatLng(37.313733	,127.537614	),
+                        new LatLng(37.313741	,127.537372	),
+                        new LatLng(37.31374 	,127.537353	),
+                        new LatLng(37.313706	,127.537171	),
+                        new LatLng(37.313686	,127.536958	),
+                        new LatLng(37.313644	,127.536673	),
+                        new LatLng(37.313565	,127.536241	),
+                        new LatLng(37.313641	,127.535616	),
+                        new LatLng(37.313782	,127.535381	),
+                        new LatLng(37.313783	,127.53538	),
+                        new LatLng(37.313815	,127.53531	),
+                        new LatLng(37.313897	,127.535048	),
+                        new LatLng(37.313907	,127.535015	),
+                        new LatLng(37.31404 	,127.534259	),
+                        new LatLng(37.314046	,127.534205	),
+                        new LatLng(37.314108	,127.533577	),
+                        new LatLng(37.314118	,127.533518	),
+                        new LatLng(37.314514	,127.532728	),
+                        new LatLng(37.314532	,127.532687	),
+                        new LatLng(37.314865	,127.531934	),
+                        new LatLng(37.314875	,127.531873	),
+                        new LatLng(37.31534 	,127.531343	),
+                        new LatLng(37.315387	,127.53129	),
+                        new LatLng(37.315652	,127.530983	),
+                        new LatLng(37.315767	,127.530748	),
+                        new LatLng(37.315969	,127.529905	),
+                        new LatLng(37.315938	,127.529803	),
+                        new LatLng(37.316042	,127.529501	),
+                        new LatLng(37.316047	,127.529494	),
+                        new LatLng(37.316209	,127.529368	),
+                        new LatLng(37.316211	,127.529364	),
+                        new LatLng(37.316261	,127.529202	),
+                        new LatLng(37.316237	,127.529135	),
+                        new LatLng(37.316174	,127.528692	),
+                        new LatLng(37.316172	,127.528381	),
+                        new LatLng(37.31628 	,127.528321	),
+                        new LatLng(37.316399	,127.528317	),
+                        new LatLng(37.316587	,127.528215	),
+                        new LatLng(37.316759	,127.528181	),
+                        new LatLng(37.317119	,127.528142	),
+                        new LatLng(37.317127	,127.528141	),
+                        new LatLng(37.31736 	,127.527941	),
+                        new LatLng(37.317408	,127.52789	),
+                        new LatLng(37.317595	,127.527669	),
+                        new LatLng(37.31787 	,127.527428	),
+                        new LatLng(37.318618	,127.527077	),
+                        new LatLng(37.321747	,127.526979	),
+                        new LatLng(37.322866	,127.525947	),
+                        new LatLng(37.32795 	,127.5275	),
+                        new LatLng(37.329904	,127.525346	),
+                        new LatLng(37.329697	,127.522773	),
+                        new LatLng(37.329628	,127.52165	),
+                        new LatLng(37.329696	,127.521027	),
+                        new LatLng(37.330128	,127.520563	),
+                        new LatLng(37.330221	,127.520483	),
+                        new LatLng(37.331886	,127.519316	),
+                        new LatLng(37.3356		,127.516054	),
+                        new LatLng(37.337743	,127.515399	),
+                        new LatLng(37.338106	,127.505617	),
+                        new LatLng(37.338069	,127.505614	),
+                        new LatLng(37.341437	,127.496193	),
+                        new LatLng(37.341705	,127.496457	),
+                        new LatLng(37.341626	,127.495658	),
+                        new LatLng(37.341639	,127.494763	),
+                        new LatLng(37.341638	,127.49473	),
+                        new LatLng(37.341364	,127.494203	),
+                        new LatLng(37.341775	,127.491905	),
+                        new LatLng(37.341982	,127.491479	),
+                        new LatLng(37.342697	,127.489632	),
+                        new LatLng(37.344413	,127.488592	),
+                        new LatLng(37.344613	,127.488506	),
+                        new LatLng(37.345837	,127.488433	),
+                        new LatLng(37.345837	,127.48844	),
+                        new LatLng(37.346056	,127.488136	),
+                        new LatLng(37.346117	,127.487928	),
+                        new LatLng(37.34615 	,127.487889	),
+                        new LatLng(37.346212	,127.487857	),
+                        new LatLng(37.346654	,127.487789	),
+                        new LatLng(37.34685 	,127.48774	),
+                        new LatLng(37.347407	,127.487389	),
+                        new LatLng(37.34771 	,127.487116	),
+                        new LatLng(37.347794	,127.486978	),
+                        new LatLng(37.347862	,127.48687	),
+                        new LatLng(37.347981	,127.486776	),
+                        new LatLng(37.348037	,127.486755	),
+                        new LatLng(37.348258	,127.486672	),
+                        new LatLng(37.349453	,127.485441	),
+                        new LatLng(37.349621	,127.485323	),
+                        new LatLng(37.349928	,127.485326	),
+                        new LatLng(37.350479	,127.484597	),
+                        new LatLng(37.350543	,127.483953	),
+                        new LatLng(37.352123	,127.481271	),
+                        new LatLng(37.352317	,127.481191	),
+                        new LatLng(37.353		,127.481089	),
+                        new LatLng(37.354902	,127.478608	),
+                        new LatLng(37.355928	,127.478222	),
+                        new LatLng(37.356127	,127.477729	),
+                        new LatLng(37.356227	,127.477662	),
+                        new LatLng(37.356661	,127.477281	),
+                        new LatLng(37.356709	,127.477235	),
+                        new LatLng(37.361481	,127.470151	),
+                        new LatLng(37.361222	,127.469326	),
+                        new LatLng(37.361162	,127.468958	),
+                        new LatLng(37.361156	,127.468895	),
+                        new LatLng(37.361139	,127.468695	),
+                        new LatLng(37.35946 	,127.467192	),
+                        new LatLng(37.359541	,127.466703	),
+                        new LatLng(37.358566	,127.46492	),
+                        new LatLng(37.358552	,127.464892	),
+                        new LatLng(37.358377	,127.46431	),
+                        new LatLng(37.358959	,127.462906	),
+                        new LatLng(37.354313	,127.454169	),
+                        new LatLng(37.354169	,127.454012	),
+                        new LatLng(37.354054	,127.45319	),
+                        new LatLng(37.354071	,127.452938	),
+                        new LatLng(37.353727	,127.452607	),
+                        new LatLng(37.353533	,127.451911	),
+                        new LatLng(37.352685	,127.448458	),
+                        new LatLng(37.358361	,127.442497	),
+                        new LatLng(37.358371	,127.442514	),
+                        new LatLng(37.358639	,127.442728	),
+                        new LatLng(37.35898 	,127.443102	),
+                        new LatLng(37.359456	,127.443471	),
+                        new LatLng(37.360352	,127.444567	),
+                        new LatLng(37.36056 	,127.445204	),
+                        new LatLng(37.360886	,127.445679	),
+                        new LatLng(37.362844	,127.445845	),
+                        new LatLng(37.363425	,127.445858	),
+                        new LatLng(37.363556	,127.445531	),
+                        new LatLng(37.363532	,127.445003	),
+                        new LatLng(37.363129	,127.444233	),
+                        new LatLng(37.363734	,127.443898	),
+                        new LatLng(37.365608	,127.443999	),
+                        new LatLng(37.366454	,127.444365	),
+                        new LatLng(37.368032	,127.444002	),
+                        new LatLng(37.369276	,127.443716	),
+                        new LatLng(37.371664	,127.443628	),
+                        new LatLng(37.372204	,127.443936	),
+                        new LatLng(37.373843	,127.444217	),
+                        new LatLng(37.374531	,127.4443	),
+                        new LatLng(37.374671	,127.444267	),
+                        new LatLng(37.375283	,127.443787	),
+                        new LatLng(37.375529	,127.443673	),
+                        new LatLng(37.375547	,127.443719	),
+                        new LatLng(37.37655 	,127.44366	),
+                        new LatLng(37.3768		,127.443771	),
+                        new LatLng(37.378437	,127.444345	),
+                        new LatLng(37.378769	,127.44481	),
+                        new LatLng(37.379496	,127.44556	),
+                        new LatLng(37.379872	,127.446036	),
+                        new LatLng(37.380222	,127.446546	),
+                        new LatLng(37.380456	,127.446638	),
+                        new LatLng(37.380674	,127.446154	),
+                        new LatLng(37.383082	,127.444763	),
+                        new LatLng(37.383753	,127.444399	),
+                        new LatLng(37.384418	,127.444832	),
+                        new LatLng(37.385953	,127.444292	),
+                        new LatLng(37.386341	,127.443884	),
+                        new LatLng(37.386656	,127.443818	),
+                        new LatLng(37.386821	,127.443299	),
+                        new LatLng(37.38716 	,127.443282	),
+                        new LatLng(37.387334	,127.44243	),
+                        new LatLng(37.387374	,127.442331	),
+                        new LatLng(37.386993	,127.440579	),
+                        new LatLng(37.387301	,127.440129	),
+                        new LatLng(37.387292	,127.440039	),
+                        new LatLng(37.387178	,127.439191	),
+                        new LatLng(37.387092	,127.438932	),
+                        new LatLng(37.387019	,127.438389	),
+                        new LatLng(37.387129	,127.437904	),
+                        new LatLng(37.387052	,127.437754	),
+                        new LatLng(37.386995	,127.437643	),
+                        new LatLng(37.386843	,127.437349	),
+                        new LatLng(37.386961	,127.436909	),
+                        new LatLng(37.386828	,127.436752	),
+                        new LatLng(37.38672 	,127.436275	),
+                        new LatLng(37.387015	,127.435595	),
+                        new LatLng(37.38702 	,127.435554	),
+                        new LatLng(37.386727	,127.435419	),
+                        new LatLng(37.38659 	,127.434954	),
+                        new LatLng(37.386855	,127.433837	),
+                        new LatLng(37.387817	,127.429552	),
+                        new LatLng(37.387601	,127.429528	),
+                        new LatLng(37.387375	,127.429594	),
+                        new LatLng(37.387319	,127.429297	),
+                        new LatLng(37.387072	,127.428701	),
+                        new LatLng(37.387282	,127.428171	),
+                        new LatLng(37.38725 	,127.427956	),
+                        new LatLng(37.386371	,127.425727	),
+                        new LatLng(37.385991	,127.423862	),
+                        new LatLng(37.385758	,127.42342	),
+                        new LatLng(37.386071	,127.421581	),
+                        new LatLng(37.386859	,127.420242	),
+                        new LatLng(37.386872	,127.420237	),
+                        new LatLng(37.387843	,127.419773	),
+                        new LatLng(37.388465	,127.419607	),
+                        new LatLng(37.388456	,127.419525	),
+                        new LatLng(37.388416	,127.418971	),
+                        new LatLng(37.389184	,127.418438	),
+                        new LatLng(37.390094	,127.417764	),
+                        new LatLng(37.390536	,127.417496	),
+                        new LatLng(37.390695	,127.417345	),
+                        new LatLng(37.391088	,127.416968	),
+                        new LatLng(37.391295	,127.416845	),
+                        new LatLng(37.391521	,127.416733	),
+                        new LatLng(37.391787	,127.416551	),
+                        new LatLng(37.394565	,127.414672	),
+                        new LatLng(37.395259	,127.414518	),
+                        new LatLng(37.399257	,127.412484	),
+                        new LatLng(37.40043	    ,127.412197	),
+                        new LatLng(37.402257	,127.41267	),
+                        new LatLng(37.402844	,127.412953	),
+                        new LatLng(37.403861	,127.412532	),
+                        new LatLng(37.404349	,127.412241	),
+                        new LatLng(37.407528	,127.410112	),
+                        new LatLng(37.408228	,127.408196	),
+                        new LatLng(37.409101	,127.406032	),
+                        new LatLng(37.409518	,127.405323	),
+                        new LatLng(37.410206	,127.404095	),
+                        new LatLng(37.412215	,127.4017	),
+                        new LatLng(37.414243	,127.398887	),
+                        new LatLng(37.415492	,127.398322	),
+                        new LatLng(37.415725	,127.398224	),
+                        new LatLng(37.416559	,127.398758	),
+                        new LatLng(37.418525	,127.400858	),
+                        new LatLng(37.420951	,127.400795	),
+                        new LatLng(37.421373	,127.400399	),
+                        new LatLng(37.421423	,127.400272	),
+                        new LatLng(37.421446	,127.400284	),
+                        new LatLng(37.421814	,127.401262	),
+                        new LatLng(37.422527	,127.401745	),
+                        new LatLng(37.423522	,127.40173	),
+                        new LatLng(37.424162	,127.402178	),
+                        new LatLng(37.425376	,127.403082	),
+                        new LatLng(37.42586 	,127.403385	),
+                        new LatLng(37.428956	,127.406924	),
+                        new LatLng(37.430149	,127.407233	),
+                        new LatLng(37.430256	,127.407801	),
+                        new LatLng(37.430993	,127.408751	),
+                        new LatLng(37.431026	,127.408848	),
+                        new LatLng(37.431248	,127.409429	),
+                        new LatLng(37.431399	,127.409762	),
+                        new LatLng(37.43148 	,127.410373	),
+                        new LatLng(37.43168 	,127.412012	),
+                        new LatLng(37.431597	,127.412665	),
+                        new LatLng(37.432062	,127.414093	),
+                        new LatLng(37.434286	,127.417129	),
+                        new LatLng(37.436025	,127.418811	),
+                        new LatLng(37.438683	,127.421823	),
+                        new LatLng(37.439071	,127.422338	),
+                        new LatLng(37.438229	,127.425059	),
+                        new LatLng(37.437743	,127.425525	),
+                        new LatLng(37.43761 	,127.426552	),
+                        new LatLng(37.437628	,127.426964	),
+                        new LatLng(37.437061	,127.427556	),
+                        new LatLng(37.436479	,127.428765	),
+                        new LatLng(37.436158	,127.430184	),
+                        new LatLng(37.43608 	,127.430892	),
+                        new LatLng(37.436128	,127.432988	),
+                        new LatLng(37.435234	,127.434541	),
+                        new LatLng(37.434405	,127.435541	),
+                        new LatLng(37.434666	,127.437767	),
+                        new LatLng(37.434219	,127.440934	),
+                        new LatLng(37.434411	,127.441441	),
+                        new LatLng(37.433142	,127.445383	),
+                        new LatLng(37.432597	,127.446712	),
+                        new LatLng(37.431435	,127.448894	),
+                        new LatLng(37.431284	,127.449438	),
+                        new LatLng(37.431365	,127.449863	),
+                        new LatLng(37.430795	,127.450771	),
+                        new LatLng(37.429616	,127.452363	),
+                        new LatLng(37.429569	,127.453041	),
+                        new LatLng(37.42845 	,127.456775	),
+                        new LatLng(37.428448	,127.456829	),
+                        new LatLng(37.428166	,127.457568	),
+                        new LatLng(37.427973	,127.457814	),
+                        new LatLng(37.427967	,127.458654	),
+                        new LatLng(37.427529	,127.459844	),
+                        new LatLng(37.42748 	,127.460413	),
+                        new LatLng(37.427498	,127.460876	),
+                        new LatLng(37.427254	,127.461608	),
+                        new LatLng(37.426911	,127.463006	),
+                        new LatLng(37.426793	,127.463583	),
+                        new LatLng(37.427243	,127.465495	),
+                        new LatLng(37.426824	,127.466386	),
+                        new LatLng(37.426421	,127.467942	),
+                        new LatLng(37.425293	,127.468685	),
+                        new LatLng(37.424533	,127.469188	),
+                        new LatLng(37.423905	,127.469476	),
+                        new LatLng(37.423835	,127.4697	),
+                        new LatLng(37.423548	,127.470442	),
+                        new LatLng(37.4232		,127.471132	),
+                        new LatLng(37.422626	,127.472019	),
+                        new LatLng(37.422428	,127.472498	),
+                        new LatLng(37.422309	,127.473339	),
+                        new LatLng(37.422415	,127.474033	),
+                        new LatLng(37.422761	,127.47519	),
+                        new LatLng(37.423055	,127.475761	),
+                        new LatLng(37.42328 	,127.476651	),
+                        new LatLng(37.424286	,127.48		),
+                        new LatLng(37.42465 	,127.480261	),
+                        new LatLng(37.424712	,127.480305	),
+                        new LatLng(37.425418	,127.48073	),
+                        new LatLng(37.426071	,127.480944	),
+                        new LatLng(37.426422	,127.481257	),
+                        new LatLng(37.427383	,127.481919	),
+                        new LatLng(37.427559	,127.481983	),
+                        new LatLng(37.428354	,127.482059	),
+                        new LatLng(37.429291	,127.482257	),
+                        new LatLng(37.429656	,127.482478	),
+                        new LatLng(37.429787	,127.48257	),
+                        new LatLng(37.430011	,127.482742	),
+                        new LatLng(37.430847	,127.483751	),
+                        new LatLng(37.4311		,127.484062	),
+                        new LatLng(37.431213	,127.484201	),
+                        new LatLng(37.431501	,127.484551	),
+                        new LatLng(37.432347	,127.485738	),
+                        new LatLng(37.432415	,127.485818	),
+                        new LatLng(37.432705	,127.486145	),
+                        new LatLng(37.432941	,127.486566	),
+                        new LatLng(37.432977	,127.48663	),
+                        new LatLng(37.433276	,127.487179	),
+                        new LatLng(37.433485	,127.487701	),
+                        new LatLng(37.43356 	,127.488212	),
+                        new LatLng(37.433639	,127.48955	),
+                        new LatLng(37.433536	,127.490364	),
+                        new LatLng(37.433481	,127.491146	),
+                        new LatLng(37.433282	,127.49207	),
+                        new LatLng(37.432922	,127.493787	),
+                        new LatLng(37.432307	,127.49608	),
+                        new LatLng(37.432231	,127.496527	),
+                        new LatLng(37.432298	,127.496924	),
+                        new LatLng(37.433087	,127.497807	),
+                        new LatLng(37.433634	,127.498235	),
+                        new LatLng(37.433962	,127.498492	),
+                        new LatLng(37.435094	,127.498931	),
+                        new LatLng(37.435638	,127.499444	),
+                        new LatLng(37.436385	,127.502118	),
+                        new LatLng(37.437132	,127.503949	),
+                        new LatLng(37.438121	,127.504578	),
+                        new LatLng(37.43874 	,127.504931	),
+                        new LatLng(37.43943 	,127.505596	),
+                        new LatLng(37.439448	,127.50562	),
+                        new LatLng(37.440194	,127.506552	),
+                        new LatLng(37.440426	,127.506846	),
+                        new LatLng(37.439961	,127.50757	),
+                        new LatLng(37.439067	,127.509274	),
+                        new LatLng(37.437368	,127.514759	),
+                        new LatLng(37.43692 	,127.517385	),
+                        new LatLng(37.436865	,127.517651	),
+                        new LatLng(37.43647 	,127.519125	),
+                        new LatLng(37.435906	,127.520314	),
+                        new LatLng(37.435839	,127.520468	),
+                        new LatLng(37.433437	,127.524314	),
+                        new LatLng(37.430689	,127.527863	),
+                        new LatLng(37.42854	    ,127.52978	),
+                        new LatLng(37.427423	,127.530494	),
+                        new LatLng(37.427058	,127.530733	),
+                        new LatLng(37.426092	,127.531254	),
+                        new LatLng(37.42481 	,127.531835	),
+                        new LatLng(37.424625	,127.531916	),
+                        new LatLng(37.424517	,127.531963	),
+                        new LatLng(37.42352 	,127.532427	),
+                        new LatLng(37.422434	,127.532929	),
+                        new LatLng(37.421616	,127.533194	),
+                        new LatLng(37.421328	,127.533286	),
+                        new LatLng(37.421041	,127.533457	),
+                        new LatLng(37.420229	,127.533947	),
+                        new LatLng(37.419851	,127.534127	),
+                        new LatLng(37.418938	,127.534494	),
+                        new LatLng(37.418609	,127.534602	),
+                        new LatLng(37.417757	,127.534872	),
+                        new LatLng(37.417264	,127.535056	),
+                        new LatLng(37.414362	,127.536092	),
+                        new LatLng(37.414107	,127.536156	),
+                        new LatLng(37.413488	,127.536286	),
+                        new LatLng(37.412572	,127.536477	),
+                        new LatLng(37.411983	,127.536571	),
+                        new LatLng(37.411704	,127.53662	),
+                        new LatLng(37.411637	,127.539736	),
+                        new LatLng(37.411413	,127.54155	),
+                        new LatLng(37.411119	,127.542269	),
+                        new LatLng(37.409873	,127.543298	),
+                        new LatLng(37.410217	,127.544852	),
+                        new LatLng(37.410271	,127.546016	),
+                        new LatLng(37.410494	,127.546969	),
+                        new LatLng(37.410603	,127.547215	),
+                        new LatLng(37.411483	,127.547624	),
+                        new LatLng(37.411415	,127.5506	),
+                        new LatLng(37.411753	,127.550903	),
+                        new LatLng(37.413921	,127.551216	),
+                        new LatLng(37.414415	,127.552549	),
+                        new LatLng(37.414298	,127.553416	),
+                        new LatLng(37.414436	,127.554212	),
+                        new LatLng(37.416462	,127.558072	),
+                        new LatLng(37.416446	,127.558113	),
+                        new LatLng(37.416356	,127.558352	),
+                        new LatLng(37.416043	,127.558662	),
+                        new LatLng(37.415958	,127.558826	),
+                        new LatLng(37.41595 	,127.559043	),
+                        new LatLng(37.415823	,127.559238	),
+                        new LatLng(37.415702	,127.559461	),
+                        new LatLng(37.415539	,127.559791	),
+                        new LatLng(37.415369	,127.560088	),
+                        new LatLng(37.415251	,127.560267	),
+                        new LatLng(37.415263	,127.560775	),
+                        new LatLng(37.415291	,127.560927	),
+                        new LatLng(37.415371	,127.561261	),
+                        new LatLng(37.415314	,127.561493	),
+                        new LatLng(37.415329	,127.561684	),
+                        new LatLng(37.415282	,127.561989	),
+                        new LatLng(37.415298	,127.562039	),
+                        new LatLng(37.415375	,127.562283	),
+                        new LatLng(37.415448	,127.562443	),
+                        new LatLng(37.415571	,127.56291	),
+                        new LatLng(37.415341	,127.563092	),
+                        new LatLng(37.415155	,127.563405	),
+                        new LatLng(37.414863	,127.563292	),
+                        new LatLng(37.414427	,127.563478	),
+                        new LatLng(37.414198	,127.563793	),
+                        new LatLng(37.413946	,127.564327	),
+                        new LatLng(37.413615	,127.564504	),
+                        new LatLng(37.413463	,127.564598	),
+                        new LatLng(37.413074	,127.564618	),
+                        new LatLng(37.413038	,127.56473	),
+                        new LatLng(37.412704	,127.56492	),
+                        new LatLng(37.412359	,127.564976	),
+                        new LatLng(37.411999	,127.565113	),
+                        new LatLng(37.411717	,127.565093	),
+                        new LatLng(37.411348	,127.565251	),
+                        new LatLng(37.411326	,127.565275	),
+                        new LatLng(37.411945	,127.567053	),
+                        new LatLng(37.412346	,127.567366	),
+                        new LatLng(37.413139	,127.571092	),
+                        new LatLng(37.412572	,127.571264	),
+                        new LatLng(37.411905	,127.572098	),
+                        new LatLng(37.412112	,127.572394	),
+                        new LatLng(37.412358	,127.572861	),
+                        new LatLng(37.412719	,127.573313	),
+                        new LatLng(37.412993	,127.574369	),
+                        new LatLng(37.413068	,127.574643	),
+                        new LatLng(37.413135	,127.574821	),
+                        new LatLng(37.41315 	,127.574934	),
+                        new LatLng(37.413436	,127.575514	),
+                        new LatLng(37.413515	,127.575494	),
+                        new LatLng(37.413677	,127.575452	),
+                        new LatLng(37.413825	,127.575562	),
+                        new LatLng(37.414026	,127.576111	),
+                        new LatLng(37.414332	,127.5767	),
+                        new LatLng(37.414385	,127.576849	),
+                        new LatLng(37.414328	,127.577031	),
+                        new LatLng(37.41416 	,127.577426	),
+                        new LatLng(37.414359	,127.577862	),
+                        new LatLng(37.414317	,127.577854	),
+                        new LatLng(37.414441	,127.578132	),
+                        new LatLng(37.415128	,127.578772	),
+                        new LatLng(37.415902	,127.579491	),
+                        new LatLng(37.416745	,127.581781	),
+                        new LatLng(37.416486	,127.582548	),
+                        new LatLng(37.416936	,127.58302	),
+                        new LatLng(37.416108	,127.58379	),
+                        new LatLng(37.415347	,127.583846	),
+                        new LatLng(37.414223	,127.58416	),
+                        new LatLng(37.413879	,127.584479	),
+                        new LatLng(37.415519	,127.586124	),
+                        new LatLng(37.416149	,127.586669	),
+                        new LatLng(37.41847 	,127.588139	),
+                        new LatLng(37.418988	,127.587785	),
+                        new LatLng(37.420029	,127.587116	),
+                        new LatLng(37.421122	,127.587274	),
+                        new LatLng(37.421175	,127.587421	),
+                        new LatLng(37.422121	,127.590056	),
+                        new LatLng(37.422255	,127.590386	),
+                        new LatLng(37.420995	,127.592111	),
+                        new LatLng(37.420781	,127.592464	),
+                        new LatLng(37.420591	,127.593041	),
+                        new LatLng(37.420275	,127.593845	),
+                        new LatLng(37.420542	,127.593854	),
+                        new LatLng(37.420664	,127.594024	),
+                        new LatLng(37.420669	,127.594069	),
+                        new LatLng(37.420732	,127.594515	),
+                        new LatLng(37.420694	,127.59474	),
+                        new LatLng(37.420698	,127.595005	),
+                        new LatLng(37.420763	,127.595519	),
+                        new LatLng(37.42068 	,127.595902	),
+                        new LatLng(37.420715	,127.596222	),
+                        new LatLng(37.420796	,127.596829	),
+                        new LatLng(37.420828	,127.597062	),
+                        new LatLng(37.42094 	,127.597415	),
+                        new LatLng(37.420968	,127.597538	),
+                        new LatLng(37.420959	,127.597695	),
+                        new LatLng(37.421014	,127.597893	),
+                        new LatLng(37.421075	,127.597995	),
+                        new LatLng(37.421092	,127.598159	),
+                        new LatLng(37.420982	,127.598729	),
+                        new LatLng(37.421068	,127.598956	),
+                        new LatLng(37.421055	,127.599388	),
+                        new LatLng(37.421059	,127.599527	),
+                        new LatLng(37.421205	,127.600158	),
+                        new LatLng(37.420945	,127.600957	),
+                        new LatLng(37.421056	,127.601321	),
+                        new LatLng(37.42088 	,127.601456	),
+                        new LatLng(37.420487	,127.601744	),
+                        new LatLng(37.420424	,127.60175	),
+                        new LatLng(37.419919	,127.601804	),
+                        new LatLng(37.420016	,127.602494	),
+                        new LatLng(37.41983 	,127.602806	),
+                        new LatLng(37.419869	,127.603431	),
+                        new LatLng(37.419732	,127.604062	),
+                        new LatLng(37.418901	,127.605258	),
+                        new LatLng(37.41842 	,127.606027	),
+                        new LatLng(37.418667	,127.607214	),
+                        new LatLng(37.418673	,127.608212	),
+                        new LatLng(37.418362	,127.608484	),
+                        new LatLng(37.418416	,127.608965	),
+                        new LatLng(37.4183		,127.609051	),
+                        new LatLng(37.418172	,127.609141	),
+                        new LatLng(37.417431	,127.609105	),
+                        new LatLng(37.416623	,127.609489	),
+                        new LatLng(37.416285	,127.609875	),
+                        new LatLng(37.416179	,127.610564	),
+                        new LatLng(37.415556	,127.611005	),
+                        new LatLng(37.415562	,127.611036	),
+                        new LatLng(37.415608	,127.611288	),
+                        new LatLng(37.415395	,127.613401	),
+                        new LatLng(37.415586	,127.613528	),
+                        new LatLng(37.415596	,127.613621	),
+                        new LatLng(37.415255	,127.613747	),
+                        new LatLng(37.415199	,127.613769	),
+                        new LatLng(37.414494	,127.614085	),
+                        new LatLng(37.414645	,127.614458	),
+                        new LatLng(37.414728	,127.614581	),
+                        new LatLng(37.414925	,127.614871	),
+                        new LatLng(37.41501 	,127.615013	),
+                        new LatLng(37.414825	,127.615253	),
+                        new LatLng(37.414789	,127.615269	),
+                        new LatLng(37.414421	,127.615537	),
+                        new LatLng(37.41437 	,127.615662	),
+                        new LatLng(37.414372	,127.615933	),
+                        new LatLng(37.41437 	,127.615948	),
+                        new LatLng(37.414227	,127.616398	),
+                        new LatLng(37.414148	,127.616646	),
+                        new LatLng(37.414081	,127.616855	),
+                        new LatLng(37.414034	,127.617116	),
+                        new LatLng(37.413986	,127.617218	),
+                        new LatLng(37.413947	,127.61729	),
+                        new LatLng(37.413914	,127.617345	),
+                        new LatLng(37.413824	,127.617569	),
+                        new LatLng(37.413825	,127.61767	),
+                        new LatLng(37.413755	,127.617704	),
+                        new LatLng(37.413407	,127.617882	),
+                        new LatLng(37.413125	,127.618064	),
+                        new LatLng(37.413109	,127.618068	),
+                        new LatLng(37.412817	,127.61817	),
+                        new LatLng(37.412666	,127.618291	),
+                        new LatLng(37.412524	,127.618528	),
+                        new LatLng(37.412364	,127.618815	),
+                        new LatLng(37.411847	,127.618894	),
+                        new LatLng(37.411816	,127.618889	),
+                        new LatLng(37.411616	,127.618861	),
+                        new LatLng(37.411522	,127.618862	),
+                        new LatLng(37.411269	,127.618905	),
+                        new LatLng(37.411045	,127.619026	),
+                        new LatLng(37.410912	,127.6191	),
+                        new LatLng(37.410562	,127.619264	),
+                        new LatLng(37.410297	,127.619634	),
+                        new LatLng(37.410206	,127.619708	),
+                        new LatLng(37.410075	,127.619798	),
+                        new LatLng(37.409751	,127.619937	),
+                        new LatLng(37.409438	,127.620043	),
+                        new LatLng(37.409413	,127.620067	),
+                        new LatLng(37.40941 	,127.620119	),
+                        new LatLng(37.409418	,127.620203	),
+                        new LatLng(37.409249	,127.62047	),
+                        new LatLng(37.409362	,127.620611	),
+                        new LatLng(37.411394	,127.623939	),
+                        new LatLng(37.412142	,127.62524	),
+                        new LatLng(37.41359 	,127.626427	),
+                        new LatLng(37.413236	,127.628066	),
+                        new LatLng(37.413065	,127.631492	),
+                        new LatLng(37.4135		,127.631879	),
+                        new LatLng(37.413372	,127.632956	),
+                        new LatLng(37.413398	,127.633012	),
+                        new LatLng(37.412716	,127.635799	),
+                        new LatLng(37.412345	,127.636508	),
+                        new LatLng(37.411111	,127.637113	),
+                        new LatLng(37.410763	,127.637758	),
+                        new LatLng(37.41051 	,127.638296	),
+                        new LatLng(37.410035	,127.63911	),
+                        new LatLng(37.410025	,127.639177	),
+                        new LatLng(37.408761	,127.640788	),
+                        new LatLng(37.408375	,127.641606	),
+                        new LatLng(37.406803	,127.642224	),
+                        new LatLng(37.405389	,127.644152	),
+                        new LatLng(37.405221	,127.644971	),
+                        new LatLng(37.40623 	,127.649429	),
+                        new LatLng(37.40661 	,127.650025	),
+                        new LatLng(37.406938	,127.650562	),
+                        new LatLng(37.407379	,127.651207	),
+                        new LatLng(37.407529	,127.651708	),
+                        new LatLng(37.40903 	,127.653255	),
+                        new LatLng(37.410237	,127.653022	),
+                        new LatLng(37.410538	,127.652955	),
+                        new LatLng(37.41144 	,127.65361	),
+                        new LatLng(37.411637	,127.653877	),
+                        new LatLng(37.412129	,127.653866	),
+                        new LatLng(37.412947	,127.654264	),
+                        new LatLng(37.412958	,127.654635	),
+                        new LatLng(37.41297 	,127.654672	),
+                        new LatLng(37.416038	,127.657444	),
+                        new LatLng(37.41684 	,127.658288	),
+                        new LatLng(37.415798	,127.660434	),
+                        new LatLng(37.415816	,127.661069	),
+                        new LatLng(37.415507	,127.662437	),
+                        new LatLng(37.415441	,127.662868	),
+                        new LatLng(37.414984	,127.663718	),
+                        new LatLng(37.414991	,127.664044	),
+                        new LatLng(37.414189	,127.665896	),
+                        new LatLng(37.413104	,127.66679	),
+                        new LatLng(37.412105	,127.667584	),
+                        new LatLng(37.411975	,127.673742	),
+                        new LatLng(37.412613	,127.675585	),
+                        new LatLng(37.412492	,127.677706	),
+                        new LatLng(37.412717	,127.677965	),
+                        new LatLng(37.41293 	,127.678358	),
+                        new LatLng(37.413		,127.679023	),
+                        new LatLng(37.412426	,127.67999	),
+                        new LatLng(37.414282	,127.683356	),
+                        new LatLng(37.414297	,127.683391	),
+                        new LatLng(37.414094	,127.683691	),
+                        new LatLng(37.414051	,127.683821	),
+                        new LatLng(37.41399 	,127.684271	),
+                        new LatLng(37.413862	,127.684719	),
+                        new LatLng(37.413671	,127.685059	),
+                        new LatLng(37.413592	,127.685291	),
+                        new LatLng(37.41346 	,127.685583	),
+                        new LatLng(37.413239	,127.685685	),
+                        new LatLng(37.413188	,127.685749	),
+                        new LatLng(37.412691	,127.685966	),
+                        new LatLng(37.41253 	,127.686081	),
+                        new LatLng(37.412438	,127.686233	),
+                        new LatLng(37.412405	,127.686353	),
+                        new LatLng(37.412341	,127.686696	),
+                        new LatLng(37.412264	,127.687141	),
+                        new LatLng(37.412329	,127.687181	),
+                        new LatLng(37.412351	,127.687187	),
+                        new LatLng(37.412328	,127.687192	),
+                        new LatLng(37.412279	,127.687174	),
+                        new LatLng(37.412117	,127.687392	),
+                        new LatLng(37.411983	,127.687646	),
+                        new LatLng(37.411803	,127.688014	),
+                        new LatLng(37.411791	,127.688022	),
+                        new LatLng(37.409701	,127.687446	),
+                        new LatLng(37.409379	,127.687035	),
+                        new LatLng(37.403139	,127.684482	),
+                        new LatLng(37.401219	,127.684287	),
+                        new LatLng(37.399304	,127.684092	),
+                        new LatLng(37.398197	,127.684362	),
+                        new LatLng(37.398447	,127.685235	),
+                        new LatLng(37.398486	,127.685211	),
+                        new LatLng(37.398443	,127.685298	),
+                        new LatLng(37.398439	,127.685419	),
+                        new LatLng(37.398585	,127.685588	),
+                        new LatLng(37.39864 	,127.685701	),
+                        new LatLng(37.398711	,127.68592	),
+                        new LatLng(37.398756	,127.686041	),
+                        new LatLng(37.398812	,127.686323	),
+                        new LatLng(37.398858	,127.68643	),
+                        new LatLng(37.39891 	,127.686573	),
+                        new LatLng(37.39889 	,127.686828	),
+                        new LatLng(37.399565	,127.687318	),
+                        new LatLng(37.401193	,127.688883	),
+                        new LatLng(37.401342	,127.689236	),
+                        new LatLng(37.401486	,127.689953	),
+                        new LatLng(37.401388	,127.690872	),
+                        new LatLng(37.401107	,127.691478	),
+                        new LatLng(37.401835	,127.692047	),
+                        new LatLng(37.401745	,127.69227	),
+                        new LatLng(37.401812	,127.692772	),
+                        new LatLng(37.401895	,127.6931	),
+                        new LatLng(37.40213 	,127.693314	),
+                        new LatLng(37.402604	,127.693935	),
+                        new LatLng(37.407026	,127.698575	),
+                        new LatLng(37.407645	,127.699994	),
+                        new LatLng(37.407852	,127.702665	),
+                        new LatLng(37.407876	,127.702753	),
+                        new LatLng(37.408722	,127.704536	),
+                        new LatLng(37.40911 	,127.704894	),
+                        new LatLng(37.409444	,127.705377	),
+                        new LatLng(37.409811	,127.706849	),
+                        new LatLng(37.410306	,127.708089	),
+                        new LatLng(37.409422	,127.709119	),
+                        new LatLng(37.407156	,127.710574	),
+                        new LatLng(37.406113	,127.710741	),
+                        new LatLng(37.406066	,127.710964	),
+                        new LatLng(37.40626 	,127.71146	),
+                        new LatLng(37.40574 	,127.712558	),
+                        new LatLng(37.405131	,127.71366	),
+                        new LatLng(37.403583	,127.714	),
+                        new LatLng(37.402857	,127.714489	),
+                        new LatLng(37.401479	,127.714425	),
+                        new LatLng(37.400163	,127.714738	),
+                        new LatLng(37.399225	,127.714656	),
+                        new LatLng(37.399037	,127.714347	),
+                        new LatLng(37.399008	,127.714344	),
+                        new LatLng(37.398896	,127.714339	),
+                        new LatLng(37.398413	,127.714334	),
+                        new LatLng(37.396775	,127.711169	),
+                        new LatLng(37.396411	,127.710588	),
+                        new LatLng(37.395652	,127.709679	),
+                        new LatLng(37.394903	,127.709371	),
+                        new LatLng(37.394758	,127.708769	),
+                        new LatLng(37.394896	,127.70852	),
+                        new LatLng(37.394114	,127.707065	),
+                        new LatLng(37.393635	,127.706369	),
+                        new LatLng(37.393263	,127.705236	),
+                        new LatLng(37.392097	,127.704249	),
+                        new LatLng(37.391209	,127.70383	),
+                        new LatLng(37.390372	,127.703699	),
+                        new LatLng(37.389993	,127.703747	),
+                        new LatLng(37.387366	,127.703442	),
+                        new LatLng(37.386011	,127.704023	),
+                        new LatLng(37.38526 	,127.703875	),
+                        new LatLng(37.384673	,127.703407	),
+                        new LatLng(37.38178 	,127.703235	),
+                        new LatLng(37.380739	,127.703114	),
+                        new LatLng(37.380569	,127.702654	),
+                        new LatLng(37.379966	,127.701328	),
+                        new LatLng(37.37966 	,127.700432	),
+                        new LatLng(37.378836	,127.700468	),
+                        new LatLng(37.378385	,127.700503	),
+                        new LatLng(37.376963	,127.701168	),
+                        new LatLng(37.374444	,127.70157	),
+                        new LatLng(37.37405 	,127.701254	),
+                        new LatLng(37.373464	,127.701756	),
+                        new LatLng(37.373057	,127.702111	),
+                        new LatLng(37.372958	,127.702196	),
+                        new LatLng(37.372924	,127.702566	),
+                        new LatLng(37.372392	,127.703564	),
+                        new LatLng(37.372207	,127.704456	),
+                        new LatLng(37.371589	,127.705282	),
+                        new LatLng(37.37106 	,127.706255	),
+                        new LatLng(37.369861	,127.707359	),
+                        new LatLng(37.371617	,127.709386	),
+                        new LatLng(37.37158 	,127.711799	),
+                        new LatLng(37.371307	,127.713045	),
+                        new LatLng(37.370704	,127.71371	),
+                        new LatLng(37.370062	,127.716364	),
+                        new LatLng(37.37013 	,127.716421	),
+                        new LatLng(37.370887	,127.717422	),
+                        new LatLng(37.371359	,127.718593	),
+                        new LatLng(37.371485	,127.719141	),
+                        new LatLng(37.371276	,127.719835	),
+                        new LatLng(37.371712	,127.720477	),
+                        new LatLng(37.371713	,127.721658	),
+                        new LatLng(37.371887	,127.722649	),
+                        new LatLng(37.372002	,127.72311	),
+                        new LatLng(37.371539	,127.723747	),
+                        new LatLng(37.372101	,127.725305	),
+                        new LatLng(37.372292	,127.725842	),
+                        new LatLng(37.373192	,127.726967	),
+                        new LatLng(37.376241	,127.729866	),
+                        new LatLng(37.37576 	,127.730973	),
+                        new LatLng(37.376058	,127.732124	),
+                        new LatLng(37.3754		,127.732607	),
+                        new LatLng(37.37416 	,127.734839	),
+                        new LatLng(37.373482	,127.736106	),
+                        new LatLng(37.372278	,127.738128	),
+                        new LatLng(37.371657	,127.740594	),
+                        new LatLng(37.371617	,127.741065	),
+                        new LatLng(37.370293	,127.742163	),
+                        new LatLng(37.369012	,127.746728	),
+                        new LatLng(37.369191	,127.747601	),
+                        new LatLng(37.369155	,127.747907	),
+                        new LatLng(37.369262	,127.748165	),
+                        new LatLng(37.36896 	,127.749374	),
+                        new LatLng(37.369403	,127.750459	),
+                        new LatLng(37.36946 	,127.752261	),
+                        new LatLng(37.368488	,127.752876	),
+                        new LatLng(37.368129	,127.754468	),
+                        new LatLng(37.367013	,127.756758	),
+                        new LatLng(37.367413	,127.758986	),
+                        new LatLng(37.36721 	,127.759339	),
+                        new LatLng(37.367061	,127.759598	),
+                        new LatLng(37.36706 	,127.759599	),
+                        new LatLng(37.366282	,127.759913	),
+                        new LatLng(37.364958	,127.761142	),
+                        new LatLng(37.364243	,127.761127	),
+                        new LatLng(37.3628		,127.760754	),
+                        new LatLng(37.356275	,127.759765	),
+                        new LatLng(37.355338	,127.759728	),
+                        new LatLng(37.354621	,127.759973	),
+                        new LatLng(37.352635	,127.760758	),
+                        new LatLng(37.350789	,127.758351	),
+                        new LatLng(37.348379	,127.758633	),
+                        new LatLng(37.346408	,127.757884	),
+                        new LatLng(37.3463		,127.757901	),
+                        new LatLng(37.345011	,127.758555	),
+                        new LatLng(37.344319	,127.758811	),
+                        new LatLng(37.343115	,127.75848	),
+                        new LatLng(37.342301	,127.758954	),
+                        new LatLng(37.341441	,127.759074	),
+                        new LatLng(37.34129 	,127.75967	),
+                        new LatLng(37.34108 	,127.760206	),
+                        new LatLng(37.340817	,127.760693	),
+                        new LatLng(37.337053	,127.760837	),
+                        new LatLng(37.336646	,127.761364	),
+                        new LatLng(37.335695	,127.761819	),
+                        new LatLng(37.334634	,127.762661	),
+                        new LatLng(37.334349	,127.762731	),
+                        new LatLng(37.333895	,127.761662	),
+                        new LatLng(37.333663	,127.76167	),
+                        new LatLng(37.332177	,127.760457	),
+                        new LatLng(37.33127 	,127.759111	),
+                        new LatLng(37.331111	,127.75853	),
+                        new LatLng(37.330847	,127.758394	),
+                        new LatLng(37.330338	,127.758732	),
+                        new LatLng(37.330098	,127.759784	),
+                        new LatLng(37.328457	,127.760546	),
+                        new LatLng(37.327832	,127.760776	),
+                        new LatLng(37.326229	,127.761585	),
+                        new LatLng(37.321334	,127.762113	),
+                        new LatLng(37.320033	,127.762689	),
+                        new LatLng(37.318311	,127.763482	),
+                        new LatLng(37.317926	,127.764282	),
+                        new LatLng(37.317375	,127.765389	),
+                        new LatLng(37.316593	,127.76514	),
+                        new LatLng(37.315824	,127.765153	),
+                        new LatLng(37.315323	,127.764925	),
+                        new LatLng(37.314198	,127.765389	),
+                        new LatLng(37.313258	,127.765521	),
+                        new LatLng(37.312787	,127.765875	),
+                        new LatLng(37.312577	,127.766089	),
+                        new LatLng(37.311929	,127.766497	),
+                        new LatLng(37.3111		,127.766614	),
+                        new LatLng(37.310744	,127.766806	),
+                        new LatLng(37.308313	,127.768412	)
+                )
+                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .fillColor(clr));
+        polygon.setClickable(true);
+        namehmap.put(polygon.hashCode(),name);
+        colorhmap.put(polygon.hashCode(),clr);
+
+        IconGenerator iconFactory = new IconGenerator(this);
+        iconFactory.setColor(clr);
+        if(mclr == 2){
+            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
+        }else if(mclr == 3){
+            iconFactory.setStyle(IconGenerator.STYLE_RED);
+        }else if(mclr == 7){
+            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
+        }else if(mclr == 5){
+            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
+        }else {
+            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
+        }
+        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.306681, 127.616758));
+
+    }//여주시
+
 
 
     //privat inner class extending AsyncTask
@@ -10745,12 +21758,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     //아이콘 마커
     private void addIcon(IconGenerator iconFactory, String text, LatLng position) {
-        Marker marker;
+        Marker marker; // marker 선언
         MarkerOptions markerOptions = new MarkerOptions().
                 icon(BitmapDescriptorFactory.fromBitmap(iconFactory.makeIcon(text))).
                 position(position).
-                anchor(iconFactory.getAnchorU(), iconFactory.getAnchorV());
-        markerOptions.visible(false);
+                anchor(iconFactory.getAnchorU(), iconFactory.getAnchorV()); // markerOptions 생성 및 설정
+        markerOptions.visible(false); //
         marker = mMap.addMarker(markerOptions);
         mList.add(marker);
     }// 어레이리스트에 마커 추가
