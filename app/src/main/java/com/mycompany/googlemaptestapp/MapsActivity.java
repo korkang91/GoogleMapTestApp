@@ -214,33 +214,48 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         drawPolygon58(mMap);//용인시처인구
         drawPolygon42(mMap);
     }//경기도
-
+    
+    
+    public int[] checkColor(String name){
+        int[] clr = new int[2];
+        if(hmap.get(name)==null){
+            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
+            clr[0] = 1;
+        } else if(hmap.get(name).equals("-")){
+            clr[0] = Color.argb(100,140,140,140);
+            clr[1] = 2;
+        }else if(Integer.parseInt(hmap.get(name))>150){
+            clr[0] = Color.argb(100,255,0,0);
+            clr[1] = 3;
+        }else if(Integer.parseInt(hmap.get(name))>80){
+            clr[0] = Color.argb(100,255,255,0);
+            clr[1] = 7;
+        }else if(Integer.parseInt(hmap.get(name))>30){
+            clr[0] = Color.argb(100,0,255,0);
+            clr[1] = 5;
+        }else {
+            clr[0] = Color.argb(100,0,0,255);
+            clr[1] = 4;
+        }
+        return clr;
+    }
+    public int iconStyle(int clr){
+        if(clr == 2){
+            return IconGenerator.STYLE_WHITE;
+        }else if(clr == 3){
+            return IconGenerator.STYLE_RED;
+        }else if(clr == 7){
+            return IconGenerator.STYLE_ORANGE;
+        }else if(clr == 5){
+            return IconGenerator.STYLE_GREEN;
+        }else {
+            return IconGenerator.STYLE_BLUE;
+        }
+    }
     //서울시
     public void drawPolygon143(GoogleMap googlemap) { //서울 성동구
         String name = "성동구";
-        int clr = Color.argb(100,255,0,0);
-        int mclr;
-        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
-        if(hmap.get(name)==null){
-            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
-            mclr = 1;
-        } else if(hmap.get(name).equals("-")){
-            clr = Color.argb(100,140,140,140);
-            mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>150){
-            clr = Color.argb(100,255,0,0);
-            mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>80){
-            clr = Color.argb(100,255,255,0);
-            mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>30){
-            clr = Color.argb(100,0,255,0);
-            mclr = 5;
-        }else {
-            clr = Color.argb(100,0,0,255);
-            mclr = 4;
-        }
-        Log.d("log","kbc   ++))++))++  "+clr);
+        int[] clr = checkColor(name); // clr[0] 폴리곤 채우기색, clr[1] 아이콘색 배열
         Polygon polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
                         new LatLng(37.57275246810175, 127.04241813085706),
@@ -270,56 +285,19 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.57302061077518, 127.0381755492195),
                         new LatLng(37.57275246810175, 127.04241813085706))
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr));
-        polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr);
+                .fillColor(clr[0]));
+        polygon.setClickable(true); // 폴리곤 클릭 가능 옵션
+        namehmap.put(polygon.hashCode(),name); // HashMap에 폴리곤 hashCode와 시군구 이름 저장
+        colorhmap.put(polygon.hashCode(),clr[0]); // HashMap에 폴리곤 hashCode와 폴리곤 채우기색 저장
 
         IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr);
-        if(mclr == 2){
-            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
-        }else if(mclr == 3){
-            iconFactory.setStyle(IconGenerator.STYLE_RED);
-        }else if(mclr == 7){
-            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
-        }else if(mclr == 5){
-            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
-        }else {
-            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
-        }
+        iconFactory.setColor(clr[0]);
+        iconFactory.setStyle(iconStyle(clr[1]));
         addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.551220, 127.041004));
-
     }//서울 성동구
     public void drawPolygon145(GoogleMap googlemap) { //서울 용산
         String name = "용산구";
-        int clr = Color.argb(100,255,0,0);
-        int mclr;
-        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
-        if(hmap.get(name)==null){
-            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
-            mclr = 1;
-        } else if(hmap.get(name).equals("-")){
-            clr = Color.argb(100,140,140,140);
-            mclr = 2;
-            Log.d("log","kbc   white");
-        }else if(Integer.parseInt(hmap.get(name))>150){
-            clr = Color.argb(100,255,0,0);
-            mclr = 3;
-            Log.d("log","kbc   red");
-        }else if(Integer.parseInt(hmap.get(name))>80){
-            clr = Color.argb(100,255,255,0);
-            mclr = 7;
-            Log.d("log","kbc   yellow");
-        }else if(Integer.parseInt(hmap.get(name))>30){
-            clr = Color.argb(100,0,255,0);
-            mclr = 5;
-            Log.d("log","kbc   green");
-        }else {
-            clr = Color.argb(100,0,0,255);
-            mclr = 4;
-            Log.d("log","kbc   blue");
-        }
+        int[] clr = checkColor(name);
         Polygon polygon = mMap.addPolygon(new PolygonOptions()
                 .add(new LatLng(37.5548768201904, 126.96966524449994),
                         new LatLng(37.55308718044556, 126.97642899633566),
@@ -352,55 +330,19 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.55566236579088, 126.9691850696746),
                         new LatLng(37.5548768201904, 126.96966524449994))
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr));
+                .fillColor(clr[0]));
         polygon.setClickable(true);
         namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr);
+        colorhmap.put(polygon.hashCode(),clr[0]);
 
         IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr);
-        if(mclr == 2){
-            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
-        }else if(mclr == 3){
-            iconFactory.setStyle(IconGenerator.STYLE_RED);
-        }else if(mclr == 7){
-            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
-        }else if(mclr == 5){
-            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
-        }else {
-            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
-        }
+        iconFactory.setColor(clr[0]);
+        iconFactory.setStyle(iconStyle(clr[1]));
         addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.531597, 126.979828));
     }//서울 용산구
     public void drawPolygon151(GoogleMap googlemap) { //서울 강남구
         String name = "강남구";
-        int clr = Color.argb(100,255,0,0);
-        int mclr;
-        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
-        if(hmap.get(name)==null){
-            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
-            mclr = 1;
-        } else if(hmap.get(name).equals("-")){
-            clr = Color.argb(100,140,140,140);
-            mclr = 2;
-            Log.d("log","kbc   white");
-        }else if(Integer.parseInt(hmap.get(name))>150){
-            clr = Color.argb(100,255,0,0);
-            mclr = 3;
-            Log.d("log","kbc   red");
-        }else if(Integer.parseInt(hmap.get(name))>80){
-            clr = Color.argb(100,255,255,0);
-            mclr = 7;
-            Log.d("log","kbc   yellow");
-        }else if(Integer.parseInt(hmap.get(name))>30){
-            clr = Color.argb(100,0,255,0);
-            mclr = 5;
-            Log.d("log","kbc   green");
-        }else {
-            clr = Color.argb(100,0,0,255);
-            mclr = 4;
-            Log.d("log","kbc   blue");
-        }
+        int[] clr = checkColor(name);
         Polygon polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
                         new LatLng(37.466521, 127.124207),
@@ -457,55 +399,19 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.490333, 127.10695),
                         new LatLng(37.466521, 127.124207))
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr));
+                .fillColor(clr[0]));
         polygon.setClickable(true);
         namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr);
+        colorhmap.put(polygon.hashCode(),clr[0]);
 
         IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr);
-        if(mclr == 2){
-            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
-        }else if(mclr == 3){
-            iconFactory.setStyle(IconGenerator.STYLE_RED);
-        }else if(mclr == 7){
-            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
-        }else if(mclr == 5){
-            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
-        }else {
-            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
-        }
+        iconFactory.setColor(clr[0]);
+        iconFactory.setStyle(iconStyle(clr[1]));
         addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.496918, 127.063319));
     }//서울 강남구
     public void drawPolygon158(GoogleMap googlemap) { //서울 동대문구
         String name = "동대문구";
-        int clr = Color.argb(100,255,0,0);
-        int mclr;
-        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
-        if(hmap.get(name)==null){
-            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
-            mclr = 1;
-        } else if(hmap.get(name).equals("-")){
-            clr = Color.argb(100,140,140,140);
-            mclr = 2;
-            Log.d("log","kbc   white");
-        }else if(Integer.parseInt(hmap.get(name))>150){
-            clr = Color.argb(100,255,0,0);
-            mclr = 3;
-            Log.d("log","kbc   red");
-        }else if(Integer.parseInt(hmap.get(name))>80){
-            clr = Color.argb(100,255,255,0);
-            mclr = 7;
-            Log.d("log","kbc   yellow");
-        }else if(Integer.parseInt(hmap.get(name))>30){
-            clr = Color.argb(100,0,255,0);
-            mclr = 5;
-            Log.d("log","kbc   green");
-        }else {
-            clr = Color.argb(100,0,0,255);
-            mclr = 4;
-            Log.d("log","kbc   blue");
-        }
+        int[] clr = checkColor(name);
         Polygon polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
                         new LatLng(37.607062869017085, 127.07111288773496),
@@ -539,55 +445,19 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.607062869017085, 127.07111288773496)
                 )
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr));
+                .fillColor(clr[0]));
         polygon.setClickable(true);
         namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr);
+        colorhmap.put(polygon.hashCode(),clr[0]);
 
         IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr);
-        if(mclr == 2){
-            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
-        }else if(mclr == 3){
-            iconFactory.setStyle(IconGenerator.STYLE_RED);
-        }else if(mclr == 7){
-            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
-        }else if(mclr == 5){
-            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
-        }else {
-            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
-        }
+        iconFactory.setColor(clr[0]);
+        iconFactory.setStyle(iconStyle(clr[1]));
         addIcon(iconFactory, name+"\n     "+hmap.get(name), new LatLng(37.582350, 127.055016));
     }//서울 동대문구
     public void drawPolygon155(GoogleMap googlemap) { //서울 중구
         String name = "중구";
-        int clr = Color.argb(100,255,0,0);
-        int mclr;
-        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
-        if(hmap.get(name)==null){
-            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
-            mclr = 1;
-        } else if(hmap.get(name).equals("-")){
-            clr = Color.argb(100,140,140,140);
-            mclr = 2;
-            Log.d("log","kbc   white");
-        }else if(Integer.parseInt(hmap.get(name))>150){
-            clr = Color.argb(100,255,0,0);
-            mclr = 3;
-            Log.d("log","kbc   red");
-        }else if(Integer.parseInt(hmap.get(name))>80){
-            clr = Color.argb(100,255,255,0);
-            mclr = 7;
-            Log.d("log","kbc   yellow");
-        }else if(Integer.parseInt(hmap.get(name))>30){
-            clr = Color.argb(100,0,255,0);
-            mclr = 5;
-            Log.d("log","kbc   green");
-        }else {
-            clr = Color.argb(100,0,0,255);
-            mclr = 4;
-            Log.d("log","kbc   blue");
-        }
+        int[] clr = checkColor(name);
         Polygon polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
                         new LatLng(37.563894, 127.02675),
@@ -712,52 +582,19 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.563894, 127.02675)
                 )
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr));
+                .fillColor(clr[0]));
         polygon.setClickable(true);
         namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr);
+        colorhmap.put(polygon.hashCode(),clr[0]);
 
         IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr);
-        if(mclr == 2){
-            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
-        }else if(mclr == 3){
-            iconFactory.setStyle(IconGenerator.STYLE_RED);
-        }else if(mclr == 7){
-            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
-        }else if(mclr == 5){
-            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
-        }else {
-            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
-        }
+        iconFactory.setColor(clr[0]);
+        iconFactory.setStyle(iconStyle(clr[1]));
         addIcon(iconFactory, name+"\n "+hmap.get(name), new LatLng(37.560041, 126.995786));
-
-
     }//서울 중구
     public void drawPolygon160(GoogleMap googlemap) { //서울 종로구
         String name = "종로구";
-        int clr = Color.argb(100,255,0,0);
-        int mclr;
-        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
-        if(hmap.get(name)==null){
-            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
-            mclr = 1;
-        } else if(hmap.get(name).equals("-")){
-            clr = Color.argb(100,140,140,140);
-            mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>150){
-            clr = Color.argb(100,255,0,0);
-            mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>80){
-            clr = Color.argb(100,255,255,0);
-            mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>30){
-            clr = Color.argb(100,0,255,0);
-            mclr = 5;
-        }else {
-            clr = Color.argb(100,0,0,255);
-            mclr = 4;
-        }
+        int[] clr = checkColor(name);
         Polygon polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
                         new LatLng(37.571914, 127.023365),
@@ -1044,50 +881,19 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.571914, 127.023365)
                 )
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr));
+                .fillColor(clr[0]));
         polygon.setClickable(true);
         namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr);
+        colorhmap.put(polygon.hashCode(),clr[0]);
 
         IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr);
-        if(mclr == 2){
-            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
-        }else if(mclr == 3){
-            iconFactory.setStyle(IconGenerator.STYLE_RED);
-        }else if(mclr == 7){
-            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
-        }else if(mclr == 5){
-            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
-        }else {
-            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
-        }
+        iconFactory.setColor(clr[0]);
+        iconFactory.setStyle(iconStyle(clr[1]));
         addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.595601, 126.977230));
     }//서울 종로구
     public void drawPolygon164(GoogleMap googlemap) { //서울 성북구
         String name = "성북구";
-        int clr = Color.argb(100,255,0,0);
-        int mclr;
-        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
-        if(hmap.get(name)==null){
-            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
-            mclr = 1;
-        } else if(hmap.get(name).equals("-")){
-            clr = Color.argb(100,140,140,140);
-            mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>150){
-            clr = Color.argb(100,255,0,0);
-            mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>80){
-            clr = Color.argb(100,255,255,0);
-            mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>30){
-            clr = Color.argb(100,0,255,0);
-            mclr = 5;
-        }else {
-            clr = Color.argb(100,0,0,255);
-            mclr = 4;
-        }
+        int[] clr = checkColor(name);
         Polygon polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
                         new LatLng(37.607629, 127.071061),
@@ -1867,24 +1673,14 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.607629, 127.071061)
                 )
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr));
+                .fillColor(clr[0]));
         polygon.setClickable(true);
         namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr);
+        colorhmap.put(polygon.hashCode(),clr[0]);
 
         IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr);
-        if(mclr == 2){
-            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
-        }else if(mclr == 3){
-            iconFactory.setStyle(IconGenerator.STYLE_RED);
-        }else if(mclr == 7){
-            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
-        }else if(mclr == 5){
-            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
-        }else {
-            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
-        }
+        iconFactory.setColor(clr[0]);
+        iconFactory.setStyle(iconStyle(clr[1]));
         addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.606220, 127.017533));
     }//서울 성북구
     public void drawPolygon156(GoogleMap googlemap) { //서울 서대문구
