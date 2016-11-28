@@ -3,12 +3,26 @@
     package="com.mycompany.googlemaptestapp">
 
     <!--
-         The ACCESS_COARSE/FINE_LOCATION permissions are not required to use
-         Google Maps Android API v2, but you must specify either coarse or fine
-         location permissions for the 'MyLocation' functionality. 
+         매니페스트 파일은 애플리케이션의 각종 정보를 저장
+         프로젝트의 이름, 아이콘, 테마, 자동 백업 여부 등에 대한 전역 설정 정보와 앱에 소속되는 구성 요소의 속성에 대한 정보를 가진다. 디폴트로 액티비티 하나가 포함된다.
+         <manifest>태그 - 어플리케이션에 대한 전반적인 정보들을 포함한다.
+         xmlns:android는 항상 다음과 같은 네임스페이스를 지정해야한다.
+         packpge는 어플리케이션의 패키지 이름을 지정한다.
+         android:versionCode는 어플리케이션의 버전코드이다. android:versionName는 어플리케이션 버전이다.
+         Google Maps Android API v2에서는 ACCESS_COARSE/FINE_LOCATION permissions은 요구되지 않으나, 'MyLocation' 기능을 위해서는 coarse 나 fine
+         location permissions이 필요하다.
     -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-
+    <!--
+    <application>태그 - 어플리케이션의 이름, 아이콘등을 정의한다.
+    android:allowBackup은 이 속성값은 ADB(Android Debug Bridge)를 통해서 앱 백업과 복구를 가능케 하는 설정이나,
+    백업된 앱을 악용하여 앱 내의 민감한 정보를 유출할 수 있으므로 모바일 앱 내에 민감한 정보를 저장해야 하는 경우,
+    암호화 스토리지에 보관하는 방안 이외에도 ADB에 의한 백업을 허용하지 않아야 한다.
+    android:icon은 어플리케이션의 아이콘을 지정한다.
+    android:label은 어플리케이션의 이름을 지정한다.
+    android:supportsRtl은 이슬람 문화권에서는 레이아웃의 방향이 반대이기 때문에 SDK 버전 17이상에서는 운영체제 차원에서 RTL(Right-TO-LEFT) 레이아웃을 지원한다.
+    <application>태그는 하위요소로 어플리케이션의 구성요소(액티비티, 서비스, 콘텐트 프로바이더,브로드케스트 리시버)들의 태그를 정의한다.
+    -->
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
@@ -27,6 +41,10 @@
         <meta-data
             android:name="com.google.android.geo.API_KEY"
             android:value="@string/google_maps_key" />
+
+        <activity
+            android:name=".SplashActivity"
+            android:theme="@style/AppTheme" />
 
         <activity
             android:name=".MapsActivity"

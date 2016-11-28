@@ -1,5 +1,6 @@
 package com.mycompany.googlemaptestapp;
 
+import android.content.Intent;
 import android.graphics.Color;
 import android.os.AsyncTask;
 import android.os.Bundle;
@@ -13,7 +14,6 @@ import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.UiSettings;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
-import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
@@ -35,91 +35,84 @@ import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
+    //FragmentActivity?
+    //Activity의 서브 클래스 , Activity와 View의 개념을 합쳐놓은 것, 액티비티와 뷰의 개념을 다 가지고 있지만 기본적으로 설정이 되어있는 계층적인 관계는 변함이 없습니다.
+    //Activity는 가장 밑부분에 존재하는 틀, Fragment는 Activity와 View의 중간인 것입니다.
+
     private GoogleMap mMap; // 구글맵 객체
     Document doc = null; // XML 객체
-    HashMap<String, String> hmap = new HashMap<String, String>();// 행정구역 , 미세먼지 지수
-    HashMap<Integer, String> namehmap = new HashMap<Integer, String>();// 폴리곤 해쉬코드, 이름
-    HashMap<Integer, Integer> colorhmap = new HashMap<Integer, Integer>();// 폴리곤 해쉬코드, color
-    ArrayList<Marker> mList = new ArrayList<Marker>(); // 마커의 집합(특정 레벨부터 마커가 보이게 하기위해 만듬)
+    Polygon polygon; // 폴리곤
+    String name; // 시군구 지역명
+    LatLng point; // 마커 좌표 변수
+    int[] colorArray; // 색깔 배열
+    HashMap<String, String> pm10HashMap = new HashMap<String, String>();// 행정구역 명, 미세먼지 지수
+    HashMap<Integer, String> nameHashMap = new HashMap<Integer, String>();// 폴리곤 해쉬코드, 행정구역 명
+    HashMap<Integer, Integer> colorHashMap = new HashMap<Integer, Integer>();// 폴리곤 해쉬코드, color
+    HashMap<Integer,LatLng> latLngHashMap = new HashMap<Integer, LatLng>();// 폴리곤 해쉬코드, LatLng
+    ArrayList<Marker> markerList = new ArrayList<Marker>(); // 마커의 집합(특정 레벨부터 마커가 보이게 하기위해 만듬)
+    IconGenerator iconFactory ; // IconGenerator 변수
 
-//    public MapsActivity(){
-//        Log.d("log","kbc 생성자 시작");
-//        Log.d("log","kbc 생성자 끝");
-//    }
+    //안드로이드 생명주기
+    //Activity가 처음 실행돼서 사용자에게 사용되다 정상 종료 된다면 다음과 같은 callback이 차례로 호출된다.
+    //onCreate(Bundle) -> onStart() -> onResume() -> onPause() -> onStop() -> onDestory()
+    //Running상태의 Activity A가 다른 Activity B에게 완전히 가렸다 A가 다시 foreground로 와서 사용자에게 사용되는 경우는 다음과 같은 callback이 차례로 호출된다.
+    //onSaveInstanceState(...) -> onPause() -> onStop() -> onRestart() -> onStart() ->onResume()
 
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
+    protected void onCreate(Bundle savedInstanceState) { // 저장된 인스턴스 상태
+        //onCreate메서드는 제일 처음 초기화 되어야 하고 액티비티의 UI를 부풀리거나 팽창시키기 위해 setContentView(int)를 호출한다
         super.onCreate(savedInstanceState);//상위클래스의 onCreate 함수 먼저 수행
-        //추가 수행할 코드
-        setContentView(R.layout.activity_maps);//인자로 받은 레이아웃 혹은 View 객체를 액티비티의 화면에 표시해주는 역할을 수행인자로 받은 레이아웃 혹은 View 객체를 액티비티의 화면에 표시해주는 역할을 수행
-        SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
-        mapFragment.getMapAsync(this);//getMap 메서드는 프래그먼트에 내장된 맵 객체를 동기적으로 구해 리턴 그러나 네터워크에러나 여러사항으로인해 null 이 리턴될수있어 위험하여 폐기됨 비동기적으로 구하는 getMapAsync사용
+        setContentView(R.layout.activity_maps);//인자로 받은 레이아웃 혹은 View 객체를 액티비티의 화면에 표시해주는 역할을 수행
+
+        startActivity(new Intent(this,SplashActivity.class)); //안드로이드 로딩 화면
+        //추가 수행 코드
+        SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);//Activity 내에서 에서 FragmentManager 에 접근 하기 위해 사용, 맵뷰에 할당된 ID 값을 통해 뷰 객체의 참조를 얻어옴
+        mapFragment.getMapAsync(this);//getMap 메서드는 프래그먼트에 내장된 맵 객체를 동기적으로 구해 리턴 그러나 네트워크에러나 여러사항으로인해 null 이 리턴될수있어 위험하여 폐기됨 비동기적으로 구하는 getMapAsync사용
     }
 
     @Override
     public void onMapReady(GoogleMap googleMap) {
-        mMap = googleMap;
+        //이 함수는 이벤트로써, 맵뷰에 어떤 레이어를 추가할 준비가 되었을 때 호출되는 함수입니다.
+        mMap = googleMap; // private mMap 변수에 googleMap 대입
+
         LatLng seoul = new LatLng(37.56, 126.990786);  //서울의 위도, 경도
         mMap.moveCamera(CameraUpdateFactory.newLatLng(seoul));  // 카메라 이동 초기위치 설정
 
         UiSettings mapSettings;//UI 세팅변수
-        mapSettings = mMap.getUiSettings();
+        mapSettings = mMap.getUiSettings();// UI세팅 가져오기
         mapSettings.setZoomControlsEnabled(true);// 줌 컨트롤 표시
-        mMap.animateCamera(CameraUpdateFactory.zoomTo(10), 2000, null);  // 줌 설정
+        mMap.animateCamera(CameraUpdateFactory.zoomTo(10), 1000, null);  // 줌 설정
 
         //XML 호출 후 폴리곤 그리기
         airAPI("서울");
         airAPIcity("경기");
 
+        //폴리곤클릭시 액션 함수
         mMap.setOnPolygonClickListener(new GoogleMap.OnPolygonClickListener() {
-            public void onPolygonClick(Polygon polygon) {
-                Toast.makeText(MapsActivity.this, "Clicked "+namehmap.get(polygon.hashCode()), Toast.LENGTH_SHORT).show();
-//                mMap.moveCamera(CameraUpdateFactory.newLatLng())
-                mMap.animateCamera(CameraUpdateFactory.zoomTo(12), 2000, null);  // 줌 설정
-//                if (polygon.getFillColor() == Color.TRANSPARENT) {
-//                    polygon.setFillColor(colorhmap.get(polygon.hashCode()));
-//                    Toast.makeText(MapsActivity.this, "Clicked "+namehmap.get(polygon.hashCode()), Toast.LENGTH_SHORT).show();
-//                    Log.d("log","kbc -----zoom level    "+mMap.getCameraPosition().zoom);
-//                } else {
-//                    polygon.setFillColor(Color.TRANSPARENT); //Color.TRANSPARENT
-//                    Toast.makeText(MapsActivity.this, "Clicked Transparent...", Toast.LENGTH_SHORT).show();
-//                }
+            @Override
+            public void onPolygonClick(final Polygon polygon) { //
+                Toast.makeText(MapsActivity.this, nameHashMap.get(polygon.hashCode())+" Clicked", Toast.LENGTH_SHORT).show(); //  폴리곤 클릭 시 해당 시군구 이름 토스트
+//                Log.d("log","kbc   "+latLngHashMap.get(polygon.hashCode()));
+//                mMap.animateCamera(CameraUpdateFactory.newLatLng(latLngHashMap.get(polygon.hashCode())));  // 카메라 이동
+                mMap.animateCamera(CameraUpdateFactory.zoomTo(12), 1000, null);  // 줌 설정
             }
         });
 
-//        mMap.setOnCameraChangeListener(new GoogleMap.OnCameraChangeListener() {
-//            @Override
-//            public void onCameraChange(CameraPosition arg0) {
-//                if(arg0.zoom > 11){ //줌 레벨이 11보다 클 경우 마커 보이기
-//                    Log.d("log","kbc -----zoom level if   "+mMap.getCameraPosition().zoom);
-//                    for(int i =0; i< mList.size(); i++){
-//                        mList.get(i).setVisible(true);
-//                    }
-//                }else{
-//                    Log.d("log","kbc -----zoom level else   "+mMap.getCameraPosition().zoom);
-//                    for(int i =0; i< mList.size(); i++){
-//                        mList.get(i).setVisible(false);
-//                    }
-//                }
-//            }
-//        });
+        //카메라 이동시 액션 함수
         mMap.setOnCameraMoveListener(new GoogleMap.OnCameraMoveListener(){
             @Override
             public void onCameraMove() {
                 if(mMap.getCameraPosition().zoom > 11){ //줌 레벨이 11보다 클 경우 마커 보이기
-                    Log.d("log","kbc -----zoom level if   "+mMap.getCameraPosition().zoom);
-                    for(int i =0; i< mList.size(); i++){
-                        mList.get(i).setVisible(true);
+                    for(int i = 0; i< markerList.size(); i++){ // marker list 에 있는 모든 marker serVisible true
+                        markerList.get(i).setVisible(true);
                     }
                 }else{
-                    Log.d("log","kbc -----zoom level else   "+mMap.getCameraPosition().zoom);
-                    for(int i =0; i< mList.size(); i++){
-                        mList.get(i).setVisible(false);
+                    for(int i = 0; i< markerList.size(); i++){ // marker list 에 있는 모든 marker serVisible false
+                        markerList.get(i).setVisible(false);
                     }
                 }
             }
         });
-
     }
 
     //미세먼지 API 연동 서울시
@@ -130,7 +123,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         GetXMLTask task = new GetXMLTask(); // 객체 생성
         task.execute(addr); // XML 파싱
     }
-    //미세먼지 시도명(경기
+    //미세먼지 시도명(경기)
     public void airAPIcity(String input){
         String addr;
         String serviceKey = "jENXI1lavhLBnweHBWDKwAfCcvSEqooh5DshJSNDLGNa%2Bpsd3WMuAuswxdQydH8mbvffg3rWCcYfa5tIo7DVbw%3D%3D";
@@ -141,104 +134,105 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     // 행정구역 경계 그리기
     public void draw(){
-        Log.d("log","kbc 드로우안");
-        drawPolygon143(mMap); // 서울 성동구
-        Log.d("log","kbc 성동구후");
-        drawPolygon145(mMap);
-        drawPolygon151(mMap);
-        drawPolygon158(mMap);
-        drawPolygon155(mMap);
-        drawPolygon160(mMap);
-        drawPolygon164(mMap);
-        drawPolygon156(mMap);
-        drawPolygon152(mMap);
-        drawPolygon153(mMap);
-        drawPolygon144(mMap);
-        drawPolygon157(mMap);
-        drawPolygon161(mMap);
-        drawPolygon154(mMap);
-        drawPolygon146(mMap);
-        drawPolygon150(mMap);
-        drawPolygon163(mMap);
-        drawPolygon147(mMap);
-        drawPolygon169(mMap);
-        drawPolygon159(mMap);
-        drawPolygon142(mMap);
-        drawPolygon162(mMap);
-        drawPolygon148(mMap);
-        drawPolygon166(mMap);
-        drawPolygon149(mMap);
+        drawPolygon143(); // 서울 성동구
+        drawPolygon145();
+        drawPolygon151();
+        drawPolygon158();
+        drawPolygon155();
+        drawPolygon160();
+        drawPolygon164();
+        drawPolygon156();
+        drawPolygon152();
+        drawPolygon153();
+        drawPolygon144();
+        drawPolygon157();
+        drawPolygon161();
+        drawPolygon154();
+        drawPolygon146();
+        drawPolygon150();
+        drawPolygon163();
+        drawPolygon147();
+        drawPolygon169();
+        drawPolygon159();
+        drawPolygon142();
+        drawPolygon162();
+        drawPolygon148();
+        drawPolygon166();
+        drawPolygon149();
     }//서울시
     public void draw2(){
-        drawPolygon41(mMap);
-        drawPolygon57(mMap);
-        drawPolygon33(mMap);
-        drawPolygon47(mMap);
-        drawPolygon22(mMap);
-        drawPolygon32(mMap);
-        drawPolygon59(mMap);
-        drawPolygon24(mMap);
-        drawPolygon25(mMap);
-        drawPolygon45(mMap);
-        drawPolygon51(mMap);
-        drawPolygon40(mMap);
-        drawPolygon46(mMap);
-        drawPolygon50(mMap);
-        drawPolygon56(mMap);
-        drawPolygon61(mMap);//안산시 단원구
-        drawPolygon612(mMap);//안산시 단원구
-        drawPolygon34(mMap);
-        drawPolygon23(mMap);
-        drawPolygon19(mMap);
-        drawPolygon21(mMap);
-        drawPolygon20(mMap);//수원시 영통구
-        drawPolygon44(mMap);
-        drawPolygon31(mMap);
-        drawPolygon38(mMap);
-        drawPolygon52(mMap);
-        drawPolygon49(mMap);//파주
-        drawPolygon43(mMap);
-        drawPolygon29(mMap);
-        drawPolygon30(mMap);
-        drawPolygon28(mMap);
-        drawPolygon53(mMap);
-        drawPolygon55(mMap);
-        drawPolygon27(mMap);
-        drawPolygon36(mMap);
-        drawPolygon37(mMap);
-        drawPolygon48(mMap);//화성시 큼
-        drawPolygon26(mMap);//여주시 큼
-        drawPolygon39(mMap);
-        drawPolygon60(mMap);
-        drawPolygon62(mMap);
-        drawPolygon58(mMap);//용인시처인구
-        drawPolygon42(mMap);
+        drawPolygon41();
+        drawPolygon57();
+        drawPolygon33();
+        drawPolygon47();
+        drawPolygon22();
+        drawPolygon32();
+        drawPolygon59();
+        drawPolygon24();
+        drawPolygon25();
+        drawPolygon45();
+        drawPolygon51();
+        drawPolygon40();
+        drawPolygon46();
+        drawPolygon50();
+        drawPolygon56();
+        drawPolygon61();//안산시 단원구
+        drawPolygon612();//안산시 단원구
+        drawPolygon34();
+        drawPolygon23();
+        drawPolygon19();
+        drawPolygon21();
+        drawPolygon20();//수원시 영통구
+        drawPolygon44();
+        drawPolygon31();
+        drawPolygon38();
+        drawPolygon52();
+        drawPolygon49();//파주
+        drawPolygon43();
+        drawPolygon29();
+        drawPolygon30();
+        drawPolygon28();
+        drawPolygon53();
+        drawPolygon55();
+        drawPolygon27();
+        drawPolygon36();
+        drawPolygon37();
+        drawPolygon48();//화성시 큼
+        drawPolygon26();//여주시 큼
+        drawPolygon39();
+        drawPolygon60();
+        drawPolygon62();
+        drawPolygon58();//용인시처인구
+        drawPolygon42();
+        drawPolygon54();
+        drawPolygon35();
     }//경기도
-    
-    
+
+    //시군구 이름을 입력 받아 미세먼지 지수를 비교하여 폴리곤, 마커 색깔 체크 함수
     public int[] checkColor(String name){
-        int[] clr = new int[2];
-        if(hmap.get(name)==null){
-            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
+        int[] clr = new int[2];// colorArray[0] : 폴리곤 색, colorArray[1]] : 마커 색
+        if(pm10HashMap.get(name)==null){
+            Log.d("log","kbc pm10HashMap.get(name)==null");
             clr[0] = 1;
-        } else if(hmap.get(name).equals("-")){
+        } else if(pm10HashMap.get(name).equals("-")){
             clr[0] = Color.argb(100,140,140,140);
             clr[1] = 2;
-        }else if(Integer.parseInt(hmap.get(name))>150){
+        }else if(Integer.parseInt(pm10HashMap.get(name))>150){
             clr[0] = Color.argb(100,255,0,0);
             clr[1] = 3;
-        }else if(Integer.parseInt(hmap.get(name))>80){
+        }else if(Integer.parseInt(pm10HashMap.get(name))>80){
             clr[0] = Color.argb(100,255,255,0);
             clr[1] = 7;
-        }else if(Integer.parseInt(hmap.get(name))>30){
+        }else if(Integer.parseInt(pm10HashMap.get(name))>30){
             clr[0] = Color.argb(100,0,255,0);
             clr[1] = 5;
         }else {
             clr[0] = Color.argb(100,0,0,255);
             clr[1] = 4;
         }
-        return clr;
+        return clr; // 색깔 배열을 리턴
     }
+    // marker iconStyle 색깔 체크 함수
     public int iconStyle(int clr){
         if(clr == 2){
             return IconGenerator.STYLE_WHITE;
@@ -252,11 +246,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             return IconGenerator.STYLE_BLUE;
         }
     }
+
     //서울시
-    public void drawPolygon143(GoogleMap googlemap) { //서울 성동구
-        String name = "성동구";
-        int[] clr = checkColor(name); // clr[0] 폴리곤 채우기색, clr[1] 아이콘색 배열
-        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+    public void drawPolygon143() { //서울 성동구
+        name = "성동구";
+        colorArray = checkColor(name); // colorArray[0] 폴리곤 채우기색, colorArray[1] 아이콘색 배열
+        point = new LatLng(37.551220, 127.041004);
+        polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
                         new LatLng(37.57275246810175, 127.04241813085706),
                         new LatLng(37.57038253579033, 127.04794980454399),
@@ -285,20 +281,20 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.57302061077518, 127.0381755492195),
                         new LatLng(37.57275246810175, 127.04241813085706))
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr[0]));
+                .fillColor(colorArray[0]));
         polygon.setClickable(true); // 폴리곤 클릭 가능 옵션
-        namehmap.put(polygon.hashCode(),name); // HashMap에 폴리곤 hashCode와 시군구 이름 저장
-        colorhmap.put(polygon.hashCode(),clr[0]); // HashMap에 폴리곤 hashCode와 폴리곤 채우기색 저장
-
-        IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr[0]);
-        iconFactory.setStyle(iconStyle(clr[1]));
-        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.551220, 127.041004));
+        nameHashMap.put(polygon.hashCode(),name); // HashMap에 폴리곤 hashCode와 시군구 이름 저장
+        colorHashMap.put(polygon.hashCode(), colorArray[0]); // HashMap에 폴리곤 hashCode와 폴리곤 채우기색 저장
+        latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
+        iconFactory = new IconGenerator(this); // IconGenerator 객체 생성
+        iconFactory.setStyle(iconStyle(colorArray[1])); // iconFactory 스타일 설정
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point); // iconFactory 에 값, 좌표 넣기
     }//서울 성동구
-    public void drawPolygon145(GoogleMap googlemap) { //서울 용산
-        String name = "용산구";
-        int[] clr = checkColor(name);
-        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+    public void drawPolygon145() { //서울 용산
+        name = "용산구";
+        colorArray = checkColor(name);
+        point = new LatLng(37.531597, 126.979828);
+        polygon = mMap.addPolygon(new PolygonOptions()
                 .add(new LatLng(37.5548768201904, 126.96966524449994),
                         new LatLng(37.55308718044556, 126.97642899633566),
                         new LatLng(37.55522076659584, 126.97654602427454),
@@ -330,20 +326,21 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.55566236579088, 126.9691850696746),
                         new LatLng(37.5548768201904, 126.96966524449994))
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr[0]));
+                .fillColor(colorArray[0]));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr[0]);
+        nameHashMap.put(polygon.hashCode(),name);
+        colorHashMap.put(polygon.hashCode(), colorArray[0]);
+        latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
+        iconFactory = new IconGenerator(this);
 
-        IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr[0]);
-        iconFactory.setStyle(iconStyle(clr[1]));
-        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.531597, 126.979828));
+        iconFactory.setStyle(iconStyle(colorArray[1]));
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
     }//서울 용산구
-    public void drawPolygon151(GoogleMap googlemap) { //서울 강남구
-        String name = "강남구";
-        int[] clr = checkColor(name);
-        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+    public void drawPolygon151() { //서울 강남구
+        name = "강남구";
+        colorArray = checkColor(name);
+        point = new LatLng(37.496918, 127.063319);
+        polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
                         new LatLng(37.466521, 127.124207),
                         new LatLng(37.462201, 127.117475),
@@ -399,20 +396,21 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.490333, 127.10695),
                         new LatLng(37.466521, 127.124207))
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr[0]));
+                .fillColor(colorArray[0]));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr[0]);
+        nameHashMap.put(polygon.hashCode(),name);
+        colorHashMap.put(polygon.hashCode(), colorArray[0]);
+        latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
+        iconFactory = new IconGenerator(this);
 
-        IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr[0]);
-        iconFactory.setStyle(iconStyle(clr[1]));
-        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.496918, 127.063319));
+        iconFactory.setStyle(iconStyle(colorArray[1]));
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
     }//서울 강남구
-    public void drawPolygon158(GoogleMap googlemap) { //서울 동대문구
-        String name = "동대문구";
-        int[] clr = checkColor(name);
-        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+    public void drawPolygon158() { //서울 동대문구
+        name = "동대문구";
+        colorArray = checkColor(name);
+        point = new LatLng(37.582350, 127.055016);
+        polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
                         new LatLng(37.607062869017085, 127.07111288773496),
                         new LatLng(37.60107201319839, 127.07287376670605),
@@ -445,20 +443,21 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.607062869017085, 127.07111288773496)
                 )
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr[0]));
+                .fillColor(colorArray[0]));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr[0]);
+        nameHashMap.put(polygon.hashCode(),name);
+        colorHashMap.put(polygon.hashCode(), colorArray[0]);
+        latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
+        iconFactory = new IconGenerator(this);
 
-        IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr[0]);
-        iconFactory.setStyle(iconStyle(clr[1]));
-        addIcon(iconFactory, name+"\n     "+hmap.get(name), new LatLng(37.582350, 127.055016));
+        iconFactory.setStyle(iconStyle(colorArray[1]));
+        addIcon(iconFactory, name+"\n     "+ pm10HashMap.get(name), point);
     }//서울 동대문구
-    public void drawPolygon155(GoogleMap googlemap) { //서울 중구
-        String name = "중구";
-        int[] clr = checkColor(name);
-        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+    public void drawPolygon155() { //서울 중구
+        name = "중구";
+        colorArray = checkColor(name);
+        point = new LatLng(37.560041, 126.995786);
+        polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
                         new LatLng(37.563894, 127.02675),
                         new LatLng(37.557829, 127.022889),
@@ -582,20 +581,21 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.563894, 127.02675)
                 )
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr[0]));
+                .fillColor(colorArray[0]));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr[0]);
+        nameHashMap.put(polygon.hashCode(),name);
+        colorHashMap.put(polygon.hashCode(), colorArray[0]);
+        latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
+        iconFactory = new IconGenerator(this);
 
-        IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr[0]);
-        iconFactory.setStyle(iconStyle(clr[1]));
-        addIcon(iconFactory, name+"\n "+hmap.get(name), new LatLng(37.560041, 126.995786));
+        iconFactory.setStyle(iconStyle(colorArray[1]));
+        addIcon(iconFactory, name+"\n "+ pm10HashMap.get(name), point);
     }//서울 중구
-    public void drawPolygon160(GoogleMap googlemap) { //서울 종로구
-        String name = "종로구";
-        int[] clr = checkColor(name);
-        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+    public void drawPolygon160() { //서울 종로구
+        name = "종로구";
+        colorArray = checkColor(name);
+        point = new LatLng(37.595601, 126.977230);
+        polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
                         new LatLng(37.571914, 127.023365),
                         new LatLng(37.568136, 126.990151),
@@ -881,20 +881,21 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.571914, 127.023365)
                 )
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr[0]));
+                .fillColor(colorArray[0]));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr[0]);
+        nameHashMap.put(polygon.hashCode(),name);
+        colorHashMap.put(polygon.hashCode(), colorArray[0]);
+        latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
+        iconFactory = new IconGenerator(this);
 
-        IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr[0]);
-        iconFactory.setStyle(iconStyle(clr[1]));
-        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.595601, 126.977230));
+        iconFactory.setStyle(iconStyle(colorArray[1]));
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
     }//서울 종로구
-    public void drawPolygon164(GoogleMap googlemap) { //서울 성북구
-        String name = "성북구";
-        int[] clr = checkColor(name);
-        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+    public void drawPolygon164() { //서울 성북구
+        name = "성북구";
+        colorArray = checkColor(name);
+        point = new LatLng(37.606220, 127.017533);
+        polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
                         new LatLng(37.607629, 127.071061),
                         new LatLng(37.607469, 127.070573),
@@ -1673,41 +1674,21 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.607629, 127.071061)
                 )
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr[0]));
+                .fillColor(colorArray[0]));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr[0]);
+        nameHashMap.put(polygon.hashCode(),name);
+        colorHashMap.put(polygon.hashCode(), colorArray[0]);
+        latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
+        iconFactory = new IconGenerator(this);
 
-        IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr[0]);
-        iconFactory.setStyle(iconStyle(clr[1]));
-        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.606220, 127.017533));
+        iconFactory.setStyle(iconStyle(colorArray[1]));
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
     }//서울 성북구
-    public void drawPolygon156(GoogleMap googlemap) { //서울 서대문구
-        String name = "서대문구";
-        int clr = Color.argb(100,255,0,0);
-        int mclr;
-        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
-        if(hmap.get(name)==null){
-            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
-            mclr = 1;
-        } else if(hmap.get(name).equals("-")){
-            clr = Color.argb(100,140,140,140);
-            mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>150){
-            clr = Color.argb(100,255,0,0);
-            mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>80){
-            clr = Color.argb(100,255,255,0);
-            mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>30){
-            clr = Color.argb(100,0,255,0);
-            mclr = 5;
-        }else {
-            clr = Color.argb(100,0,0,255);
-            mclr = 4;
-        }
-        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+    public void drawPolygon156() { //서울 서대문구
+        name = "서대문구";
+        colorArray = checkColor(name); // colorArray[0] 폴리곤 채우기색, colorArray[1] 아이콘색 배열
+        point = new LatLng(37.578481, 126.939437);
+        polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
                         new LatLng(37.561976    ,126.969464),
                         new LatLng(37.558982    ,126.961689),
@@ -1735,54 +1716,23 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.578749    ,126.953559),
                         new LatLng(37.56582 ,126.966698),
                         new LatLng(37.561976    ,126.969464)
-
                 )
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr));
+                .fillColor(colorArray[0]));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr);
+        nameHashMap.put(polygon.hashCode(),name);
+        colorHashMap.put(polygon.hashCode(), colorArray[0]);
+        latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
+        iconFactory = new IconGenerator(this);
 
-        IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr);
-        if(mclr == 2){
-            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
-        }else if(mclr == 3){
-            iconFactory.setStyle(IconGenerator.STYLE_RED);
-        }else if(mclr == 7){
-            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
-        }else if(mclr == 5){
-            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
-        }else {
-            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
-        }
-        addIcon(iconFactory, name+"\n    "+hmap.get(name), new LatLng(37.578481, 126.939437));
+        iconFactory.setStyle(iconStyle(colorArray[1]));
+        addIcon(iconFactory, name+"\n    "+ pm10HashMap.get(name), point);
     }//서울 서대문구
-    public void drawPolygon153(GoogleMap googlemap) { //서울 마포구
-        String name = "마포구";
-        int clr = Color.argb(100,255,0,0);
-        int mclr;
-        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
-        if(hmap.get(name)==null){
-            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
-            mclr = 1;
-        } else if(hmap.get(name).equals("-")){
-            clr = Color.argb(100,140,140,140);
-            mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>150){
-            clr = Color.argb(100,255,0,0);
-            mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>80){
-            clr = Color.argb(100,255,255,0);
-            mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>30){
-            clr = Color.argb(100,0,255,0);
-            mclr = 5;
-        }else {
-            clr = Color.argb(100,0,0,255);
-            mclr = 4;
-        }
-        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+    public void drawPolygon153() { //서울 마포구
+        name = "마포구";
+        colorArray = checkColor(name); // colorArray[0] 폴리곤 채우기색, colorArray[1] 아이콘색 배열
+        point = new LatLng(37.560098, 126.908128);
+        polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
                         new LatLng(37.549763,   126.963898),
                         new LatLng(37.549572,   126.963832),
@@ -1951,54 +1901,23 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.549948,   126.963549),
                         new LatLng(37.549796,   126.963772),
                         new LatLng(37.549763,   126.963898)
-
                 )
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr));
+                .fillColor(colorArray[0]));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr);
+        nameHashMap.put(polygon.hashCode(),name);
+        colorHashMap.put(polygon.hashCode(), colorArray[0]);
+        latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
+        iconFactory = new IconGenerator(this);
 
-        IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr);
-        if(mclr == 2){
-            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
-        }else if(mclr == 3){
-            iconFactory.setStyle(IconGenerator.STYLE_RED);
-        }else if(mclr == 7){
-            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
-        }else if(mclr == 5){
-            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
-        }else {
-            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
-        }
-        addIcon(iconFactory, name+"\n  "+hmap.get(name), new LatLng(37.560098, 126.908128));
+        iconFactory.setStyle(iconStyle(colorArray[1]));
+        addIcon(iconFactory, name+"\n  "+ pm10HashMap.get(name), point);
     }//서울 마포구
-    public void drawPolygon152(GoogleMap googlemap) { //서울 영등포구
-        String name = "영등포구";
-        int clr = Color.argb(100,255,0,0);
-        int mclr;
-        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
-        if(hmap.get(name)==null){
-            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
-            mclr = 1;
-        } else if(hmap.get(name).equals("-")){
-            clr = Color.argb(100,140,140,140);
-            mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>150){
-            clr = Color.argb(100,255,0,0);
-            mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>80){
-            clr = Color.argb(100,255,255,0);
-            mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>30){
-            clr = Color.argb(100,0,255,0);
-            mclr = 5;
-        }else {
-            clr = Color.argb(100,0,0,255);
-            mclr = 4;
-        }
-        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+    public void drawPolygon152() { //서울 영등포구
+        name = "영등포구";
+        colorArray = checkColor(name); // colorArray[0] 폴리곤 채우기색, colorArray[1] 아이콘색 배열
+        point = new LatLng(37.523416, 126.910407);
+        polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
                         new LatLng(37.517514    ,126.949887 ),
                         new LatLng(37.514457    ,126.926762 ),
@@ -2310,51 +2229,21 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
                 )
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr));
+                .fillColor(colorArray[0]));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr);
+        nameHashMap.put(polygon.hashCode(),name);
+        colorHashMap.put(polygon.hashCode(), colorArray[0]);
+        latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
+        iconFactory = new IconGenerator(this);
 
-        IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr);
-        if(mclr == 2){
-            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
-        }else if(mclr == 3){
-            iconFactory.setStyle(IconGenerator.STYLE_RED);
-        }else if(mclr == 7){
-            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
-        }else if(mclr == 5){
-            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
-        }else {
-            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
-        }
-        addIcon(iconFactory, name+"\n    "+hmap.get(name), new LatLng(37.523416, 126.910407));
+        iconFactory.setStyle(iconStyle(colorArray[1]));
+        addIcon(iconFactory, name+"\n    "+ pm10HashMap.get(name), point);
     }//서울 영등포구
-    public void drawPolygon144(GoogleMap googlemap) { //서울 동작구
-        String name = "동작구";
-        int clr = Color.argb(100,255,0,0);
-        int mclr;
-        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
-        if(hmap.get(name)==null){
-            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
-            mclr = 1;
-        } else if(hmap.get(name).equals("-")){
-            clr = Color.argb(100,140,140,140);
-            mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>150){
-            clr = Color.argb(100,255,0,0);
-            mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>80){
-            clr = Color.argb(100,255,255,0);
-            mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>30){
-            clr = Color.argb(100,0,255,0);
-            mclr = 5;
-        }else {
-            clr = Color.argb(100,0,0,255);
-            mclr = 4;
-        }
-        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+    public void drawPolygon144() { //서울 동작구
+        name = "동작구";
+        colorArray = checkColor(name); // colorArray[0] 폴리곤 채우기색, colorArray[1] 아이콘색 배열
+        point = new LatLng(37.499630, 126.951588);
+        polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
                         new LatLng(37.499861,  126.985385),
                         new LatLng(37.496994,  126.982926),
@@ -2489,51 +2378,21 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
                 )
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr));
+                .fillColor(colorArray[0]));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr);
+        nameHashMap.put(polygon.hashCode(),name);
+        colorHashMap.put(polygon.hashCode(), colorArray[0]);
+        latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
+        iconFactory = new IconGenerator(this);
 
-        IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr);
-        if(mclr == 2){
-            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
-        }else if(mclr == 3){
-            iconFactory.setStyle(IconGenerator.STYLE_RED);
-        }else if(mclr == 7){
-            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
-        }else if(mclr == 5){
-            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
-        }else {
-            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
-        }
-        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.499630, 126.951588));
+        iconFactory.setStyle(iconStyle(colorArray[1]));
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
     }//서울 동작구
-    public void drawPolygon157(GoogleMap googlemap) { //서울 서초구
-        String name = "서초구";
-        int clr = Color.argb(100,255,0,0);
-        int mclr;
-        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
-        if(hmap.get(name)==null){
-            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
-            mclr = 1;
-        } else if(hmap.get(name).equals("-")){
-            clr = Color.argb(100,140,140,140);
-            mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>150){
-            clr = Color.argb(100,255,0,0);
-            mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>80){
-            clr = Color.argb(100,255,255,0);
-            mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>30){
-            clr = Color.argb(100,0,255,0);
-            mclr = 5;
-        }else {
-            clr = Color.argb(100,0,0,255);
-            mclr = 4;
-        }
-        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+    public void drawPolygon157() { //서울 서초구
+        name = "서초구";
+        colorArray = checkColor(name); // colorArray[0] 폴리곤 채우기색, colorArray[1] 아이콘색 배열
+        point = new LatLng(37.474795, 127.030850);
+        polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
                         new LatLng(37.461004,   127.095677  ),
                         new LatLng(37.456394,   127.095223  ),
@@ -2618,51 +2477,21 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
                 )
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr));
+                .fillColor(colorArray[0]));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr);
+        nameHashMap.put(polygon.hashCode(),name);
+        colorHashMap.put(polygon.hashCode(), colorArray[0]);
+        latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
+        iconFactory = new IconGenerator(this);
 
-        IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr);
-        if(mclr == 2){
-            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
-        }else if(mclr == 3){
-            iconFactory.setStyle(IconGenerator.STYLE_RED);
-        }else if(mclr == 7){
-            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
-        }else if(mclr == 5){
-            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
-        }else {
-            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
-        }
-        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.474795, 127.030850));
+        iconFactory.setStyle(iconStyle(colorArray[1]));
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
     }//서울 서초구
-    public void drawPolygon161(GoogleMap googlemap) { //서울 송파구
-        String name = "송파구";
-        int clr = Color.argb(100,255,0,0);
-        int mclr;
-        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
-        if(hmap.get(name)==null){
-            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
-            mclr = 1;
-        } else if(hmap.get(name).equals("-")){
-            clr = Color.argb(100,140,140,140);
-            mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>150){
-            clr = Color.argb(100,255,0,0);
-            mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>80){
-            clr = Color.argb(100,255,255,0);
-            mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>30){
-            clr = Color.argb(100,0,255,0);
-            mclr = 5;
-        }else {
-            clr = Color.argb(100,0,0,255);
-            mclr = 4;
-        }
-        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+    public void drawPolygon161() { //서울 송파구
+        name = "송파구";
+        colorArray = checkColor(name); // colorArray[0] 폴리곤 채우기색, colorArray[1] 아이콘색 배열
+        point = new LatLng(37.506098, 127.115838);
+        polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
                         new LatLng(37.499142    ,127.161011 ),
                         new LatLng(37.499066    ,127.161005 ),
@@ -2723,54 +2552,23 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.501859    ,127.156438 ),
                         new LatLng(37.503179    ,127.157729 ),
                         new LatLng(37.499142    ,127.161011 )
-
                 )
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr));
+                .fillColor(colorArray[0]));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr);
+        nameHashMap.put(polygon.hashCode(),name);
+        colorHashMap.put(polygon.hashCode(), colorArray[0]);
+        latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
+        iconFactory = new IconGenerator(this);
 
-        IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr);
-        if(mclr == 2){
-            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
-        }else if(mclr == 3){
-            iconFactory.setStyle(IconGenerator.STYLE_RED);
-        }else if(mclr == 7){
-            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
-        }else if(mclr == 5){
-            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
-        }else {
-            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
-        }
-        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.506098, 127.115838));
+        iconFactory.setStyle(iconStyle(colorArray[1]));
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
     }//서울 송파구
-    public void drawPolygon154(GoogleMap googlemap) { //서울 광진구
-        String name = "광진구";
-        int clr = Color.argb(100,255,0,0);
-        int mclr;
-        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
-        if(hmap.get(name)==null){
-            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
-            mclr = 1;
-        } else if(hmap.get(name).equals("-")){
-            clr = Color.argb(100,140,140,140);
-            mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>150){
-            clr = Color.argb(100,255,0,0);
-            mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>80){
-            clr = Color.argb(100,255,255,0);
-            mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>30){
-            clr = Color.argb(100,0,255,0);
-            mclr = 5;
-        }else {
-            clr = Color.argb(100,0,0,255);
-            mclr = 4;
-        }
-        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+    public void drawPolygon154() { //서울 광진구
+        name = "광진구";
+        colorArray = checkColor(name); // colorArray[0] 폴리곤 채우기색, colorArray[1] 아이콘색 배열
+        point = new LatLng(37.546406, 127.086471);
+        polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
                         new LatLng(37.55676     ,127.115253 ),
                         new LatLng(37.553851    ,127.113922 ),
@@ -2870,54 +2668,23 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.556808    ,127.114365 ),
                         new LatLng(37.55676     ,127.115252 ),
                         new LatLng(37.55676     ,127.115253 )
-
                 )
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr));
+                .fillColor(colorArray[0]));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr);
+        nameHashMap.put(polygon.hashCode(),name);
+        colorHashMap.put(polygon.hashCode(), colorArray[0]);
+        latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
+        iconFactory = new IconGenerator(this);
 
-        IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr);
-        if(mclr == 2){
-            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
-        }else if(mclr == 3){
-            iconFactory.setStyle(IconGenerator.STYLE_RED);
-        }else if(mclr == 7){
-            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
-        }else if(mclr == 5){
-            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
-        }else {
-            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
-        }
-        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.546406, 127.086471));
+        iconFactory.setStyle(iconStyle(colorArray[1]));
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
     }//서울 광진구
-    public void drawPolygon146(GoogleMap googlemap) { //서울 강동구
-        String name = "강동구";
-        int clr = Color.argb(100,255,0,0);
-        int mclr;
-        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
-        if(hmap.get(name)==null){
-            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
-            mclr = 1;
-        } else if(hmap.get(name).equals("-")){
-            clr = Color.argb(100,140,140,140);
-            mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>150){
-            clr = Color.argb(100,255,0,0);
-            mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>80){
-            clr = Color.argb(100,255,255,0);
-            mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>30){
-            clr = Color.argb(100,0,255,0);
-            mclr = 5;
-        }else {
-            clr = Color.argb(100,0,0,255);
-            mclr = 4;
-        }
-        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+    public void drawPolygon146() { //서울 강동구
+        name = "강동구";
+        colorArray = checkColor(name); // colorArray[0] 폴리곤 채우기색, colorArray[1] 아이콘색 배열
+        point = new LatLng(37.550795, 127.147114);
+        polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
                         new LatLng(37.54517     ,127.183539 ),
                         new LatLng(37.546302    ,127.178261 ),
@@ -2984,54 +2751,23 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.547876    ,127.182676 ),
                         new LatLng(37.547748    ,127.182674 ),
                         new LatLng(37.54517     ,127.183539 )
-
                 )
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr));
+                .fillColor(colorArray[0]));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr);
+        nameHashMap.put(polygon.hashCode(),name);
+        colorHashMap.put(polygon.hashCode(), colorArray[0]);
+        latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
+        iconFactory = new IconGenerator(this);
 
-        IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr);
-        if(mclr == 2){
-            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
-        }else if(mclr == 3){
-            iconFactory.setStyle(IconGenerator.STYLE_RED);
-        }else if(mclr == 7){
-            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
-        }else if(mclr == 5){
-            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
-        }else {
-            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
-        }
-        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.550795, 127.147114));
+        iconFactory.setStyle(iconStyle(colorArray[1]));
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
     }//서울 강동구
-    public void drawPolygon150(GoogleMap googlemap) { //서울 중랑구
-        String name = "중랑구";
-        int clr = Color.argb(100,255,0,0);
-        int mclr;
-        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
-        if(hmap.get(name)==null){
-            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
-            mclr = 1;
-        } else if(hmap.get(name).equals("-")){
-            clr = Color.argb(100,140,140,140);
-            mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>150){
-            clr = Color.argb(100,255,0,0);
-            mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>80){
-            clr = Color.argb(100,255,255,0);
-            mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>30){
-            clr = Color.argb(100,0,255,0);
-            mclr = 5;
-        }else {
-            clr = Color.argb(100,0,0,255);
-            mclr = 4;
-        }
-        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+    public void drawPolygon150() { //서울 중랑구
+        name = "중랑구";
+        colorArray = checkColor(name); // colorArray[0] 폴리곤 채우기색, colorArray[1] 아이콘색 배열
+        point = new LatLng(37.598449, 127.092959);
+        polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
                         new LatLng(37.605444    ,127.118096),
                         new LatLng(37.604602    ,127.118047),
@@ -3383,54 +3119,23 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.605886    ,127.117998),
                         new LatLng(37.605567    ,127.118094),
                         new LatLng(37.605444    ,127.118096)
-
                 )
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr));
+                .fillColor(colorArray[0]));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr);
+        nameHashMap.put(polygon.hashCode(),name);
+        colorHashMap.put(polygon.hashCode(), colorArray[0]);
+        latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
+        iconFactory = new IconGenerator(this);
 
-        IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr);
-        if(mclr == 2){
-            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
-        }else if(mclr == 3){
-            iconFactory.setStyle(IconGenerator.STYLE_RED);
-        }else if(mclr == 7){
-            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
-        }else if(mclr == 5){
-            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
-        }else {
-            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
-        }
-        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.598449, 127.092959));
+        iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
     }//서울 중랑구
-    public void drawPolygon163(GoogleMap googlemap) { //서울 노원구
-        String name = "노원구";
-        int clr = Color.argb(100,255,0,0);
-        int mclr;
-        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
-        if(hmap.get(name)==null){
-            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
-            mclr = 1;
-        } else if(hmap.get(name).equals("-")){
-            clr = Color.argb(100,140,140,140);
-            mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>150){
-            clr = Color.argb(100,255,0,0);
-            mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>80){
-            clr = Color.argb(100,255,255,0);
-            mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>30){
-            clr = Color.argb(100,0,255,0);
-            mclr = 5;
-        }else {
-            clr = Color.argb(100,0,0,255);
-            mclr = 4;
-        }
-        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+    public void drawPolygon163() { //서울 노원구
+        name = "노원구";
+        colorArray = checkColor(name); // colorArray[0] 폴리곤 채우기색, colorArray[1] 아이콘색 배열
+        point = new LatLng(37.653511, 127.075081);
+        polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
                         new LatLng(37.636489    ,127.112483),
                         new LatLng(37.635564    ,127.112252),
@@ -3935,54 +3640,23 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.637846    ,127.111687),
                         new LatLng(37.637408    ,127.111951),
                         new LatLng(37.636489    ,127.112483)
-
                 )
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr));
+                .fillColor(colorArray[0]));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr);
+        nameHashMap.put(polygon.hashCode(),name);
+        colorHashMap.put(polygon.hashCode(), colorArray[0]);
+        latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
+        iconFactory = new IconGenerator(this);
 
-        IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr);
-        if(mclr == 2){
-            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
-        }else if(mclr == 3){
-            iconFactory.setStyle(IconGenerator.STYLE_RED);
-        }else if(mclr == 7){
-            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
-        }else if(mclr == 5){
-            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
-        }else {
-            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
-        }
-        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.653511, 127.075081));
+        iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
     }//서울 노원구
-    public void drawPolygon147(GoogleMap googlemap) { //서울 도봉구
-        String name = "도봉구";
-        int clr = Color.argb(100,255,0,0);
-        int mclr;
-        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
-        if(hmap.get(name)==null){
-            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
-            mclr = 1;
-        } else if(hmap.get(name).equals("-")){
-            clr = Color.argb(100,140,140,140);
-            mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>150){
-            clr = Color.argb(100,255,0,0);
-            mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>80){
-            clr = Color.argb(100,255,255,0);
-            mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>30){
-            clr = Color.argb(100,0,255,0);
-            mclr = 5;
-        }else {
-            clr = Color.argb(100,0,0,255);
-            mclr = 4;
-        }
-        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+    public void drawPolygon147() { //서울 도봉구
+        name = "도봉구";
+        colorArray = checkColor(name); // colorArray[0] 폴리곤 채우기색, colorArray[1] 아이콘색 배열
+        point = new LatLng(37.669760, 127.032619);
+        polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
                         new LatLng(37.645951    ,127.055873 ),
                         new LatLng(37.644598    ,127.055651 ),
@@ -4226,51 +3900,21 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
                 )
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr));
+                .fillColor(colorArray[0]));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr);
+        nameHashMap.put(polygon.hashCode(),name);
+        colorHashMap.put(polygon.hashCode(), colorArray[0]);
+        latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
+        iconFactory = new IconGenerator(this);
 
-        IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr);
-        if(mclr == 2){
-            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
-        }else if(mclr == 3){
-            iconFactory.setStyle(IconGenerator.STYLE_RED);
-        }else if(mclr == 7){
-            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
-        }else if(mclr == 5){
-            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
-        }else {
-            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
-        }
-        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.669760, 127.032619));
+        iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
     }//서울 도봉구
-    public void drawPolygon169(GoogleMap googlemap) { //서울 강북구
-        String name = "강북구";
-        int clr = Color.argb(100,255,0,0);
-        int mclr;
-        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
-        if(hmap.get(name)==null){
-            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
-            mclr = 1;
-        } else if(hmap.get(name).equals("-")){
-            clr = Color.argb(100,140,140,140);
-            mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>150){
-            clr = Color.argb(100,255,0,0);
-            mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>80){
-            clr = Color.argb(100,255,255,0);
-            mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>30){
-            clr = Color.argb(100,0,255,0);
-            mclr = 5;
-        }else {
-            clr = Color.argb(100,0,0,255);
-            mclr = 4;
-        }
-        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+    public void drawPolygon169() { //서울 강북구
+        name = "강북구";
+        colorArray = checkColor(name); // colorArray[0] 폴리곤 채우기색, colorArray[1] 아이콘색 배열
+        point = new LatLng(37.644060, 127.011241);
+        polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
                         new LatLng(37.624266    ,127.049737 ),
                         new LatLng(37.624248    ,127.049705 ),
@@ -4662,51 +4306,21 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
                 )
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr));
+                .fillColor(colorArray[0]));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr);
+        nameHashMap.put(polygon.hashCode(),name);
+        colorHashMap.put(polygon.hashCode(), colorArray[0]);
+        latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
+        iconFactory = new IconGenerator(this);
 
-        IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr);
-        if(mclr == 2){
-            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
-        }else if(mclr == 3){
-            iconFactory.setStyle(IconGenerator.STYLE_RED);
-        }else if(mclr == 7){
-            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
-        }else if(mclr == 5){
-            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
-        }else {
-            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
-        }
-        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.644060, 127.011241));
+        iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
     }//서울 강북구
-    public void drawPolygon166(GoogleMap googlemap) { //서울 관악구
-        String name = "관악구";
-        int clr = Color.argb(100,255,0,0);
-        int mclr;
-        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
-        if(hmap.get(name)==null){
-            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
-            mclr = 1;
-        } else if(hmap.get(name).equals("-")){
-            clr = Color.argb(100,140,140,140);
-            mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>150){
-            clr = Color.argb(100,255,0,0);
-            mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>80){
-            clr = Color.argb(100,255,255,0);
-            mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>30){
-            clr = Color.argb(100,0,255,0);
-            mclr = 5;
-        }else {
-            clr = Color.argb(100,0,0,255);
-            mclr = 4;
-        }
-        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+    public void drawPolygon166() { //서울 관악구
+        name = "관악구";
+        colorArray = checkColor(name); // colorArray[0] 폴리곤 채우기색, colorArray[1] 아이콘색 배열
+        point = new LatLng(37.467836, 126.945449);
+        polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
                         new LatLng(37.458166    ,126.988636 ),
                         new LatLng(37.454413    ,126.97458  ),
@@ -4889,51 +4503,21 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
                 )
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr));
+                .fillColor(colorArray[0]));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr);
+        nameHashMap.put(polygon.hashCode(),name);
+        colorHashMap.put(polygon.hashCode(), colorArray[0]);
+        latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
+        iconFactory = new IconGenerator(this);
 
-        IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr);
-        if(mclr == 2){
-            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
-        }else if(mclr == 3){
-            iconFactory.setStyle(IconGenerator.STYLE_RED);
-        }else if(mclr == 7){
-            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
-        }else if(mclr == 5){
-            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
-        }else {
-            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
-        }
-        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.467836, 126.945449));
+        iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
     }//서울 관악구
-    public void drawPolygon148(GoogleMap googlemap) { //서울 금천구
-        String name = "금천구";
-        int clr = Color.argb(100,255,0,0);
-        int mclr;
-        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
-        if(hmap.get(name)==null){
-            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
-            mclr = 1;
-        } else if(hmap.get(name).equals("-")){
-            clr = Color.argb(100,140,140,140);
-            mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>150){
-            clr = Color.argb(100,255,0,0);
-            mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>80){
-            clr = Color.argb(100,255,255,0);
-            mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>30){
-            clr = Color.argb(100,0,255,0);
-            mclr = 5;
-        }else {
-            clr = Color.argb(100,0,0,255);
-            mclr = 4;
-        }
-        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+    public void drawPolygon148() { //서울 금천구
+        name = "금천구";
+        colorArray = checkColor(name); // colorArray[0] 폴리곤 채우기색, colorArray[1] 아이콘색 배열
+        point = new LatLng(37.461215, 126.900751);
+        polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
                         new LatLng(37.450733    ,126.928469 ),
                         new LatLng(37.450213    ,126.928399 ),
@@ -5056,51 +4640,21 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
                 )
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr));
+                .fillColor(colorArray[0]));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr);
+        nameHashMap.put(polygon.hashCode(),name);
+        colorHashMap.put(polygon.hashCode(), colorArray[0]);
+        latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
+        iconFactory = new IconGenerator(this);
 
-        IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr);
-        if(mclr == 2){
-            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
-        }else if(mclr == 3){
-            iconFactory.setStyle(IconGenerator.STYLE_RED);
-        }else if(mclr == 7){
-            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
-        }else if(mclr == 5){
-            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
-        }else {
-            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
-        }
-        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.461215, 126.900751));
+        iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
     }//서울 금천구
-    public void drawPolygon142(GoogleMap googlemap) { //서울 강서구
-        String name = "강서구";
-        int clr = Color.argb(100,255,0,0);
-        int mclr;
-        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
-        if(hmap.get(name)==null){
-            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
-            mclr = 1;
-        } else if(hmap.get(name).equals("-")){
-            clr = Color.argb(100,140,140,140);
-            mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>150){
-            clr = Color.argb(100,255,0,0);
-            mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>80){
-            clr = Color.argb(100,255,255,0);
-            mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>30){
-            clr = Color.argb(100,0,255,0);
-            mclr = 5;
-        }else {
-            clr = Color.argb(100,0,0,255);
-            mclr = 4;
-        }
-        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+    public void drawPolygon142() { //서울 강서구
+        name = "강서구";
+        colorArray = checkColor(name); // colorArray[0] 폴리곤 채우기색, colorArray[1] 아이콘색 배열
+        point = new LatLng(37.562385, 126.823067);
+        polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
                         new LatLng(37.548088    ,126.880792),
                         new LatLng(37.547072    ,126.872644),
@@ -5154,54 +4708,23 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.550412    ,126.879124),
                         new LatLng(37.55031     ,126.879213),
                         new LatLng(37.548088    ,126.880792)
-
                 )
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr));
+                .fillColor(colorArray[0]));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr);
+        nameHashMap.put(polygon.hashCode(),name);
+        colorHashMap.put(polygon.hashCode(), colorArray[0]);
+        latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
+        iconFactory = new IconGenerator(this);
 
-        IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr);
-        if(mclr == 2){
-            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
-        }else if(mclr == 3){
-            iconFactory.setStyle(IconGenerator.STYLE_RED);
-        }else if(mclr == 7){
-            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
-        }else if(mclr == 5){
-            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
-        }else {
-            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
-        }
-        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.562385, 126.823067));
+        iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
     }//서울 강서구
-    public void drawPolygon162(GoogleMap googlemap) { //서울 양천구
-        String name = "양천구";
-        int clr = Color.argb(100,255,0,0);
-        int mclr;
-        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
-        if(hmap.get(name)==null){
-            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
-            mclr = 1;
-        } else if(hmap.get(name).equals("-")){
-            clr = Color.argb(100,140,140,140);
-            mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>150){
-            clr = Color.argb(100,255,0,0);
-            mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>80){
-            clr = Color.argb(100,255,255,0);
-            mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>30){
-            clr = Color.argb(100,0,255,0);
-            mclr = 5;
-        }else {
-            clr = Color.argb(100,0,0,255);
-            mclr = 4;
-        }
-        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+    public void drawPolygon162() { //서울 양천구
+        name = "양천구";
+        colorArray = checkColor(name); // colorArray[0] 폴리곤 채우기색, colorArray[1] 아이콘색 배열
+        point = new LatLng(37.525320, 126.855535);
+        polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
                         new LatLng(37.531656    ,126.890684),
                         new LatLng(37.531396    ,126.89047),
@@ -5438,54 +4961,23 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.531869    ,126.890289),
                         new LatLng(37.531725    ,126.890581),
                         new LatLng(37.531656    ,126.890684)
-
                 )
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr));
+                .fillColor(colorArray[0]));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr);
+        nameHashMap.put(polygon.hashCode(),name);
+        colorHashMap.put(polygon.hashCode(), colorArray[0]);
+        latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
+        iconFactory = new IconGenerator(this);
 
-        IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr);
-        if(mclr == 2){
-            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
-        }else if(mclr == 3){
-            iconFactory.setStyle(IconGenerator.STYLE_RED);
-        }else if(mclr == 7){
-            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
-        }else if(mclr == 5){
-            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
-        }else {
-            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
-        }
-        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.525320, 126.855535));
+        iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
     }//서울 양천구
-    public void drawPolygon159(GoogleMap googlemap) { //서울 구로구
-        String name = "구로구";
-        int clr = Color.argb(100,255,0,0);
-        int mclr;
-        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
-        if(hmap.get(name)==null){
-            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
-            mclr = 1;
-        } else if(hmap.get(name).equals("-")){
-            clr = Color.argb(100,140,140,140);
-            mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>150){
-            clr = Color.argb(100,255,0,0);
-            mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>80){
-            clr = Color.argb(100,255,255,0);
-            mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>30){
-            clr = Color.argb(100,0,255,0);
-            mclr = 5;
-        }else {
-            clr = Color.argb(100,0,0,255);
-            mclr = 4;
-        }
-        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+    public void drawPolygon159() { //서울 구로구
+        name = "구로구";
+        colorArray = checkColor(name); // colorArray[0] 폴리곤 채우기색, colorArray[1] 아이콘색 배열
+        point = new LatLng(37.494959, 126.856236);
+        polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
                         new LatLng(37.485003    ,126.903199 ),
                         new LatLng(37.484977    ,126.903177 ),
@@ -5618,55 +5110,23 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.486932    ,126.898146 ),
                         new LatLng(37.485006    ,126.90303  ),
                         new LatLng(37.485003    ,126.903199 )
-
                 )
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr));
+                .fillColor(colorArray[0]));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr);
+        nameHashMap.put(polygon.hashCode(),name);
+        colorHashMap.put(polygon.hashCode(), colorArray[0]);
+        latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
+        iconFactory = new IconGenerator(this);
 
-        IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr);
-        if(mclr == 2){
-            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
-        }else if(mclr == 3){
-            iconFactory.setStyle(IconGenerator.STYLE_RED);
-        }else if(mclr == 7){
-            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
-        }else if(mclr == 5){
-            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
-        }else {
-            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
-        }
-        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.494959, 126.856236));
+        iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
     }//서울 구로구
-    public void drawPolygon149(GoogleMap googlemap) { //서울 성동구
-        String name = "은평구";
-        int clr = Color.argb(100,255,0,0);
-        int mclr;
-        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
-        if(hmap.get(name)==null){
-            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
-            mclr = 1;
-        } else if(hmap.get(name).equals("-")){
-            clr = Color.argb(100,140,140,140);
-            mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>150){
-            clr = Color.argb(100,255,0,0);
-            mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>80){
-            clr = Color.argb(100,255,255,0);
-            mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>30){
-            clr = Color.argb(100,0,255,0);
-            mclr = 5;
-        }else {
-            clr = Color.argb(100,0,0,255);
-            mclr = 4;
-        }
-        Log.d("log","kbc   ++))++))++  "+clr);
-        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+    public void drawPolygon149() { //서울 은평구
+        name = "은평구";
+        colorArray = checkColor(name); // colorArray[0] 폴리곤 채우기색, colorArray[1] 아이콘색 배열
+        point = new LatLng(37.619817, 126.927319);
+        polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
                         new LatLng(37.633245	,126.963329	),
                         new LatLng(37.62947 	,126.958418	),
@@ -5727,54 +5187,23 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.633245	,126.963329	)
                 )
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr));
+                .fillColor(colorArray[0]));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr);
+        nameHashMap.put(polygon.hashCode(),name);
+        colorHashMap.put(polygon.hashCode(), colorArray[0]);
+        latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
+        iconFactory = new IconGenerator(this);
 
-        IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr);
-        if(mclr == 2){
-            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
-        }else if(mclr == 3){
-            iconFactory.setStyle(IconGenerator.STYLE_RED);
-        }else if(mclr == 7){
-            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
-        }else if(mclr == 5){
-            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
-        }else {
-            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
-        }
-        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.619817, 126.927319));
+        iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
 
     }//서울 은평구
     //경기
-    public void drawPolygon41(GoogleMap googlemap) { //과천시
-        String name = "과천시";
-        int clr = Color.argb(100,255,0,0);
-        int mclr;
-        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
-        if(hmap.get(name)==null){
-            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
-            mclr = 1;
-        } else if(hmap.get(name).equals("-")){
-            clr = Color.argb(100,140,140,140);
-            mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>150){
-            clr = Color.argb(100,255,0,0);
-            mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>80){
-            clr = Color.argb(100,255,255,0);
-            mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>30){
-            clr = Color.argb(100,0,255,0);
-            mclr = 5;
-        }else {
-            clr = Color.argb(100,0,0,255);
-            mclr = 4;
-        }
-
-        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+    public void drawPolygon41() { //과천시
+        name = "과천시";
+        colorArray = checkColor(name); // colorArray[0] 폴리곤 채우기색, colorArray[1] 아이콘색 배열
+        point = new LatLng(37.434498, 127.002946);
+        polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
                         new LatLng(37.430702    ,127.047369  ),
                         new LatLng(37.428103    ,127.042016  ),
@@ -6008,52 +5437,21 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.437769    ,127.04109   ),
                         new LatLng(37.430702    ,127.047369  ))
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr));
+                .fillColor(colorArray[0]));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr);
+        nameHashMap.put(polygon.hashCode(),name);
+        colorHashMap.put(polygon.hashCode(), colorArray[0]);
+        latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
+        iconFactory = new IconGenerator(this);
 
-        IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr);
-        if(mclr == 2){
-            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
-        }else if(mclr == 3){
-            iconFactory.setStyle(IconGenerator.STYLE_RED);
-        }else if(mclr == 7){
-            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
-        }else if(mclr == 5){
-            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
-        }else {
-            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
-        }
-        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.434498, 127.002946));
+        iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
     }//과천시
-    public void drawPolygon57(GoogleMap googlemap) { //구리시
-        String name = "구리시";
-        int clr = Color.argb(100,255,0,0);
-        int mclr;
-        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
-        if(hmap.get(name)==null){
-            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
-            mclr = 1;
-        } else if(hmap.get(name).equals("-")){
-            clr = Color.argb(100,140,140,140);
-            mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>150){
-            clr = Color.argb(100,255,0,0);
-            mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>80){
-            clr = Color.argb(100,255,255,0);
-            mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>30){
-            clr = Color.argb(100,0,255,0);
-            mclr = 5;
-        }else {
-            clr = Color.argb(100,0,0,255);
-            mclr = 4;
-        }
-
-        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+    public void drawPolygon57() { //구리시
+        name = "구리시";
+        colorArray = checkColor(name); // colorArray[0] 폴리곤 채우기색, colorArray[1] 아이콘색 배열
+        point = new LatLng(37.599407, 127.131271);
+        polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
                         new LatLng(37.581029	,127.170598),
                         new LatLng(37.57977 	,127.168428),
@@ -6268,315 +5666,253 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.581029	,127.170598)
                 )
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr));
+                .fillColor(colorArray[0]));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr);
+        nameHashMap.put(polygon.hashCode(),name);
+        colorHashMap.put(polygon.hashCode(), colorArray[0]);
+        latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
+        iconFactory = new IconGenerator(this);
 
-        IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr);
-        if(mclr == 2){
-            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
-        }else if(mclr == 3){
-            iconFactory.setStyle(IconGenerator.STYLE_RED);
-        }else if(mclr == 7){
-            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
-        }else if(mclr == 5){
-            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
-        }else {
-            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
-        }
-        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.599407, 127.131271));
+        iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
     }//구리시
-    public void drawPolygon33(GoogleMap googlemap) { //
-    String name = "광명시";
-    int clr = Color.argb(100,255,0,0);
-        int mclr;
-        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
-        if(hmap.get(name)==null){
-            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
-            mclr = 1;
-        } else if(hmap.get(name).equals("-")){
-            clr = Color.argb(100,140,140,140);
-            mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>150){
-            clr = Color.argb(100,255,0,0);
-            mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>80){
-            clr = Color.argb(100,255,255,0);
-            mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>30){
-            clr = Color.argb(100,0,255,0);
-            mclr = 5;
-        }else {
-            clr = Color.argb(100,0,0,255);
-            mclr = 4;
-        }
-
-    Polygon polygon = mMap.addPolygon(new PolygonOptions()
-            .add(
-                    new LatLng(37.434827	,126.899841	),
-                    new LatLng(37.434031	,126.899152	),
-                    new LatLng(37.433401	,126.899207	),
-                    new LatLng(37.433327	,126.898715	),
-                    new LatLng(37.432728	,126.898349	),
-                    new LatLng(37.432399	,126.898472	),
-                    new LatLng(37.431881	,126.898319	),
-                    new LatLng(37.43172 	,126.898247	),
-                    new LatLng(37.431269	,126.898137	),
-                    new LatLng(37.431251	,126.898124	),
-                    new LatLng(37.430954	,126.897446	),
-                    new LatLng(37.43116 	,126.896889	),
-                    new LatLng(37.431197	,126.896505	),
-                    new LatLng(37.431045	,126.896235	),
-                    new LatLng(37.430775	,126.895992	),
-                    new LatLng(37.430596	,126.895832	),
-                    new LatLng(37.430569	,126.895799	),
-                    new LatLng(37.430369	,126.895529	),
-                    new LatLng(37.429681	,126.894665	),
-                    new LatLng(37.429534	,126.89465	),
-                    new LatLng(37.429187	,126.894417	),
-                    new LatLng(37.429017	,126.894263	),
-                    new LatLng(37.428845	,126.894336	),
-                    new LatLng(37.428324	,126.894521	),
-                    new LatLng(37.428278	,126.894507	),
-                    new LatLng(37.427962	,126.89423	),
-                    new LatLng(37.427801	,126.894215	),
-                    new LatLng(37.427575	,126.894351	),
-                    new LatLng(37.427358	,126.894836	),
-                    new LatLng(37.427523	,126.895337	),
-                    new LatLng(37.427727	,126.895542	),
-                    new LatLng(37.427837	,126.895804	),
-                    new LatLng(37.427421	,126.896814	),
-                    new LatLng(37.42719 	,126.896892	),
-                    new LatLng(37.426848	,126.896719	),
-                    new LatLng(37.426772	,126.896613	),
-                    new LatLng(37.426562	,126.896311	),
-                    new LatLng(37.426394	,126.896172	),
-                    new LatLng(37.42634 	,126.896156	),
-                    new LatLng(37.426039	,126.896287	),
-                    new LatLng(37.425184	,126.896434	),
-                    new LatLng(37.424963	,126.896045	),
-                    new LatLng(37.424775	,126.895617	),
-                    new LatLng(37.424385	,126.895004	),
-                    new LatLng(37.424169	,126.894973	),
-                    new LatLng(37.42365 	,126.894953	),
-                    new LatLng(37.422526	,126.894087	),
-                    new LatLng(37.421177	,126.893906	),
-                    new LatLng(37.420916	,126.893942	),
-                    new LatLng(37.420535	,126.893914	),
-                    new LatLng(37.420436	,126.89384	),
-                    new LatLng(37.420228	,126.893592	),
-                    new LatLng(37.420419	,126.892601	),
-                    new LatLng(37.420533	,126.891761	),
-                    new LatLng(37.420291	,126.891189	),
-                    new LatLng(37.419924	,126.890512	),
-                    new LatLng(37.419658	,126.890066	),
-                    new LatLng(37.41917 	,126.889355	),
-                    new LatLng(37.41861 	,126.88891	),
-                    new LatLng(37.41813 	,126.889126	),
-                    new LatLng(37.418007	,126.889336	),
-                    new LatLng(37.417771	,126.889819	),
-                    new LatLng(37.417649	,126.8898	),
-                    new LatLng(37.417624	,126.889769	),
-                    new LatLng(37.417439	,126.889744	),
-                    new LatLng(37.416215	,126.889501	),
-                    new LatLng(37.416195	,126.889608	),
-                    new LatLng(37.416185	,126.889626	),
-                    new LatLng(37.415825	,126.889547	),
-                    new LatLng(37.415774	,126.889518	),
-                    new LatLng(37.415533	,126.889365	),
-                    new LatLng(37.415291	,126.889222	),
-                    new LatLng(37.414956	,126.889182	),
-                    new LatLng(37.414854	,126.889173	),
-                    new LatLng(37.414359	,126.889119	),
-                    new LatLng(37.413887	,126.889333	),
-                    new LatLng(37.413353	,126.889415	),
-                    new LatLng(37.413314	,126.889409	),
-                    new LatLng(37.41328 	,126.889404	),
-                    new LatLng(37.413283	,126.889357	),
-                    new LatLng(37.412486	,126.889263	),
-                    new LatLng(37.412463	,126.889272	),
-                    new LatLng(37.412385	,126.889268	),
-                    new LatLng(37.411977	,126.889141	),
-                    new LatLng(37.411335	,126.888644	),
-                    new LatLng(37.411159	,126.887875	),
-                    new LatLng(37.411124	,126.886713	),
-                    new LatLng(37.411564	,126.88587	),
-                    new LatLng(37.411701	,126.885442	),
-                    new LatLng(37.411688	,126.885307	),
-                    new LatLng(37.411671	,126.885182	),
-                    new LatLng(37.411649	,126.885023	),
-                    new LatLng(37.411616	,126.884795	),
-                    new LatLng(37.411663	,126.884809	),
-                    new LatLng(37.411644	,126.884702	),
-                    new LatLng(37.411602	,126.884614	),
-                    new LatLng(37.411589	,126.884284	),
-                    new LatLng(37.411493	,126.884104	),
-                    new LatLng(37.41079 	,126.882139	),
-                    new LatLng(37.410795	,126.881948	),
-                    new LatLng(37.410841	,126.881728	),
-                    new LatLng(37.410846	,126.881313	),
-                    new LatLng(37.410639	,126.880703	),
-                    new LatLng(37.410382	,126.880316	),
-                    new LatLng(37.41014 	,126.879909	),
-                    new LatLng(37.408965	,126.879147	),
-                    new LatLng(37.408894	,126.87837	),
-                    new LatLng(37.40932 	,126.877629	),
-                    new LatLng(37.410394	,126.876039	),
-                    new LatLng(37.410867	,126.876056	),
-                    new LatLng(37.411158	,126.875327	),
-                    new LatLng(37.411578	,126.875	),
-                    new LatLng(37.411577	,126.87499	),
-                    new LatLng(37.411457	,126.874174	),
-                    new LatLng(37.411795	,126.872214	),
-                    new LatLng(37.412523	,126.871485	),
-                    new LatLng(37.412711	,126.871161	),
-                    new LatLng(37.412417	,126.871103	),
-                    new LatLng(37.411295	,126.870653	),
-                    new LatLng(37.410804	,126.870386	),
-                    new LatLng(37.410137	,126.870669	),
-                    new LatLng(37.409263	,126.870923	),
-                    new LatLng(37.408138	,126.870242	),
-                    new LatLng(37.407523	,126.870322	),
-                    new LatLng(37.407044	,126.870411	),
-                    new LatLng(37.406799	,126.871215	),
-                    new LatLng(37.406485	,126.875848	),
-                    new LatLng(37.40559 	,126.876272	),
-                    new LatLng(37.4055  	,126.876347	),
-                    new LatLng(37.405255	,126.876553	),
-                    new LatLng(37.402193	,126.876962	),
-                    new LatLng(37.401971	,126.876943	),
-                    new LatLng(37.401929	,126.876918	),
-                    new LatLng(37.401719	,126.865804	),
-                    new LatLng(37.401713	,126.86573	),
-                    new LatLng(37.403443	,126.855108	),
-                    new LatLng(37.403444	,126.855107	),
-                    new LatLng(37.403478	,126.855063	),
-                    new LatLng(37.413783	,126.846214	),
-                    new LatLng(37.413909	,126.846193	),
-                    new LatLng(37.422885	,126.8454	),
-                    new LatLng(37.426701	,126.841724	),
-                    new LatLng(37.426754	,126.84173	),
-                    new LatLng(37.434687	,126.841447	),
-                    new LatLng(37.438063	,126.837521	),
-                    new LatLng(37.458122	,126.838332	),
-                    new LatLng(37.460295	,126.833081	),
-                    new LatLng(37.457741	,126.829148	),
-                    new LatLng(37.459479	,126.826101	),
-                    new LatLng(37.465865	,126.832996	),
-                    new LatLng(37.473365	,126.832162	),
-                    new LatLng(37.473865	,126.832412	),
-                    new LatLng(37.477246	,126.833052	),
-                    new LatLng(37.474363	,126.83464	),
-                    new LatLng(37.474911	,126.837257	),
-                    new LatLng(37.474975	,126.837455	),
-                    new LatLng(37.475372	,126.838395	),
-                    new LatLng(37.475361	,126.838445	),
-                    new LatLng(37.475315	,126.838778	),
-                    new LatLng(37.475292	,126.838904	),
-                    new LatLng(37.475177	,126.839446	),
-                    new LatLng(37.475178	,126.839472	),
-                    new LatLng(37.474862	,126.839949	),
-                    new LatLng(37.474805	,126.840031	),
-                    new LatLng(37.474677	,126.841158	),
-                    new LatLng(37.474689	,126.841215	),
-                    new LatLng(37.473812	,126.845361	),
-                    new LatLng(37.473875	,126.845367	),
-                    new LatLng(37.48191 	,126.847016	),
-                    new LatLng(37.482025	,126.847455	),
-                    new LatLng(37.481787	,126.85262	),
-                    new LatLng(37.485754	,126.857215	),
-                    new LatLng(37.485761	,126.85729	),
-                    new LatLng(37.485795	,126.857449	),
-                    new LatLng(37.485807	,126.857484	),
-                    new LatLng(37.489547	,126.861016	),
-                    new LatLng(37.489668	,126.861119	),
-                    new LatLng(37.493987	,126.866977	),
-                    new LatLng(37.49408 	,126.866907	),
-                    new LatLng(37.494533	,126.869243	),
-                    new LatLng(37.492171	,126.869616	),
-                    new LatLng(37.492131	,126.869512	),
-                    new LatLng(37.489596	,126.870228	),
-                    new LatLng(37.490602	,126.872255	),
-                    new LatLng(37.490697	,126.872448	),
-                    new LatLng(37.490845	,126.873298	),
-                    new LatLng(37.491067	,126.87356	),
-                    new LatLng(37.488431	,126.872748	),
-                    new LatLng(37.488571	,126.87679	),
-                    new LatLng(37.485367	,126.874556	),
-                    new LatLng(37.485269	,126.871763	),
-                    new LatLng(37.482425	,126.872744	),
-                    new LatLng(37.466012	,126.884618	),
-                    new LatLng(37.464391	,126.882746	),
-                    new LatLng(37.460947	,126.888876	),
-                    new LatLng(37.459863	,126.88535	),
-                    new LatLng(37.455537	,126.88766	),
-                    new LatLng(37.455568	,126.88786	),
-                    new LatLng(37.452315	,126.889642	),
-                    new LatLng(37.452717	,126.893983	),
-                    new LatLng(37.438702	,126.898978	),
-                    new LatLng(37.438652	,126.899017	),
-                    new LatLng(37.438662	,126.899039	),
-                    new LatLng(37.438114	,126.899409	),
-                    new LatLng(37.438092	,126.899439	),
-                    new LatLng(37.438025	,126.899529	),
-                    new LatLng(37.436745	,126.899498	),
-                    new LatLng(37.436103	,126.899427	),
-                    new LatLng(37.435883	,126.899556	),
-                    new LatLng(37.43583 	,126.899596	),
-                    new LatLng(37.435607	,126.899554	),
-                    new LatLng(37.435081	,126.899417	),
-                    new LatLng(37.434995	,126.89961	),
-                    new LatLng(37.434827	,126.899841	)
-            )
-            .strokeColor(Color.WHITE)             .strokeWidth(2)
-            .fillColor(clr));
+    public void drawPolygon33() { //광명시
+        name = "광명시";
+        colorArray = checkColor(name); // colorArray[0] 폴리곤 채우기색, colorArray[1] 아이콘색 배열
+        point = new LatLng(37.445600, 126.865055);
+        polygon = mMap.addPolygon(new PolygonOptions()
+                .add(
+                        new LatLng(37.434827	,126.899841	),
+                        new LatLng(37.434031	,126.899152	),
+                        new LatLng(37.433401	,126.899207	),
+                        new LatLng(37.433327	,126.898715	),
+                        new LatLng(37.432728	,126.898349	),
+                        new LatLng(37.432399	,126.898472	),
+                        new LatLng(37.431881	,126.898319	),
+                        new LatLng(37.43172 	,126.898247	),
+                        new LatLng(37.431269	,126.898137	),
+                        new LatLng(37.431251	,126.898124	),
+                        new LatLng(37.430954	,126.897446	),
+                        new LatLng(37.43116 	,126.896889	),
+                        new LatLng(37.431197	,126.896505	),
+                        new LatLng(37.431045	,126.896235	),
+                        new LatLng(37.430775	,126.895992	),
+                        new LatLng(37.430596	,126.895832	),
+                        new LatLng(37.430569	,126.895799	),
+                        new LatLng(37.430369	,126.895529	),
+                        new LatLng(37.429681	,126.894665	),
+                        new LatLng(37.429534	,126.89465	),
+                        new LatLng(37.429187	,126.894417	),
+                        new LatLng(37.429017	,126.894263	),
+                        new LatLng(37.428845	,126.894336	),
+                        new LatLng(37.428324	,126.894521	),
+                        new LatLng(37.428278	,126.894507	),
+                        new LatLng(37.427962	,126.89423	),
+                        new LatLng(37.427801	,126.894215	),
+                        new LatLng(37.427575	,126.894351	),
+                        new LatLng(37.427358	,126.894836	),
+                        new LatLng(37.427523	,126.895337	),
+                        new LatLng(37.427727	,126.895542	),
+                        new LatLng(37.427837	,126.895804	),
+                        new LatLng(37.427421	,126.896814	),
+                        new LatLng(37.42719 	,126.896892	),
+                        new LatLng(37.426848	,126.896719	),
+                        new LatLng(37.426772	,126.896613	),
+                        new LatLng(37.426562	,126.896311	),
+                        new LatLng(37.426394	,126.896172	),
+                        new LatLng(37.42634 	,126.896156	),
+                        new LatLng(37.426039	,126.896287	),
+                        new LatLng(37.425184	,126.896434	),
+                        new LatLng(37.424963	,126.896045	),
+                        new LatLng(37.424775	,126.895617	),
+                        new LatLng(37.424385	,126.895004	),
+                        new LatLng(37.424169	,126.894973	),
+                        new LatLng(37.42365 	,126.894953	),
+                        new LatLng(37.422526	,126.894087	),
+                        new LatLng(37.421177	,126.893906	),
+                        new LatLng(37.420916	,126.893942	),
+                        new LatLng(37.420535	,126.893914	),
+                        new LatLng(37.420436	,126.89384	),
+                        new LatLng(37.420228	,126.893592	),
+                        new LatLng(37.420419	,126.892601	),
+                        new LatLng(37.420533	,126.891761	),
+                        new LatLng(37.420291	,126.891189	),
+                        new LatLng(37.419924	,126.890512	),
+                        new LatLng(37.419658	,126.890066	),
+                        new LatLng(37.41917 	,126.889355	),
+                        new LatLng(37.41861 	,126.88891	),
+                        new LatLng(37.41813 	,126.889126	),
+                        new LatLng(37.418007	,126.889336	),
+                        new LatLng(37.417771	,126.889819	),
+                        new LatLng(37.417649	,126.8898	),
+                        new LatLng(37.417624	,126.889769	),
+                        new LatLng(37.417439	,126.889744	),
+                        new LatLng(37.416215	,126.889501	),
+                        new LatLng(37.416195	,126.889608	),
+                        new LatLng(37.416185	,126.889626	),
+                        new LatLng(37.415825	,126.889547	),
+                        new LatLng(37.415774	,126.889518	),
+                        new LatLng(37.415533	,126.889365	),
+                        new LatLng(37.415291	,126.889222	),
+                        new LatLng(37.414956	,126.889182	),
+                        new LatLng(37.414854	,126.889173	),
+                        new LatLng(37.414359	,126.889119	),
+                        new LatLng(37.413887	,126.889333	),
+                        new LatLng(37.413353	,126.889415	),
+                        new LatLng(37.413314	,126.889409	),
+                        new LatLng(37.41328 	,126.889404	),
+                        new LatLng(37.413283	,126.889357	),
+                        new LatLng(37.412486	,126.889263	),
+                        new LatLng(37.412463	,126.889272	),
+                        new LatLng(37.412385	,126.889268	),
+                        new LatLng(37.411977	,126.889141	),
+                        new LatLng(37.411335	,126.888644	),
+                        new LatLng(37.411159	,126.887875	),
+                        new LatLng(37.411124	,126.886713	),
+                        new LatLng(37.411564	,126.88587	),
+                        new LatLng(37.411701	,126.885442	),
+                        new LatLng(37.411688	,126.885307	),
+                        new LatLng(37.411671	,126.885182	),
+                        new LatLng(37.411649	,126.885023	),
+                        new LatLng(37.411616	,126.884795	),
+                        new LatLng(37.411663	,126.884809	),
+                        new LatLng(37.411644	,126.884702	),
+                        new LatLng(37.411602	,126.884614	),
+                        new LatLng(37.411589	,126.884284	),
+                        new LatLng(37.411493	,126.884104	),
+                        new LatLng(37.41079 	,126.882139	),
+                        new LatLng(37.410795	,126.881948	),
+                        new LatLng(37.410841	,126.881728	),
+                        new LatLng(37.410846	,126.881313	),
+                        new LatLng(37.410639	,126.880703	),
+                        new LatLng(37.410382	,126.880316	),
+                        new LatLng(37.41014 	,126.879909	),
+                        new LatLng(37.408965	,126.879147	),
+                        new LatLng(37.408894	,126.87837	),
+                        new LatLng(37.40932 	,126.877629	),
+                        new LatLng(37.410394	,126.876039	),
+                        new LatLng(37.410867	,126.876056	),
+                        new LatLng(37.411158	,126.875327	),
+                        new LatLng(37.411578	,126.875	),
+                        new LatLng(37.411577	,126.87499	),
+                        new LatLng(37.411457	,126.874174	),
+                        new LatLng(37.411795	,126.872214	),
+                        new LatLng(37.412523	,126.871485	),
+                        new LatLng(37.412711	,126.871161	),
+                        new LatLng(37.412417	,126.871103	),
+                        new LatLng(37.411295	,126.870653	),
+                        new LatLng(37.410804	,126.870386	),
+                        new LatLng(37.410137	,126.870669	),
+                        new LatLng(37.409263	,126.870923	),
+                        new LatLng(37.408138	,126.870242	),
+                        new LatLng(37.407523	,126.870322	),
+                        new LatLng(37.407044	,126.870411	),
+                        new LatLng(37.406799	,126.871215	),
+                        new LatLng(37.406485	,126.875848	),
+                        new LatLng(37.40559 	,126.876272	),
+                        new LatLng(37.4055  	,126.876347	),
+                        new LatLng(37.405255	,126.876553	),
+                        new LatLng(37.402193	,126.876962	),
+                        new LatLng(37.401971	,126.876943	),
+                        new LatLng(37.401929	,126.876918	),
+                        new LatLng(37.401719	,126.865804	),
+                        new LatLng(37.401713	,126.86573	),
+                        new LatLng(37.403443	,126.855108	),
+                        new LatLng(37.403444	,126.855107	),
+                        new LatLng(37.403478	,126.855063	),
+                        new LatLng(37.413783	,126.846214	),
+                        new LatLng(37.413909	,126.846193	),
+                        new LatLng(37.422885	,126.8454	),
+                        new LatLng(37.426701	,126.841724	),
+                        new LatLng(37.426754	,126.84173	),
+                        new LatLng(37.434687	,126.841447	),
+                        new LatLng(37.438063	,126.837521	),
+                        new LatLng(37.458122	,126.838332	),
+                        new LatLng(37.460295	,126.833081	),
+                        new LatLng(37.457741	,126.829148	),
+                        new LatLng(37.459479	,126.826101	),
+                        new LatLng(37.465865	,126.832996	),
+                        new LatLng(37.473365	,126.832162	),
+                        new LatLng(37.473865	,126.832412	),
+                        new LatLng(37.477246	,126.833052	),
+                        new LatLng(37.474363	,126.83464	),
+                        new LatLng(37.474911	,126.837257	),
+                        new LatLng(37.474975	,126.837455	),
+                        new LatLng(37.475372	,126.838395	),
+                        new LatLng(37.475361	,126.838445	),
+                        new LatLng(37.475315	,126.838778	),
+                        new LatLng(37.475292	,126.838904	),
+                        new LatLng(37.475177	,126.839446	),
+                        new LatLng(37.475178	,126.839472	),
+                        new LatLng(37.474862	,126.839949	),
+                        new LatLng(37.474805	,126.840031	),
+                        new LatLng(37.474677	,126.841158	),
+                        new LatLng(37.474689	,126.841215	),
+                        new LatLng(37.473812	,126.845361	),
+                        new LatLng(37.473875	,126.845367	),
+                        new LatLng(37.48191 	,126.847016	),
+                        new LatLng(37.482025	,126.847455	),
+                        new LatLng(37.481787	,126.85262	),
+                        new LatLng(37.485754	,126.857215	),
+                        new LatLng(37.485761	,126.85729	),
+                        new LatLng(37.485795	,126.857449	),
+                        new LatLng(37.485807	,126.857484	),
+                        new LatLng(37.489547	,126.861016	),
+                        new LatLng(37.489668	,126.861119	),
+                        new LatLng(37.493987	,126.866977	),
+                        new LatLng(37.49408 	,126.866907	),
+                        new LatLng(37.494533	,126.869243	),
+                        new LatLng(37.492171	,126.869616	),
+                        new LatLng(37.492131	,126.869512	),
+                        new LatLng(37.489596	,126.870228	),
+                        new LatLng(37.490602	,126.872255	),
+                        new LatLng(37.490697	,126.872448	),
+                        new LatLng(37.490845	,126.873298	),
+                        new LatLng(37.491067	,126.87356	),
+                        new LatLng(37.488431	,126.872748	),
+                        new LatLng(37.488571	,126.87679	),
+                        new LatLng(37.485367	,126.874556	),
+                        new LatLng(37.485269	,126.871763	),
+                        new LatLng(37.482425	,126.872744	),
+                        new LatLng(37.466012	,126.884618	),
+                        new LatLng(37.464391	,126.882746	),
+                        new LatLng(37.460947	,126.888876	),
+                        new LatLng(37.459863	,126.88535	),
+                        new LatLng(37.455537	,126.88766	),
+                        new LatLng(37.455568	,126.88786	),
+                        new LatLng(37.452315	,126.889642	),
+                        new LatLng(37.452717	,126.893983	),
+                        new LatLng(37.438702	,126.898978	),
+                        new LatLng(37.438652	,126.899017	),
+                        new LatLng(37.438662	,126.899039	),
+                        new LatLng(37.438114	,126.899409	),
+                        new LatLng(37.438092	,126.899439	),
+                        new LatLng(37.438025	,126.899529	),
+                        new LatLng(37.436745	,126.899498	),
+                        new LatLng(37.436103	,126.899427	),
+                        new LatLng(37.435883	,126.899556	),
+                        new LatLng(37.43583 	,126.899596	),
+                        new LatLng(37.435607	,126.899554	),
+                        new LatLng(37.435081	,126.899417	),
+                        new LatLng(37.434995	,126.89961	),
+                        new LatLng(37.434827	,126.899841	)
+                )
+                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .fillColor(colorArray[0]));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr);
+        nameHashMap.put(polygon.hashCode(),name);
+        colorHashMap.put(polygon.hashCode(), colorArray[0]);
+        latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
+        iconFactory = new IconGenerator(this);
 
-        IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr);
-        if(mclr == 2){
-            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
-        }else if(mclr == 3){
-            iconFactory.setStyle(IconGenerator.STYLE_RED);
-        }else if(mclr == 7){
-            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
-        }else if(mclr == 5){
-            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
-        }else {
-            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
-        }
-        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.445600, 126.865055));
-}//광명시
-    public void drawPolygon47(GoogleMap googlemap) { //
-        String name = "하남시";
-        int clr = Color.argb(100,255,0,0);
-        int mclr;
-        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
-        if(hmap.get(name)==null){
-            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
-            mclr = 1;
-        } else if(hmap.get(name).equals("-")){
-            clr = Color.argb(100,140,140,140);
-            mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>150){
-            clr = Color.argb(100,255,0,0);
-            mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>80){
-            clr = Color.argb(100,255,255,0);
-            mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>30){
-            clr = Color.argb(100,0,255,0);
-            mclr = 5;
-        }else {
-            clr = Color.argb(100,0,0,255);
-            mclr = 4;
-        }
-
-        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+        iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
+    }//광명시
+    public void drawPolygon47() { //하남시
+        name = "하남시";
+        colorArray = checkColor(name); // colorArray[0] 폴리곤 채우기색, colorArray[1] 아이콘색 배열
+        point = new LatLng(37.523546, 127.205783);
+        polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
                         new LatLng(37.514398	,127.285701	),
                         new LatLng(37.506363	,127.2683	),
@@ -6751,612 +6087,550 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.514398	,127.285701	)
                 )
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr));
+                .fillColor(colorArray[0]));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr);
+        nameHashMap.put(polygon.hashCode(),name);
+        colorHashMap.put(polygon.hashCode(), colorArray[0]);
+        latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
+        iconFactory = new IconGenerator(this);
 
-        IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr);
-        if(mclr == 2){
-            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
-        }else if(mclr == 3){
-            iconFactory.setStyle(IconGenerator.STYLE_RED);
-        }else if(mclr == 7){
-            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
-        }else if(mclr == 5){
-            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
-        }else {
-            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
-        }
-        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.523546, 127.205783));
+        iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
     }//하남시
-    public void drawPolygon22(GoogleMap googlemap) { //
-    String name = "의왕시";
-    int clr = Color.argb(100,255,0,0);
-        int mclr;
-        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
-        if(hmap.get(name)==null){
-            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
-            mclr = 1;
-        } else if(hmap.get(name).equals("-")){
-            clr = Color.argb(100,140,140,140);
-            mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>150){
-            clr = Color.argb(100,255,0,0);
-            mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>80){
-            clr = Color.argb(100,255,255,0);
-            mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>30){
-            clr = Color.argb(100,0,255,0);
-            mclr = 5;
-        }else {
-            clr = Color.argb(100,0,0,255);
-            mclr = 4;
-        }
-
-    Polygon polygon = mMap.addPolygon(new PolygonOptions()
-            .add(
-                    new LatLng(37.413748	,127.046843	),
-                    new LatLng(37.412271	,127.04674	),
-                    new LatLng(37.408299	,127.042762	),
-                    new LatLng(37.406767	,127.042479	),
-                    new LatLng(37.405235	,127.042749	),
-                    new LatLng(37.403884	,127.043245	),
-                    new LatLng(37.403425	,127.042003	),
-                    new LatLng(37.402587	,127.040624	),
-                    new LatLng(37.402326	,127.03998	),
-                    new LatLng(37.402182	,127.038422	),
-                    new LatLng(37.401759	,127.03745	),
-                    new LatLng(37.39856 	,127.037991	),
-                    new LatLng(37.397695	,127.038103	),
-                    new LatLng(37.397245	,127.038069	),
-                    new LatLng(37.396605	,127.038148	),
-                    new LatLng(37.396101	,127.038227	),
-                    new LatLng(37.395245	,127.038102	),
-                    new LatLng(37.394767	,127.038192	),
-                    new LatLng(37.393686	,127.038214	),
-                    new LatLng(37.393578	,127.038237	),
-                    new LatLng(37.393028	,127.038372	),
-                    new LatLng(37.392226	,127.038496	),
-                    new LatLng(37.391938	,127.038733	),
-                    new LatLng(37.390857	,127.038439	),
-                    new LatLng(37.390505	,127.038416	),
-                    new LatLng(37.38968 	,127.037397	),
-                    new LatLng(37.389379	,127.036846	),
-                    new LatLng(37.388812	,127.035355	),
-                    new LatLng(37.388664	,127.034717	),
-                    new LatLng(37.388262	,127.03497	),
-                    new LatLng(37.38824 	,127.034985	),
-                    new LatLng(37.387971	,127.035167	),
-                    new LatLng(37.386326	,127.035265	),
-                    new LatLng(37.385981	,127.034925	),
-                    new LatLng(37.38576 	,127.033941	),
-                    new LatLng(37.385429	,127.033874	),
-                    new LatLng(37.385389	,127.033862	),
-                    new LatLng(37.384621	,127.03381	),
-                    new LatLng(37.383903	,127.033191	),
-                    new LatLng(37.383614	,127.033113	),
-                    new LatLng(37.383118	,127.033134	),
-                    new LatLng(37.383059	,127.0331	),
-                    new LatLng(37.380362	,127.032174	),
-                    new LatLng(37.380337	,127.032163	),
-                    new LatLng(37.38021 	,127.03205	),
-                    new LatLng(37.38003 	,127.031898	),
-                    new LatLng(37.379362	,127.031398	),
-                    new LatLng(37.379542	,127.029754	),
-                    new LatLng(37.379551	,127.029277	),
-                    new LatLng(37.379373	,127.02874	),
-                    new LatLng(37.379173	,127.028192	),
-                    new LatLng(37.378484	,127.028172	),
-                    new LatLng(37.378286	,127.028044	),
-                    new LatLng(37.377587	,127.028013	),
-                    new LatLng(37.376657	,127.028345	),
-                    new LatLng(37.376007	,127.028006	),
-                    new LatLng(37.376006	,127.028005	),
-                    new LatLng(37.375631	,127.027918	),
-                    new LatLng(37.374036	,127.027898	),
-                    new LatLng(37.372866	,127.027706	),
-                    new LatLng(37.372547	,127.027762	),
-                    new LatLng(37.372263	,127.027831	),
-                    new LatLng(37.371965	,127.027913	),
-                    new LatLng(37.37196 	,127.027916	),
-                    new LatLng(37.36946	    ,127.027902	),
-                    new LatLng(37.369376	,127.027752	),
-                    new LatLng(37.359677	,127.017705	),
-                    new LatLng(37.353673	,127.017163	),
-                    new LatLng(37.353644	,127.017142	),
-                    new LatLng(37.350952	,127.018191	),
-                    new LatLng(37.349428	,127.014283	),
-                    new LatLng(37.339304	,127.008901	),
-                    new LatLng(37.339214	,127.004863	),
-                    new LatLng(37.338792	,127.004404	),
-                    new LatLng(37.338728	,127.001323	),
-                    new LatLng(37.338381	,127.00048	),
-                    new LatLng(37.328389	,126.984563	),
-                    new LatLng(37.328321	,126.984491	),
-                    new LatLng(37.326578	,126.981604	),
-                    new LatLng(37.331438	,126.972335	),
-                    new LatLng(37.331569	,126.971922	),
-                    new LatLng(37.331779	,126.971261	),
-                    new LatLng(37.326164	,126.968413	),
-                    new LatLng(37.32607 	,126.968382	),
-                    new LatLng(37.323951	,126.966624	),
-                    new LatLng(37.319447	,126.968715	),
-                    new LatLng(37.319204	,126.968622	),
-                    new LatLng(37.317683	,126.966434	),
-                    new LatLng(37.307796	,126.966218	),
-                    new LatLng(37.30241 	,126.962034	),
-                    new LatLng(37.302393	,126.961939	),
-                    new LatLng(37.302373	,126.961428	),
-                    new LatLng(37.302364	,126.961292	),
-                    new LatLng(37.302347	,126.960868	),
-                    new LatLng(37.302264	,126.960475	),
-                    new LatLng(37.302235	,126.960112	),
-                    new LatLng(37.302223	,126.9596	),
-                    new LatLng(37.303142	,126.954363	),
-                    new LatLng(37.300522	,126.947773	),
-                    new LatLng(37.300537	,126.947331	),
-                    new LatLng(37.300555	,126.946912	),
-                    new LatLng(37.300564	,126.946765	),
-                    new LatLng(37.302837	,126.93656	),
-                    new LatLng(37.302861	,126.935723	),
-                    new LatLng(37.303042	,126.932933	),
-                    new LatLng(37.30356 	,126.932428	),
-                    new LatLng(37.303637	,126.931767	),
-                    new LatLng(37.305978	,126.930722	),
-                    new LatLng(37.306546	,126.930586	),
-                    new LatLng(37.306609	,126.930552	),
-                    new LatLng(37.307221	,126.930235	),
-                    new LatLng(37.307244	,126.930248	),
-                    new LatLng(37.308399	,126.932907	),
-                    new LatLng(37.309975	,126.93171	),
-                    new LatLng(37.310417	,126.931777	),
-                    new LatLng(37.313795	,126.930296	),
-                    new LatLng(37.314812	,126.929855	),
-                    new LatLng(37.315479	,126.929584	),
-                    new LatLng(37.315632	,126.929471	),
-                    new LatLng(37.316452	,126.929323	),
-                    new LatLng(37.316749	,126.929312	),
-                    new LatLng(37.317227	,126.92974	),
-                    new LatLng(37.317234	,126.929756	),
-                    new LatLng(37.317615	,126.930597	),
-                    new LatLng(37.317615	,126.930608	),
-                    new LatLng(37.317931	,126.931138	),
-                    new LatLng(37.318138	,126.931589	),
-                    new LatLng(37.318341	,126.931946	),
-                    new LatLng(37.31849 	,126.932322	),
-                    new LatLng(37.318589	,126.932582	),
-                    new LatLng(37.318968	,126.932886	),
-                    new LatLng(37.319806	,126.933348	),
-                    new LatLng(37.320365	,126.93434	),
-                    new LatLng(37.320735	,126.935028	),
-                    new LatLng(37.321871	,126.935602	),
-                    new LatLng(37.321952	,126.935625	),
-                    new LatLng(37.322321	,126.935681	),
-                    new LatLng(37.322484	,126.935658	),
-                    new LatLng(37.322565	,126.935692	),
-                    new LatLng(37.322601	,126.935692	),
-                    new LatLng(37.322754	,126.935692	),
-                    new LatLng(37.322826	,126.935714	),
-                    new LatLng(37.322853	,126.935793	),
-                    new LatLng(37.322862	,126.935906	),
-                    new LatLng(37.322898	,126.936154	),
-                    new LatLng(37.322925	,126.936346	),
-                    new LatLng(37.322916	,126.93647	),
-                    new LatLng(37.322989	,126.936696	),
-                    new LatLng(37.32298 	,126.936921	),
-                    new LatLng(37.322971	,126.937012	),
-                    new LatLng(37.322953	,126.937406	),
-                    new LatLng(37.322944	,126.93753	),
-                    new LatLng(37.322953	,126.937632	),
-                    new LatLng(37.322854	,126.938095	),
-                    new LatLng(37.322503	,126.938772	),
-                    new LatLng(37.322143	,126.939517	),
-                    new LatLng(37.322116	,126.939607	),
-                    new LatLng(37.32199 	,126.939991	),
-                    new LatLng(37.321747	,126.940352	),
-                    new LatLng(37.321774	,126.940769	),
-                    new LatLng(37.321738	,126.940916	),
-                    new LatLng(37.321622	,126.941345	),
-                    new LatLng(37.321372	,126.941971	),
-                    new LatLng(37.32083 	,126.943433	),
-                    new LatLng(37.320734	,126.943636	),
-                    new LatLng(37.320659	,126.943794	),
-                    new LatLng(37.320515	,126.944042	),
-                    new LatLng(37.320353	,126.94508	),
-                    new LatLng(37.320344	,126.945103	),
-                    new LatLng(37.320263	,126.945193	),
-                    new LatLng(37.32056 	,126.945306	),
-                    new LatLng(37.320795	,126.945317	),
-                    new LatLng(37.320894	,126.945283	),
-                    new LatLng(37.321047	,126.945294	),
-                    new LatLng(37.321254	,126.945215	),
-                    new LatLng(37.321416	,126.94526	),
-                    new LatLng(37.321822	,126.945316	),
-                    new LatLng(37.321903	,126.945226	),
-                    new LatLng(37.322209	,126.94535	),
-                    new LatLng(37.322417	,126.94553	),
-                    new LatLng(37.322588	,126.945981	),
-                    new LatLng(37.322561	,126.94606	),
-                    new LatLng(37.322602	,126.946173	),
-                    new LatLng(37.322678	,126.946241	),
-                    new LatLng(37.32284 	,126.946359	),
-                    new LatLng(37.323084	,126.946534	),
-                    new LatLng(37.323642	,126.946691	),
-                    new LatLng(37.323778	,126.946725	),
-                    new LatLng(37.324165	,126.946849	),
-                    new LatLng(37.324363	,126.94686	),
-                    new LatLng(37.324607	,126.946826	),
-                    new LatLng(37.324661	,126.946905	),
-                    new LatLng(37.324796	,126.946882	),
-                    new LatLng(37.325057	,126.946848	),
-                    new LatLng(37.32549 	,126.946904	),
-                    new LatLng(37.325535	,126.946916	),
-                    new LatLng(37.325535	,126.946927	),
-                    new LatLng(37.325706	,126.946848	),
-                    new LatLng(37.325742	,126.946758	),
-                    new LatLng(37.325805	,126.946701	),
-                    new LatLng(37.325872	,126.94665	),
-                    new LatLng(37.325994	,126.946577	),
-                    new LatLng(37.326273	,126.946622	),
-                    new LatLng(37.3263  	,126.94661	),
-                    new LatLng(37.326346	,126.946622	),
-                    new LatLng(37.326371	,126.946622	),
-                    new LatLng(37.326337	,126.946644	),
-                    new LatLng(37.326111	,126.946656	),
-                    new LatLng(37.326204	,126.947208	),
-                    new LatLng(37.326202	,126.947211	),
-                    new LatLng(37.326211	,126.947231	),
-                    new LatLng(37.326263	,126.947328	),
-                    new LatLng(37.326332	,126.947366	),
-                    new LatLng(37.326301	,126.947412	),
-                    new LatLng(37.326391	,126.947524	),
-                    new LatLng(37.326427	,126.947558	),
-                    new LatLng(37.326616	,126.947569	),
-                    new LatLng(37.326643	,126.947569	),
-                    new LatLng(37.326688	,126.947716	),
-                    new LatLng(37.327202	,126.948043	),
-                    new LatLng(37.327725	,126.948065	),
-                    new LatLng(37.328707	,126.948042	),
-                    new LatLng(37.328833	,126.94803	),
-                    new LatLng(37.330347	,126.948131	),
-                    new LatLng(37.331149	,126.948153	),
-                    new LatLng(37.331338	,126.948141	),
-                    new LatLng(37.331951	,126.948169	),
-                    new LatLng(37.332392	,126.948186	),
-                    new LatLng(37.33282 	,126.948174	),
-                    new LatLng(37.332933	,126.948163	),
-                    new LatLng(37.333392	,126.948219	),
-                    new LatLng(37.334032	,126.948151	),
-                    new LatLng(37.334194	,126.948151	),
-                    new LatLng(37.334194	,126.948184	),
-                    new LatLng(37.334365	,126.948241	),
-                    new LatLng(37.334654	,126.948291	),
-                    new LatLng(37.335042	,126.948281	),
-                    new LatLng(37.335203	,126.948263	),
-                    new LatLng(37.335501	,126.948268	),
-                    new LatLng(37.335627	,126.948274	),
-                    new LatLng(37.335807	,126.948285	),
-                    new LatLng(37.335861	,126.948285	),
-                    new LatLng(37.335853	,126.948307	),
-                    new LatLng(37.335888	,126.948285	),
-                    new LatLng(37.336041	,126.948307	),
-                    new LatLng(37.336636	,126.948363	),
-                    new LatLng(37.337699	,126.948509	),
-                    new LatLng(37.338033	,126.948441	),
-                    new LatLng(37.33878 	,126.948362	),
-                    new LatLng(37.339231	,126.948361	),
-                    new LatLng(37.339222	,126.948316	),
-                    new LatLng(37.339195	,126.948215	),
-                    new LatLng(37.33924 	,126.948316	),
-                    new LatLng(37.339524	,126.948316	),
-                    new LatLng(37.339857	,126.94831	),
-                    new LatLng(37.340141	,126.948304	),
-                    new LatLng(37.340321	,126.948316	),
-                    new LatLng(37.340258	,126.948564	),
-                    new LatLng(37.340267	,126.948688	),
-                    new LatLng(37.3402  	,126.948993	),
-                    new LatLng(37.340673	,126.949658	),
-                    new LatLng(37.340871	,126.949805	),
-                    new LatLng(37.341169	,126.950019	),
-                    new LatLng(37.341818	,126.95047	),
-                    new LatLng(37.341764	,126.950617	),
-                    new LatLng(37.341656	,126.950933	),
-                    new LatLng(37.34117 	,126.952208	),
-                    new LatLng(37.340918	,126.952897	),
-                    new LatLng(37.340819	,126.953157	),
-                    new LatLng(37.340819	,126.953258	),
-                    new LatLng(37.340972	,126.953495	),
-                    new LatLng(37.341022	,126.953591	),
-                    new LatLng(37.341098	,126.953732	),
-                    new LatLng(37.341107	,126.953732	),
-                    new LatLng(37.341189	,126.954025	),
-                    new LatLng(37.341279	,126.954341	),
-                    new LatLng(37.341432	,126.954533	),
-                    new LatLng(37.341612	,126.954612	),
-                    new LatLng(37.341811	,126.954792	),
-                    new LatLng(37.342167	,126.955198	),
-                    new LatLng(37.342288	,126.955356	),
-                    new LatLng(37.342523	,126.955514	),
-                    new LatLng(37.342901	,126.955638	),
-                    new LatLng(37.343181	,126.955728	),
-                    new LatLng(37.343478	,126.955649	),
-                    new LatLng(37.344181	,126.957251	),
-                    new LatLng(37.344731	,126.95777	),
-                    new LatLng(37.345272	,126.957939	),
-                    new LatLng(37.345605	,126.958029	),
-                    new LatLng(37.346362	,126.958181	),
-                    new LatLng(37.34711 	,126.958355	),
-                    new LatLng(37.347122	,126.958356	),
-                    new LatLng(37.347281	,126.958366	),
-                    new LatLng(37.347299	,126.958366	),
-                    new LatLng(37.347525	,126.958705	),
-                    new LatLng(37.347696	,126.958908	),
-                    new LatLng(37.34784 	,126.959145	),
-                    new LatLng(37.348029	,126.959325	),
-                    new LatLng(37.348192	,126.959517	),
-                    new LatLng(37.349688	,126.961119	),
-                    new LatLng(37.350346	,126.961288	),
-                    new LatLng(37.351724	,126.961298	),
-                    new LatLng(37.351877	,126.961377	),
-                    new LatLng(37.352094	,126.961524	),
-                    new LatLng(37.352229	,126.961546	),
-                    new LatLng(37.352355	,126.961546	),
-                    new LatLng(37.352463	,126.961546	),
-                    new LatLng(37.35276 	,126.961546	),
-                    new LatLng(37.352797	,126.961535	),
-                    new LatLng(37.353328	,126.961467	),
-                    new LatLng(37.35358 	,126.961455	),
-                    new LatLng(37.353607	,126.961444	),
-                    new LatLng(37.353851	,126.961421	),
-                    new LatLng(37.353968	,126.961489	),
-                    new LatLng(37.354436	,126.961816	),
-                    new LatLng(37.354545	,126.961884	),
-                    new LatLng(37.354572	,126.961895	),
-                    new LatLng(37.354725	,126.961963	),
-                    new LatLng(37.354941	,126.962166	),
-                    new LatLng(37.355194	,126.962414	),
-                    new LatLng(37.35541  	,126.962233	),
-                    new LatLng(37.355482	,126.962143	),
-                    new LatLng(37.355689	,126.961748	),
-                    new LatLng(37.355779	,126.96177	),
-                    new LatLng(37.355968	,126.961759	),
-                    new LatLng(37.355995	,126.961703	),
-                    new LatLng(37.356166	,126.961341	),
-                    new LatLng(37.35649 	,126.960709	),
-                    new LatLng(37.356562	,126.960573	),
-                    new LatLng(37.356788	,126.960731	),
-                    new LatLng(37.357076	,126.960991	),
-                    new LatLng(37.357202	,126.96107	),
-                    new LatLng(37.357193	,126.961103	),
-                    new LatLng(37.357211	,126.961115	),
-                    new LatLng(37.357247	,126.961081	),
-                    new LatLng(37.357274	,126.961058	),
-                    new LatLng(37.357887	,126.961634	),
-                    new LatLng(37.358464	,126.961724	),
-                    new LatLng(37.358617	,126.961712	),
-                    new LatLng(37.358896	,126.961633	),
-                    new LatLng(37.359203	,126.961396	),
-                    new LatLng(37.35923 	,126.961396	),
-                    new LatLng(37.359275	,126.961396	),
-                    new LatLng(37.359653	,126.961565	),
-                    new LatLng(37.359825	,126.961655	),
-                    new LatLng(37.360023	,126.961802	),
-                    new LatLng(37.360149	,126.961892	),
-                    new LatLng(37.36032 	,126.961926	),
-                    new LatLng(37.361005	,126.961959	),
-                    new LatLng(37.361257	,126.961993	),
-                    new LatLng(37.361492	,126.962061	),
-                    new LatLng(37.361635	,126.96206	),
-                    new LatLng(37.361762	,126.962252	),
-                    new LatLng(37.361681	,126.962332	),
-                    new LatLng(37.361906	,126.962602	),
-                    new LatLng(37.361942	,126.962794	),
-                    new LatLng(37.362826	,126.966169	),
-                    new LatLng(37.362944	,126.966157	),
-                    new LatLng(37.364997	,126.964384	),
-                    new LatLng(37.373801	,126.966547	),
-                    new LatLng(37.374206	,126.966773	),
-                    new LatLng(37.37563 	,126.967743	),
-                    new LatLng(37.376099	,126.968093	),
-                    new LatLng(37.38065 	,126.97254	),
-                    new LatLng(37.389725	,126.975178	),
-                    new LatLng(37.389733	,126.975201	),
-                    new LatLng(37.390698	,126.977132	),
-                    new LatLng(37.390734	,126.977188	),
-                    new LatLng(37.390878	,126.977392	),
-                    new LatLng(37.390891	,126.977404	),
-                    new LatLng(37.394807	,126.982732	),
-                    new LatLng(37.396167	,126.97975	),
-                    new LatLng(37.400685	,126.982371	),
-                    new LatLng(37.400688	,126.982365	),
-                    new LatLng(37.401115	,126.982662	),
-                    new LatLng(37.401404	,126.983065	),
-                    new LatLng(37.401816	,126.983201	),
-                    new LatLng(37.401868	,126.983243	),
-                    new LatLng(37.40186 	,126.983252	),
-                    new LatLng(37.401878	,126.983295	),
-                    new LatLng(37.40192 	,126.983499	),
-                    new LatLng(37.401927	,126.983554	),
-                    new LatLng(37.401953	,126.983628	),
-                    new LatLng(37.401994	,126.983674	),
-                    new LatLng(37.402088	,126.983769	),
-                    new LatLng(37.402105	,126.983804	),
-                    new LatLng(37.402174	,126.983925	),
-                    new LatLng(37.402214	,126.984041	),
-                    new LatLng(37.402216	,126.984143	),
-                    new LatLng(37.402326	,126.984385	),
-                    new LatLng(37.402352	,126.98448	),
-                    new LatLng(37.402475	,126.984611	),
-                    new LatLng(37.402521	,126.984645	),
-                    new LatLng(37.402612	,126.984657	),
-                    new LatLng(37.402683	,126.984704	),
-                    new LatLng(37.402945	,126.984849	),
-                    new LatLng(37.403151	,126.984944	),
-                    new LatLng(37.403844	,126.984964	),
-                    new LatLng(37.403926	,126.984932	),
-                    new LatLng(37.404295	,126.984921	),
-                    new LatLng(37.404403	,126.984894	),
-                    new LatLng(37.404557	,126.984908	),
-                    new LatLng(37.404744	,126.9849	),
-                    new LatLng(37.404755	,126.984899	),
-                    new LatLng(37.404802	,126.98489	),
-                    new LatLng(37.404818	,126.984892	),
-                    new LatLng(37.404907	,126.984897	),
-                    new LatLng(37.405143	,126.984973	),
-                    new LatLng(37.405209	,126.985015	),
-                    new LatLng(37.405305	,126.985074	),
-                    new LatLng(37.405845	,126.985158	),
-                    new LatLng(37.405868	,126.985177	),
-                    new LatLng(37.405962	,126.985271	),
-                    new LatLng(37.406094	,126.985378	),
-                    new LatLng(37.406201	,126.985451	),
-                    new LatLng(37.406285	,126.985502	),
-                    new LatLng(37.406345	,126.985547	),
-                    new LatLng(37.406393	,126.985611	),
-                    new LatLng(37.406507	,126.985713	),
-                    new LatLng(37.406744	,126.98591	),
-                    new LatLng(37.406812	,126.986071	),
-                    new LatLng(37.406849	,126.986172	),
-                    new LatLng(37.40691 	,126.986322	),
-                    new LatLng(37.406932	,126.986368	),
-                    new LatLng(37.406998	,126.98648	),
-                    new LatLng(37.407024	,126.986514	),
-                    new LatLng(37.407078	,126.986606	),
-                    new LatLng(37.407094	,126.986634	),
-                    new LatLng(37.407161	,126.986795	),
-                    new LatLng(37.407443	,126.987249	),
-                    new LatLng(37.407538	,126.987362	),
-                    new LatLng(37.407566	,126.9874	),
-                    new LatLng(37.407666	,126.987529	),
-                    new LatLng(37.407776	,126.987806	),
-                    new LatLng(37.407833	,126.987865	),
-                    new LatLng(37.407847	,126.98833	),
-                    new LatLng(37.407736	,126.988448	),
-                    new LatLng(37.408211	,126.989974	),
-                    new LatLng(37.407879	,126.990827	),
-                    new LatLng(37.407903	,126.990972	),
-                    new LatLng(37.4079  	,126.991008	),
-                    new LatLng(37.40789 	,126.991004	),
-                    new LatLng(37.407828	,126.991228	),
-                    new LatLng(37.4078  	,126.991363	),
-                    new LatLng(37.407718	,126.991732	),
-                    new LatLng(37.407642	,126.99208	),
-                    new LatLng(37.406711	,126.992369	),
-                    new LatLng(37.406697	,126.992736	),
-                    new LatLng(37.406091	,126.99338	),
-                    new LatLng(37.405474	,126.993717	),
-                    new LatLng(37.405043	,126.994254	),
-                    new LatLng(37.405008	,126.994273	),
-                    new LatLng(37.405032	,126.994627	),
-                    new LatLng(37.405125	,126.994993	),
-                    new LatLng(37.405247	,126.99569	),
-                    new LatLng(37.405084	,126.996022	),
-                    new LatLng(37.405071	,126.996059	),
-                    new LatLng(37.405062	,126.996379	),
-                    new LatLng(37.404882	,126.996808	),
-                    new LatLng(37.404932	,126.997164	),
-                    new LatLng(37.404785	,126.997692	),
-                    new LatLng(37.404765	,126.997827	),
-                    new LatLng(37.404883	,126.998545	),
-                    new LatLng(37.404796	,126.999157	),
-                    new LatLng(37.404616	,126.999683	),
-                    new LatLng(37.405253	,127.000461	),
-                    new LatLng(37.405974	,127.001062	),
-                    new LatLng(37.406336	,127.001498	),
-                    new LatLng(37.406333	,127.001512	),
-                    new LatLng(37.406684	,127.001942	),
-                    new LatLng(37.406963	,127.00289	),
-                    new LatLng(37.407396	,127.003681	),
-                    new LatLng(37.407594	,127.004291	),
-                    new LatLng(37.407864	,127.004958	),
-                    new LatLng(37.409369	,127.007126	),
-                    new LatLng(37.410099	,127.006957	),
-                    new LatLng(37.410414	,127.00716	),
-                    new LatLng(37.412306	,127.00899	),
-                    new LatLng(37.412964	,127.013791	),
-                    new LatLng(37.413874	,127.013317	),
-                    new LatLng(37.413513	,127.015621	),
-                    new LatLng(37.413666	,127.017394	),
-                    new LatLng(37.413567	,127.017643	),
-                    new LatLng(37.413098	,127.018174	),
-                    new LatLng(37.413116	,127.018592	),
-                    new LatLng(37.412503	,127.020907	),
-                    new LatLng(37.412314	,127.021811	),
-                    new LatLng(37.412431	,127.022218	),
-                    new LatLng(37.412385	,127.025143	),
-                    new LatLng(37.411988	,127.027876	),
-                    new LatLng(37.412132	,127.028554	),
-                    new LatLng(37.412321	,127.028792	),
-                    new LatLng(37.412303	,127.028983	),
-                    new LatLng(37.412546	,127.029379	),
-                    new LatLng(37.412727	,127.029695	),
-                    new LatLng(37.412997	,127.030769	),
-                    new LatLng(37.412942	,127.031977	),
-                    new LatLng(37.41341 	,127.033084	),
-                    new LatLng(37.413834	,127.034282	),
-                    new LatLng(37.413996	,127.035016	),
-                    new LatLng(37.413724	,127.038224	),
-                    new LatLng(37.414193	,127.038981	),
-                    new LatLng(37.414589	,127.040111	),
-                    new LatLng(37.415003	,127.041263	),
-                    new LatLng(37.415552	,127.041727	),
-                    new LatLng(37.415613	,127.041897	),
-                    new LatLng(37.415539	,127.042077	),
-                    new LatLng(37.415408	,127.04298	),
-                    new LatLng(37.414804	,127.043974	),
-                    new LatLng(37.414308	,127.0449	),
-                    new LatLng(37.413748	,127.046843	)
-                    )
-            .strokeColor(Color.WHITE)             .strokeWidth(2)
-            .fillColor(clr));
+    public void drawPolygon22() { //의왕시
+        name = "의왕시";
+        colorArray = checkColor(name); // colorArray[0] 폴리곤 채우기색, colorArray[1] 아이콘색 배열
+        point = new LatLng(37.363525, 126.990049);
+        polygon = mMap.addPolygon(new PolygonOptions()
+                .add(
+                        new LatLng(37.413748	,127.046843	),
+                        new LatLng(37.412271	,127.04674	),
+                        new LatLng(37.408299	,127.042762	),
+                        new LatLng(37.406767	,127.042479	),
+                        new LatLng(37.405235	,127.042749	),
+                        new LatLng(37.403884	,127.043245	),
+                        new LatLng(37.403425	,127.042003	),
+                        new LatLng(37.402587	,127.040624	),
+                        new LatLng(37.402326	,127.03998	),
+                        new LatLng(37.402182	,127.038422	),
+                        new LatLng(37.401759	,127.03745	),
+                        new LatLng(37.39856 	,127.037991	),
+                        new LatLng(37.397695	,127.038103	),
+                        new LatLng(37.397245	,127.038069	),
+                        new LatLng(37.396605	,127.038148	),
+                        new LatLng(37.396101	,127.038227	),
+                        new LatLng(37.395245	,127.038102	),
+                        new LatLng(37.394767	,127.038192	),
+                        new LatLng(37.393686	,127.038214	),
+                        new LatLng(37.393578	,127.038237	),
+                        new LatLng(37.393028	,127.038372	),
+                        new LatLng(37.392226	,127.038496	),
+                        new LatLng(37.391938	,127.038733	),
+                        new LatLng(37.390857	,127.038439	),
+                        new LatLng(37.390505	,127.038416	),
+                        new LatLng(37.38968 	,127.037397	),
+                        new LatLng(37.389379	,127.036846	),
+                        new LatLng(37.388812	,127.035355	),
+                        new LatLng(37.388664	,127.034717	),
+                        new LatLng(37.388262	,127.03497	),
+                        new LatLng(37.38824 	,127.034985	),
+                        new LatLng(37.387971	,127.035167	),
+                        new LatLng(37.386326	,127.035265	),
+                        new LatLng(37.385981	,127.034925	),
+                        new LatLng(37.38576 	,127.033941	),
+                        new LatLng(37.385429	,127.033874	),
+                        new LatLng(37.385389	,127.033862	),
+                        new LatLng(37.384621	,127.03381	),
+                        new LatLng(37.383903	,127.033191	),
+                        new LatLng(37.383614	,127.033113	),
+                        new LatLng(37.383118	,127.033134	),
+                        new LatLng(37.383059	,127.0331	),
+                        new LatLng(37.380362	,127.032174	),
+                        new LatLng(37.380337	,127.032163	),
+                        new LatLng(37.38021 	,127.03205	),
+                        new LatLng(37.38003 	,127.031898	),
+                        new LatLng(37.379362	,127.031398	),
+                        new LatLng(37.379542	,127.029754	),
+                        new LatLng(37.379551	,127.029277	),
+                        new LatLng(37.379373	,127.02874	),
+                        new LatLng(37.379173	,127.028192	),
+                        new LatLng(37.378484	,127.028172	),
+                        new LatLng(37.378286	,127.028044	),
+                        new LatLng(37.377587	,127.028013	),
+                        new LatLng(37.376657	,127.028345	),
+                        new LatLng(37.376007	,127.028006	),
+                        new LatLng(37.376006	,127.028005	),
+                        new LatLng(37.375631	,127.027918	),
+                        new LatLng(37.374036	,127.027898	),
+                        new LatLng(37.372866	,127.027706	),
+                        new LatLng(37.372547	,127.027762	),
+                        new LatLng(37.372263	,127.027831	),
+                        new LatLng(37.371965	,127.027913	),
+                        new LatLng(37.37196 	,127.027916	),
+                        new LatLng(37.36946	    ,127.027902	),
+                        new LatLng(37.369376	,127.027752	),
+                        new LatLng(37.359677	,127.017705	),
+                        new LatLng(37.353673	,127.017163	),
+                        new LatLng(37.353644	,127.017142	),
+                        new LatLng(37.350952	,127.018191	),
+                        new LatLng(37.349428	,127.014283	),
+                        new LatLng(37.339304	,127.008901	),
+                        new LatLng(37.339214	,127.004863	),
+                        new LatLng(37.338792	,127.004404	),
+                        new LatLng(37.338728	,127.001323	),
+                        new LatLng(37.338381	,127.00048	),
+                        new LatLng(37.328389	,126.984563	),
+                        new LatLng(37.328321	,126.984491	),
+                        new LatLng(37.326578	,126.981604	),
+                        new LatLng(37.331438	,126.972335	),
+                        new LatLng(37.331569	,126.971922	),
+                        new LatLng(37.331779	,126.971261	),
+                        new LatLng(37.326164	,126.968413	),
+                        new LatLng(37.32607 	,126.968382	),
+                        new LatLng(37.323951	,126.966624	),
+                        new LatLng(37.319447	,126.968715	),
+                        new LatLng(37.319204	,126.968622	),
+                        new LatLng(37.317683	,126.966434	),
+                        new LatLng(37.307796	,126.966218	),
+                        new LatLng(37.30241 	,126.962034	),
+                        new LatLng(37.302393	,126.961939	),
+                        new LatLng(37.302373	,126.961428	),
+                        new LatLng(37.302364	,126.961292	),
+                        new LatLng(37.302347	,126.960868	),
+                        new LatLng(37.302264	,126.960475	),
+                        new LatLng(37.302235	,126.960112	),
+                        new LatLng(37.302223	,126.9596	),
+                        new LatLng(37.303142	,126.954363	),
+                        new LatLng(37.300522	,126.947773	),
+                        new LatLng(37.300537	,126.947331	),
+                        new LatLng(37.300555	,126.946912	),
+                        new LatLng(37.300564	,126.946765	),
+                        new LatLng(37.302837	,126.93656	),
+                        new LatLng(37.302861	,126.935723	),
+                        new LatLng(37.303042	,126.932933	),
+                        new LatLng(37.30356 	,126.932428	),
+                        new LatLng(37.303637	,126.931767	),
+                        new LatLng(37.305978	,126.930722	),
+                        new LatLng(37.306546	,126.930586	),
+                        new LatLng(37.306609	,126.930552	),
+                        new LatLng(37.307221	,126.930235	),
+                        new LatLng(37.307244	,126.930248	),
+                        new LatLng(37.308399	,126.932907	),
+                        new LatLng(37.309975	,126.93171	),
+                        new LatLng(37.310417	,126.931777	),
+                        new LatLng(37.313795	,126.930296	),
+                        new LatLng(37.314812	,126.929855	),
+                        new LatLng(37.315479	,126.929584	),
+                        new LatLng(37.315632	,126.929471	),
+                        new LatLng(37.316452	,126.929323	),
+                        new LatLng(37.316749	,126.929312	),
+                        new LatLng(37.317227	,126.92974	),
+                        new LatLng(37.317234	,126.929756	),
+                        new LatLng(37.317615	,126.930597	),
+                        new LatLng(37.317615	,126.930608	),
+                        new LatLng(37.317931	,126.931138	),
+                        new LatLng(37.318138	,126.931589	),
+                        new LatLng(37.318341	,126.931946	),
+                        new LatLng(37.31849 	,126.932322	),
+                        new LatLng(37.318589	,126.932582	),
+                        new LatLng(37.318968	,126.932886	),
+                        new LatLng(37.319806	,126.933348	),
+                        new LatLng(37.320365	,126.93434	),
+                        new LatLng(37.320735	,126.935028	),
+                        new LatLng(37.321871	,126.935602	),
+                        new LatLng(37.321952	,126.935625	),
+                        new LatLng(37.322321	,126.935681	),
+                        new LatLng(37.322484	,126.935658	),
+                        new LatLng(37.322565	,126.935692	),
+                        new LatLng(37.322601	,126.935692	),
+                        new LatLng(37.322754	,126.935692	),
+                        new LatLng(37.322826	,126.935714	),
+                        new LatLng(37.322853	,126.935793	),
+                        new LatLng(37.322862	,126.935906	),
+                        new LatLng(37.322898	,126.936154	),
+                        new LatLng(37.322925	,126.936346	),
+                        new LatLng(37.322916	,126.93647	),
+                        new LatLng(37.322989	,126.936696	),
+                        new LatLng(37.32298 	,126.936921	),
+                        new LatLng(37.322971	,126.937012	),
+                        new LatLng(37.322953	,126.937406	),
+                        new LatLng(37.322944	,126.93753	),
+                        new LatLng(37.322953	,126.937632	),
+                        new LatLng(37.322854	,126.938095	),
+                        new LatLng(37.322503	,126.938772	),
+                        new LatLng(37.322143	,126.939517	),
+                        new LatLng(37.322116	,126.939607	),
+                        new LatLng(37.32199 	,126.939991	),
+                        new LatLng(37.321747	,126.940352	),
+                        new LatLng(37.321774	,126.940769	),
+                        new LatLng(37.321738	,126.940916	),
+                        new LatLng(37.321622	,126.941345	),
+                        new LatLng(37.321372	,126.941971	),
+                        new LatLng(37.32083 	,126.943433	),
+                        new LatLng(37.320734	,126.943636	),
+                        new LatLng(37.320659	,126.943794	),
+                        new LatLng(37.320515	,126.944042	),
+                        new LatLng(37.320353	,126.94508	),
+                        new LatLng(37.320344	,126.945103	),
+                        new LatLng(37.320263	,126.945193	),
+                        new LatLng(37.32056 	,126.945306	),
+                        new LatLng(37.320795	,126.945317	),
+                        new LatLng(37.320894	,126.945283	),
+                        new LatLng(37.321047	,126.945294	),
+                        new LatLng(37.321254	,126.945215	),
+                        new LatLng(37.321416	,126.94526	),
+                        new LatLng(37.321822	,126.945316	),
+                        new LatLng(37.321903	,126.945226	),
+                        new LatLng(37.322209	,126.94535	),
+                        new LatLng(37.322417	,126.94553	),
+                        new LatLng(37.322588	,126.945981	),
+                        new LatLng(37.322561	,126.94606	),
+                        new LatLng(37.322602	,126.946173	),
+                        new LatLng(37.322678	,126.946241	),
+                        new LatLng(37.32284 	,126.946359	),
+                        new LatLng(37.323084	,126.946534	),
+                        new LatLng(37.323642	,126.946691	),
+                        new LatLng(37.323778	,126.946725	),
+                        new LatLng(37.324165	,126.946849	),
+                        new LatLng(37.324363	,126.94686	),
+                        new LatLng(37.324607	,126.946826	),
+                        new LatLng(37.324661	,126.946905	),
+                        new LatLng(37.324796	,126.946882	),
+                        new LatLng(37.325057	,126.946848	),
+                        new LatLng(37.32549 	,126.946904	),
+                        new LatLng(37.325535	,126.946916	),
+                        new LatLng(37.325535	,126.946927	),
+                        new LatLng(37.325706	,126.946848	),
+                        new LatLng(37.325742	,126.946758	),
+                        new LatLng(37.325805	,126.946701	),
+                        new LatLng(37.325872	,126.94665	),
+                        new LatLng(37.325994	,126.946577	),
+                        new LatLng(37.326273	,126.946622	),
+                        new LatLng(37.3263  	,126.94661	),
+                        new LatLng(37.326346	,126.946622	),
+                        new LatLng(37.326371	,126.946622	),
+                        new LatLng(37.326337	,126.946644	),
+                        new LatLng(37.326111	,126.946656	),
+                        new LatLng(37.326204	,126.947208	),
+                        new LatLng(37.326202	,126.947211	),
+                        new LatLng(37.326211	,126.947231	),
+                        new LatLng(37.326263	,126.947328	),
+                        new LatLng(37.326332	,126.947366	),
+                        new LatLng(37.326301	,126.947412	),
+                        new LatLng(37.326391	,126.947524	),
+                        new LatLng(37.326427	,126.947558	),
+                        new LatLng(37.326616	,126.947569	),
+                        new LatLng(37.326643	,126.947569	),
+                        new LatLng(37.326688	,126.947716	),
+                        new LatLng(37.327202	,126.948043	),
+                        new LatLng(37.327725	,126.948065	),
+                        new LatLng(37.328707	,126.948042	),
+                        new LatLng(37.328833	,126.94803	),
+                        new LatLng(37.330347	,126.948131	),
+                        new LatLng(37.331149	,126.948153	),
+                        new LatLng(37.331338	,126.948141	),
+                        new LatLng(37.331951	,126.948169	),
+                        new LatLng(37.332392	,126.948186	),
+                        new LatLng(37.33282 	,126.948174	),
+                        new LatLng(37.332933	,126.948163	),
+                        new LatLng(37.333392	,126.948219	),
+                        new LatLng(37.334032	,126.948151	),
+                        new LatLng(37.334194	,126.948151	),
+                        new LatLng(37.334194	,126.948184	),
+                        new LatLng(37.334365	,126.948241	),
+                        new LatLng(37.334654	,126.948291	),
+                        new LatLng(37.335042	,126.948281	),
+                        new LatLng(37.335203	,126.948263	),
+                        new LatLng(37.335501	,126.948268	),
+                        new LatLng(37.335627	,126.948274	),
+                        new LatLng(37.335807	,126.948285	),
+                        new LatLng(37.335861	,126.948285	),
+                        new LatLng(37.335853	,126.948307	),
+                        new LatLng(37.335888	,126.948285	),
+                        new LatLng(37.336041	,126.948307	),
+                        new LatLng(37.336636	,126.948363	),
+                        new LatLng(37.337699	,126.948509	),
+                        new LatLng(37.338033	,126.948441	),
+                        new LatLng(37.33878 	,126.948362	),
+                        new LatLng(37.339231	,126.948361	),
+                        new LatLng(37.339222	,126.948316	),
+                        new LatLng(37.339195	,126.948215	),
+                        new LatLng(37.33924 	,126.948316	),
+                        new LatLng(37.339524	,126.948316	),
+                        new LatLng(37.339857	,126.94831	),
+                        new LatLng(37.340141	,126.948304	),
+                        new LatLng(37.340321	,126.948316	),
+                        new LatLng(37.340258	,126.948564	),
+                        new LatLng(37.340267	,126.948688	),
+                        new LatLng(37.3402  	,126.948993	),
+                        new LatLng(37.340673	,126.949658	),
+                        new LatLng(37.340871	,126.949805	),
+                        new LatLng(37.341169	,126.950019	),
+                        new LatLng(37.341818	,126.95047	),
+                        new LatLng(37.341764	,126.950617	),
+                        new LatLng(37.341656	,126.950933	),
+                        new LatLng(37.34117 	,126.952208	),
+                        new LatLng(37.340918	,126.952897	),
+                        new LatLng(37.340819	,126.953157	),
+                        new LatLng(37.340819	,126.953258	),
+                        new LatLng(37.340972	,126.953495	),
+                        new LatLng(37.341022	,126.953591	),
+                        new LatLng(37.341098	,126.953732	),
+                        new LatLng(37.341107	,126.953732	),
+                        new LatLng(37.341189	,126.954025	),
+                        new LatLng(37.341279	,126.954341	),
+                        new LatLng(37.341432	,126.954533	),
+                        new LatLng(37.341612	,126.954612	),
+                        new LatLng(37.341811	,126.954792	),
+                        new LatLng(37.342167	,126.955198	),
+                        new LatLng(37.342288	,126.955356	),
+                        new LatLng(37.342523	,126.955514	),
+                        new LatLng(37.342901	,126.955638	),
+                        new LatLng(37.343181	,126.955728	),
+                        new LatLng(37.343478	,126.955649	),
+                        new LatLng(37.344181	,126.957251	),
+                        new LatLng(37.344731	,126.95777	),
+                        new LatLng(37.345272	,126.957939	),
+                        new LatLng(37.345605	,126.958029	),
+                        new LatLng(37.346362	,126.958181	),
+                        new LatLng(37.34711 	,126.958355	),
+                        new LatLng(37.347122	,126.958356	),
+                        new LatLng(37.347281	,126.958366	),
+                        new LatLng(37.347299	,126.958366	),
+                        new LatLng(37.347525	,126.958705	),
+                        new LatLng(37.347696	,126.958908	),
+                        new LatLng(37.34784 	,126.959145	),
+                        new LatLng(37.348029	,126.959325	),
+                        new LatLng(37.348192	,126.959517	),
+                        new LatLng(37.349688	,126.961119	),
+                        new LatLng(37.350346	,126.961288	),
+                        new LatLng(37.351724	,126.961298	),
+                        new LatLng(37.351877	,126.961377	),
+                        new LatLng(37.352094	,126.961524	),
+                        new LatLng(37.352229	,126.961546	),
+                        new LatLng(37.352355	,126.961546	),
+                        new LatLng(37.352463	,126.961546	),
+                        new LatLng(37.35276 	,126.961546	),
+                        new LatLng(37.352797	,126.961535	),
+                        new LatLng(37.353328	,126.961467	),
+                        new LatLng(37.35358 	,126.961455	),
+                        new LatLng(37.353607	,126.961444	),
+                        new LatLng(37.353851	,126.961421	),
+                        new LatLng(37.353968	,126.961489	),
+                        new LatLng(37.354436	,126.961816	),
+                        new LatLng(37.354545	,126.961884	),
+                        new LatLng(37.354572	,126.961895	),
+                        new LatLng(37.354725	,126.961963	),
+                        new LatLng(37.354941	,126.962166	),
+                        new LatLng(37.355194	,126.962414	),
+                        new LatLng(37.35541  	,126.962233	),
+                        new LatLng(37.355482	,126.962143	),
+                        new LatLng(37.355689	,126.961748	),
+                        new LatLng(37.355779	,126.96177	),
+                        new LatLng(37.355968	,126.961759	),
+                        new LatLng(37.355995	,126.961703	),
+                        new LatLng(37.356166	,126.961341	),
+                        new LatLng(37.35649 	,126.960709	),
+                        new LatLng(37.356562	,126.960573	),
+                        new LatLng(37.356788	,126.960731	),
+                        new LatLng(37.357076	,126.960991	),
+                        new LatLng(37.357202	,126.96107	),
+                        new LatLng(37.357193	,126.961103	),
+                        new LatLng(37.357211	,126.961115	),
+                        new LatLng(37.357247	,126.961081	),
+                        new LatLng(37.357274	,126.961058	),
+                        new LatLng(37.357887	,126.961634	),
+                        new LatLng(37.358464	,126.961724	),
+                        new LatLng(37.358617	,126.961712	),
+                        new LatLng(37.358896	,126.961633	),
+                        new LatLng(37.359203	,126.961396	),
+                        new LatLng(37.35923 	,126.961396	),
+                        new LatLng(37.359275	,126.961396	),
+                        new LatLng(37.359653	,126.961565	),
+                        new LatLng(37.359825	,126.961655	),
+                        new LatLng(37.360023	,126.961802	),
+                        new LatLng(37.360149	,126.961892	),
+                        new LatLng(37.36032 	,126.961926	),
+                        new LatLng(37.361005	,126.961959	),
+                        new LatLng(37.361257	,126.961993	),
+                        new LatLng(37.361492	,126.962061	),
+                        new LatLng(37.361635	,126.96206	),
+                        new LatLng(37.361762	,126.962252	),
+                        new LatLng(37.361681	,126.962332	),
+                        new LatLng(37.361906	,126.962602	),
+                        new LatLng(37.361942	,126.962794	),
+                        new LatLng(37.362826	,126.966169	),
+                        new LatLng(37.362944	,126.966157	),
+                        new LatLng(37.364997	,126.964384	),
+                        new LatLng(37.373801	,126.966547	),
+                        new LatLng(37.374206	,126.966773	),
+                        new LatLng(37.37563 	,126.967743	),
+                        new LatLng(37.376099	,126.968093	),
+                        new LatLng(37.38065 	,126.97254	),
+                        new LatLng(37.389725	,126.975178	),
+                        new LatLng(37.389733	,126.975201	),
+                        new LatLng(37.390698	,126.977132	),
+                        new LatLng(37.390734	,126.977188	),
+                        new LatLng(37.390878	,126.977392	),
+                        new LatLng(37.390891	,126.977404	),
+                        new LatLng(37.394807	,126.982732	),
+                        new LatLng(37.396167	,126.97975	),
+                        new LatLng(37.400685	,126.982371	),
+                        new LatLng(37.400688	,126.982365	),
+                        new LatLng(37.401115	,126.982662	),
+                        new LatLng(37.401404	,126.983065	),
+                        new LatLng(37.401816	,126.983201	),
+                        new LatLng(37.401868	,126.983243	),
+                        new LatLng(37.40186 	,126.983252	),
+                        new LatLng(37.401878	,126.983295	),
+                        new LatLng(37.40192 	,126.983499	),
+                        new LatLng(37.401927	,126.983554	),
+                        new LatLng(37.401953	,126.983628	),
+                        new LatLng(37.401994	,126.983674	),
+                        new LatLng(37.402088	,126.983769	),
+                        new LatLng(37.402105	,126.983804	),
+                        new LatLng(37.402174	,126.983925	),
+                        new LatLng(37.402214	,126.984041	),
+                        new LatLng(37.402216	,126.984143	),
+                        new LatLng(37.402326	,126.984385	),
+                        new LatLng(37.402352	,126.98448	),
+                        new LatLng(37.402475	,126.984611	),
+                        new LatLng(37.402521	,126.984645	),
+                        new LatLng(37.402612	,126.984657	),
+                        new LatLng(37.402683	,126.984704	),
+                        new LatLng(37.402945	,126.984849	),
+                        new LatLng(37.403151	,126.984944	),
+                        new LatLng(37.403844	,126.984964	),
+                        new LatLng(37.403926	,126.984932	),
+                        new LatLng(37.404295	,126.984921	),
+                        new LatLng(37.404403	,126.984894	),
+                        new LatLng(37.404557	,126.984908	),
+                        new LatLng(37.404744	,126.9849	),
+                        new LatLng(37.404755	,126.984899	),
+                        new LatLng(37.404802	,126.98489	),
+                        new LatLng(37.404818	,126.984892	),
+                        new LatLng(37.404907	,126.984897	),
+                        new LatLng(37.405143	,126.984973	),
+                        new LatLng(37.405209	,126.985015	),
+                        new LatLng(37.405305	,126.985074	),
+                        new LatLng(37.405845	,126.985158	),
+                        new LatLng(37.405868	,126.985177	),
+                        new LatLng(37.405962	,126.985271	),
+                        new LatLng(37.406094	,126.985378	),
+                        new LatLng(37.406201	,126.985451	),
+                        new LatLng(37.406285	,126.985502	),
+                        new LatLng(37.406345	,126.985547	),
+                        new LatLng(37.406393	,126.985611	),
+                        new LatLng(37.406507	,126.985713	),
+                        new LatLng(37.406744	,126.98591	),
+                        new LatLng(37.406812	,126.986071	),
+                        new LatLng(37.406849	,126.986172	),
+                        new LatLng(37.40691 	,126.986322	),
+                        new LatLng(37.406932	,126.986368	),
+                        new LatLng(37.406998	,126.98648	),
+                        new LatLng(37.407024	,126.986514	),
+                        new LatLng(37.407078	,126.986606	),
+                        new LatLng(37.407094	,126.986634	),
+                        new LatLng(37.407161	,126.986795	),
+                        new LatLng(37.407443	,126.987249	),
+                        new LatLng(37.407538	,126.987362	),
+                        new LatLng(37.407566	,126.9874	),
+                        new LatLng(37.407666	,126.987529	),
+                        new LatLng(37.407776	,126.987806	),
+                        new LatLng(37.407833	,126.987865	),
+                        new LatLng(37.407847	,126.98833	),
+                        new LatLng(37.407736	,126.988448	),
+                        new LatLng(37.408211	,126.989974	),
+                        new LatLng(37.407879	,126.990827	),
+                        new LatLng(37.407903	,126.990972	),
+                        new LatLng(37.4079  	,126.991008	),
+                        new LatLng(37.40789 	,126.991004	),
+                        new LatLng(37.407828	,126.991228	),
+                        new LatLng(37.4078  	,126.991363	),
+                        new LatLng(37.407718	,126.991732	),
+                        new LatLng(37.407642	,126.99208	),
+                        new LatLng(37.406711	,126.992369	),
+                        new LatLng(37.406697	,126.992736	),
+                        new LatLng(37.406091	,126.99338	),
+                        new LatLng(37.405474	,126.993717	),
+                        new LatLng(37.405043	,126.994254	),
+                        new LatLng(37.405008	,126.994273	),
+                        new LatLng(37.405032	,126.994627	),
+                        new LatLng(37.405125	,126.994993	),
+                        new LatLng(37.405247	,126.99569	),
+                        new LatLng(37.405084	,126.996022	),
+                        new LatLng(37.405071	,126.996059	),
+                        new LatLng(37.405062	,126.996379	),
+                        new LatLng(37.404882	,126.996808	),
+                        new LatLng(37.404932	,126.997164	),
+                        new LatLng(37.404785	,126.997692	),
+                        new LatLng(37.404765	,126.997827	),
+                        new LatLng(37.404883	,126.998545	),
+                        new LatLng(37.404796	,126.999157	),
+                        new LatLng(37.404616	,126.999683	),
+                        new LatLng(37.405253	,127.000461	),
+                        new LatLng(37.405974	,127.001062	),
+                        new LatLng(37.406336	,127.001498	),
+                        new LatLng(37.406333	,127.001512	),
+                        new LatLng(37.406684	,127.001942	),
+                        new LatLng(37.406963	,127.00289	),
+                        new LatLng(37.407396	,127.003681	),
+                        new LatLng(37.407594	,127.004291	),
+                        new LatLng(37.407864	,127.004958	),
+                        new LatLng(37.409369	,127.007126	),
+                        new LatLng(37.410099	,127.006957	),
+                        new LatLng(37.410414	,127.00716	),
+                        new LatLng(37.412306	,127.00899	),
+                        new LatLng(37.412964	,127.013791	),
+                        new LatLng(37.413874	,127.013317	),
+                        new LatLng(37.413513	,127.015621	),
+                        new LatLng(37.413666	,127.017394	),
+                        new LatLng(37.413567	,127.017643	),
+                        new LatLng(37.413098	,127.018174	),
+                        new LatLng(37.413116	,127.018592	),
+                        new LatLng(37.412503	,127.020907	),
+                        new LatLng(37.412314	,127.021811	),
+                        new LatLng(37.412431	,127.022218	),
+                        new LatLng(37.412385	,127.025143	),
+                        new LatLng(37.411988	,127.027876	),
+                        new LatLng(37.412132	,127.028554	),
+                        new LatLng(37.412321	,127.028792	),
+                        new LatLng(37.412303	,127.028983	),
+                        new LatLng(37.412546	,127.029379	),
+                        new LatLng(37.412727	,127.029695	),
+                        new LatLng(37.412997	,127.030769	),
+                        new LatLng(37.412942	,127.031977	),
+                        new LatLng(37.41341 	,127.033084	),
+                        new LatLng(37.413834	,127.034282	),
+                        new LatLng(37.413996	,127.035016	),
+                        new LatLng(37.413724	,127.038224	),
+                        new LatLng(37.414193	,127.038981	),
+                        new LatLng(37.414589	,127.040111	),
+                        new LatLng(37.415003	,127.041263	),
+                        new LatLng(37.415552	,127.041727	),
+                        new LatLng(37.415613	,127.041897	),
+                        new LatLng(37.415539	,127.042077	),
+                        new LatLng(37.415408	,127.04298	),
+                        new LatLng(37.414804	,127.043974	),
+                        new LatLng(37.414308	,127.0449	),
+                        new LatLng(37.413748	,127.046843	)
+                )
+                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .fillColor(colorArray[0]));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr);
+        nameHashMap.put(polygon.hashCode(),name);
+        colorHashMap.put(polygon.hashCode(), colorArray[0]);
+        latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
+        iconFactory = new IconGenerator(this);
 
-        IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr);
-        if(mclr == 2){
-            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
-        }else if(mclr == 3){
-            iconFactory.setStyle(IconGenerator.STYLE_RED);
-        }else if(mclr == 7){
-            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
-        }else if(mclr == 5){
-            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
-        }else {
-            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
-        }
-        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.363525, 126.990049));
-}//의왕시
-    public void drawPolygon32(GoogleMap googlemap) { //
-        String name = "군포시";
-        int clr = Color.argb(100,255,0,0);
-        int mclr;
-        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
-        if(hmap.get(name)==null){
-            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
-            mclr = 1;
-        } else if(hmap.get(name).equals("-")){
-            clr = Color.argb(100,140,140,140);
-            mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>150){
-            clr = Color.argb(100,255,0,0);
-            mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>80){
-            clr = Color.argb(100,255,255,0);
-            mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>30){
-            clr = Color.argb(100,0,255,0);
-            mclr = 5;
-        }else {
-            clr = Color.argb(100,0,0,255);
-            mclr = 4;
-        }
-
-        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+        iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
+    }//의왕시
+    public void drawPolygon32() { //군포시
+        name = "군포시";
+        colorArray = checkColor(name); // colorArray[0] 폴리곤 채우기색, colorArray[1] 아이콘색 배열
+        point = new LatLng(37.343961, 126.921249);
+        polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
                         new LatLng(37.361942	,126.962794	),
                         new LatLng(37.361906	,126.962602	),
@@ -7715,52 +6989,21 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.361942	,126.962794	)
                 )
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr));
+                .fillColor(colorArray[0]));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr);
+        nameHashMap.put(polygon.hashCode(),name);
+        colorHashMap.put(polygon.hashCode(), colorArray[0]);
+        latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
+        iconFactory = new IconGenerator(this);
 
-        IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr);
-        if(mclr == 2){
-            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
-        }else if(mclr == 3){
-            iconFactory.setStyle(IconGenerator.STYLE_RED);
-        }else if(mclr == 7){
-            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
-        }else if(mclr == 5){
-            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
-        }else {
-            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
-        }
-        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.343961, 126.921249));
+        iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
     }//군포시
-    public void drawPolygon59(GoogleMap googlemap) { //
-        String name = "남양주시";
-        int clr = Color.argb(100,255,0,0);
-        int mclr;
-        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
-        if(hmap.get(name)==null){
-            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
-            mclr = 1;
-        } else if(hmap.get(name).equals("-")){
-            clr = Color.argb(100,140,140,140);
-            mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>150){
-            clr = Color.argb(100,255,0,0);
-            mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>80){
-            clr = Color.argb(100,255,255,0);
-            mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>30){
-            clr = Color.argb(100,0,255,0);
-            mclr = 5;
-        }else {
-            clr = Color.argb(100,0,0,255);
-            mclr = 4;
-        }
-
-        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+    public void drawPolygon59() { //남양주시
+        name = "남양주시";
+        colorArray = checkColor(name); // colorArray[0] 폴리곤 채우기색, colorArray[1] 아이콘색 배열
+        point = new LatLng(37.663679, 127.244232);
+        polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
                         new LatLng(37.677263	,127.380986	),
                         new LatLng(37.676715	,127.380734	),
@@ -8589,52 +7832,21 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.677263	,127.380986	)
                 )
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr));
+                .fillColor(colorArray[0]));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr);
+        nameHashMap.put(polygon.hashCode(),name);
+        colorHashMap.put(polygon.hashCode(), colorArray[0]);
+        latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
+        iconFactory = new IconGenerator(this);
 
-        IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr);
-        if(mclr == 2){
-            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
-        }else if(mclr == 3){
-            iconFactory.setStyle(IconGenerator.STYLE_RED);
-        }else if(mclr == 7){
-            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
-        }else if(mclr == 5){
-            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
-        }else {
-            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
-        }
-        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.663679, 127.244232));
+        iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
     }//남양주시
-    public void drawPolygon24(GoogleMap googlemap) { //
-        String name = "안양시";
-        int clr = Color.argb(100,255,0,0);
-        int mclr;
-        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
-        if(hmap.get(name)==null){
-            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
-            mclr = 1;
-        } else if(hmap.get(name).equals("-")){
-            clr = Color.argb(100,140,140,140);
-            mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>150){
-            clr = Color.argb(100,255,0,0);
-            mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>80){
-            clr = Color.argb(100,255,255,0);
-            mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>30){
-            clr = Color.argb(100,0,255,0);
-            mclr = 5;
-        }else {
-            clr = Color.argb(100,0,0,255);
-            mclr = 4;
-        }
-
-        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+    public void drawPolygon24() { //안양시
+        name = "안양시";
+        colorArray = checkColor(name); // colorArray[0] 폴리곤 채우기색, colorArray[1] 아이콘색 배열
+        point = new LatLng(37.403955, 126.927608);
+        polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
                         new LatLng(37.394807	,126.982732	),
                         new LatLng(37.390891	,126.977404	),
@@ -8835,52 +8047,21 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.394807	,126.982732	)
                 )
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr));
+                .fillColor(colorArray[0]));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr);
+        nameHashMap.put(polygon.hashCode(),name);
+        colorHashMap.put(polygon.hashCode(), colorArray[0]);
+        latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
+        iconFactory = new IconGenerator(this);
 
-        IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr);
-        if(mclr == 2){
-            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
-        }else if(mclr == 3){
-            iconFactory.setStyle(IconGenerator.STYLE_RED);
-        }else if(mclr == 7){
-            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
-        }else if(mclr == 5){
-            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
-        }else {
-            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
-        }
-        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.403955, 126.927608));
+        iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
     }//안양시 동안구
-    public void drawPolygon25(GoogleMap googlemap) { //안양시 만안구
-        String name = "안양시";
-        int clr = Color.argb(100,255,0,0);
-        int mclr;
-        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
-        if(hmap.get(name)==null){
-            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
-            mclr = 1;
-        } else if(hmap.get(name).equals("-")){
-            clr = Color.argb(100,140,140,140);
-            mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>150){
-            clr = Color.argb(100,255,0,0);
-            mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>80){
-            clr = Color.argb(100,255,255,0);
-            mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>30){
-            clr = Color.argb(100,0,255,0);
-            mclr = 5;
-        }else {
-            clr = Color.argb(100,0,0,255);
-            mclr = 4;
-        }
-
-        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+    public void drawPolygon25() { //안양시 만안구
+        name = "안양시";
+        colorArray = checkColor(name); // colorArray[0] 폴리곤 채우기색, colorArray[1] 아이콘색 배열
+        point = new LatLng(37.403955, 126.927608);
+        polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
                         new LatLng(37.42207 	,126.948462	),
                         new LatLng(37.419125	,126.941829	),
@@ -9250,52 +8431,21 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.42207 	,126.948462	)
                 )
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr));
+                .fillColor(colorArray[0]));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr);
+        nameHashMap.put(polygon.hashCode(),name);
+        colorHashMap.put(polygon.hashCode(), colorArray[0]);
+        latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
+        iconFactory = new IconGenerator(this);
 
-        IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr);
-        if(mclr == 2){
-            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
-        }else if(mclr == 3){
-            iconFactory.setStyle(IconGenerator.STYLE_RED);
-        }else if(mclr == 7){
-            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
-        }else if(mclr == 5){
-            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
-        }else {
-            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
-        }
-        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.403955, 126.927608));
+        iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
     }//안양시 만안구
-    public void drawPolygon45(GoogleMap googlemap) { //성남시 분당구
-        String name = "성남시";
-        int clr = Color.argb(100,255,0,0);
-        int mclr;
-        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
-        if(hmap.get(name)==null){
-            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
-            mclr = 1;
-        } else if(hmap.get(name).equals("-")){
-            clr = Color.argb(100,140,140,140);
-            mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>150){
-            clr = Color.argb(100,255,0,0);
-            mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>80){
-            clr = Color.argb(100,255,255,0);
-            mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>30){
-            clr = Color.argb(100,0,255,0);
-            mclr = 5;
-        }else {
-            clr = Color.argb(100,0,0,255);
-            mclr = 4;
-        }
-
-        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+    public void drawPolygon45() { //성남시 분당구
+        name = "성남시";
+        colorArray = checkColor(name); // colorArray[0] 폴리곤 채우기색, colorArray[1] 아이콘색 배열
+        point = new LatLng(37.408563, 127.116230);
+        polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
                         new LatLng(37.387099	,127.177235	),
                         new LatLng(37.385206	,127.176557	),
@@ -9726,52 +8876,21 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.387099	,127.177235	)
                 )
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr));
+                .fillColor(colorArray[0]));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr);
+        nameHashMap.put(polygon.hashCode(),name);
+        colorHashMap.put(polygon.hashCode(), colorArray[0]);
+        latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
+        iconFactory = new IconGenerator(this);
 
-        IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr);
-        if(mclr == 2){
-            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
-        }else if(mclr == 3){
-            iconFactory.setStyle(IconGenerator.STYLE_RED);
-        }else if(mclr == 7){
-            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
-        }else if(mclr == 5){
-            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
-        }else {
-            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
-        }
-        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.408563, 127.116230));
+        iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
     }//성남시 분당구
-    public void drawPolygon51(GoogleMap googlemap) { //
-        String name = "시흥시";
-        int clr = Color.argb(100,255,0,0);
-        int mclr;
-        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
-        if(hmap.get(name)==null){
-            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
-            mclr = 1;
-        } else if(hmap.get(name).equals("-")){
-            clr = Color.argb(100,140,140,140);
-            mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>150){
-            clr = Color.argb(100,255,0,0);
-            mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>80){
-            clr = Color.argb(100,255,255,0);
-            mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>30){
-            clr = Color.argb(100,0,255,0);
-            mclr = 5;
-        }else {
-            clr = Color.argb(100,0,0,255);
-            mclr = 4;
-        }
-
-        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+    public void drawPolygon51() { //시흥시
+        name = "시흥시";
+        colorArray = checkColor(name); // colorArray[0] 폴리곤 채우기색, colorArray[1] 아이콘색 배열
+        point = new LatLng(37.381675, 126.769944);
+        polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
                         new LatLng(37.377583	,126.881266	),
                         new LatLng(37.377466	,126.881247	),
@@ -9933,52 +9052,21 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.377583	,126.881266	)
                 )
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr));
+                .fillColor(colorArray[0]));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr);
+        nameHashMap.put(polygon.hashCode(),name);
+        colorHashMap.put(polygon.hashCode(), colorArray[0]);
+        latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
+        iconFactory = new IconGenerator(this);
 
-        IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr);
-        if(mclr == 2){
-            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
-        }else if(mclr == 3){
-            iconFactory.setStyle(IconGenerator.STYLE_RED);
-        }else if(mclr == 7){
-            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
-        }else if(mclr == 5){
-            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
-        }else {
-            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
-        }
-        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.381675, 126.769944));
+        iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
     }//시흥시
-    public void drawPolygon46(GoogleMap googlemap) { //
-        String name = "성남시";
-        int clr = Color.argb(100,255,0,0);
-        int mclr;
-        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
-        if(hmap.get(name)==null){
-            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
-            mclr = 1;
-        } else if(hmap.get(name).equals("-")){
-            clr = Color.argb(100,140,140,140);
-            mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>150){
-            clr = Color.argb(100,255,0,0);
-            mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>80){
-            clr = Color.argb(100,255,255,0);
-            mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>30){
-            clr = Color.argb(100,0,255,0);
-            mclr = 5;
-        }else {
-            clr = Color.argb(100,0,0,255);
-            mclr = 4;
-        }
-
-        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+    public void drawPolygon46() { //성남시 수정구
+        name = "성남시";
+        colorArray = checkColor(name); // colorArray[0] 폴리곤 채우기색, colorArray[1] 아이콘색 배열
+        point = new LatLng(37.408563, 127.116230);
+        polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
                         new LatLng(37.471958	,127.175615	),
                         new LatLng(37.465668	,127.173935	),
@@ -10043,52 +9131,21 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.471958	,127.175615	)
                 )
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr));
+                .fillColor(colorArray[0]));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr);
+        nameHashMap.put(polygon.hashCode(),name);
+        colorHashMap.put(polygon.hashCode(), colorArray[0]);
+        latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
+        iconFactory = new IconGenerator(this);
 
-        IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr);
-        if(mclr == 2){
-            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
-        }else if(mclr == 3){
-            iconFactory.setStyle(IconGenerator.STYLE_RED);
-        }else if(mclr == 7){
-            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
-        }else if(mclr == 5){
-            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
-        }else {
-            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
-        }
-        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.408563, 127.116230));
+        iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
     }//성남시 수정구
-    public void drawPolygon40(GoogleMap googlemap) { //
-        String name = "성남시";
-        int clr = Color.argb(100,255,0,0);
-        int mclr;
-        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
-        if(hmap.get(name)==null){
-            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
-            mclr = 1;
-        } else if(hmap.get(name).equals("-")){
-            clr = Color.argb(100,140,140,140);
-            mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>150){
-            clr = Color.argb(100,255,0,0);
-            mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>80){
-            clr = Color.argb(100,255,255,0);
-            mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>30){
-            clr = Color.argb(100,0,255,0);
-            mclr = 5;
-        }else {
-            clr = Color.argb(100,0,0,255);
-            mclr = 4;
-        }
-
-        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+    public void drawPolygon40() { //성남시 중원구
+        name = "성남시";
+        colorArray = checkColor(name); // colorArray[0] 폴리곤 채우기색, colorArray[1] 아이콘색 배열
+        point = new LatLng(37.408563, 127.116230);
+        polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
                         new LatLng(37.451171	,127.194842	),
                         new LatLng(37.437378	,127.193759	),
@@ -10127,52 +9184,21 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.451171	,127.194842	)
                 )
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr));
+                .fillColor(colorArray[0]));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr);
+        nameHashMap.put(polygon.hashCode(),name);
+        colorHashMap.put(polygon.hashCode(), colorArray[0]);
+        latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
+        iconFactory = new IconGenerator(this);
 
-        IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr);
-        if(mclr == 2){
-            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
-        }else if(mclr == 3){
-            iconFactory.setStyle(IconGenerator.STYLE_RED);
-        }else if(mclr == 7){
-            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
-        }else if(mclr == 5){
-            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
-        }else {
-            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
-        }
-        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.408563, 127.116230));
+        iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
     }//성남시 중원구
-    public void drawPolygon50(GoogleMap googlemap) { //
-        String name = "의정부시";
-        int clr = Color.argb(100,255,0,0);
-        int mclr;
-        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
-        if(hmap.get(name)==null){
-            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
-            mclr = 1;
-        } else if(hmap.get(name).equals("-")){
-            clr = Color.argb(100,140,140,140);
-            mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>150){
-            clr = Color.argb(100,255,0,0);
-            mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>80){
-            clr = Color.argb(100,255,255,0);
-            mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>30){
-            clr = Color.argb(100,0,255,0);
-            mclr = 5;
-        }else {
-            clr = Color.argb(100,0,0,255);
-            mclr = 4;
-        }
-
-        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+    public void drawPolygon50() { //의정부시
+        name = "의정부시";
+        colorArray = checkColor(name); // colorArray[0] 폴리곤 채우기색, colorArray[1] 아이콘색 배열
+        point = new LatLng(37.736893, 127.068307);
+        polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
                         new LatLng(37.752015	,127.147246	),
                         new LatLng(37.7514  	,127.147055	),
@@ -10392,52 +9418,21 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.752015	,127.147246	)
                 )
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr));
+                .fillColor(colorArray[0]));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr);
+        nameHashMap.put(polygon.hashCode(),name);
+        colorHashMap.put(polygon.hashCode(), colorArray[0]);
+        latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
+        iconFactory = new IconGenerator(this);
 
-        IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr);
-        if(mclr == 2){
-            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
-        }else if(mclr == 3){
-            iconFactory.setStyle(IconGenerator.STYLE_RED);
-        }else if(mclr == 7){
-            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
-        }else if(mclr == 5){
-            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
-        }else {
-            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
-        }
-        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.736893, 127.068307));
+        iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
     }//의정부시
-    public void drawPolygon56(GoogleMap googlemap) { //
-        String name = "광주시";
-        int clr = Color.argb(100,255,0,0);
-        int mclr;
-        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
-        if(hmap.get(name)==null){
-            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
-            mclr = 1;
-        } else if(hmap.get(name).equals("-")){
-            clr = Color.argb(100,140,140,140);
-            mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>150){
-            clr = Color.argb(100,255,0,0);
-            mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>80){
-            clr = Color.argb(100,255,255,0);
-            mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>30){
-            clr = Color.argb(100,0,255,0);
-            mclr = 5;
-        }else {
-            clr = Color.argb(100,0,0,255);
-            mclr = 4;
-        }
-
-        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+    public void drawPolygon56() { //광주시
+        name = "광주시";
+        colorArray = checkColor(name); // colorArray[0] 폴리곤 채우기색, colorArray[1] 아이콘색 배열
+        point =new LatLng(37.403843, 127.301297);
+        polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
                         new LatLng(37.380456	,127.446638	),
                         new LatLng(37.380222	,127.446546	),
@@ -11143,52 +10138,21 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.380456	,127.446638	)
                 )
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr));
+                .fillColor(colorArray[0]));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr);
+        nameHashMap.put(polygon.hashCode(),name);
+        colorHashMap.put(polygon.hashCode(), colorArray[0]);
+        latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
+        iconFactory = new IconGenerator(this);
 
-        IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr);
-        if(mclr == 2){
-            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
-        }else if(mclr == 3){
-            iconFactory.setStyle(IconGenerator.STYLE_RED);
-        }else if(mclr == 7){
-            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
-        }else if(mclr == 5){
-            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
-        }else {
-            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
-        }
-        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.403843, 127.301297));
+        iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
     }//광주시
-    public void drawPolygon61(GoogleMap googlemap) { //
-        String name = "안산시";
-        int clr = Color.argb(100,255,0,0);
-        int mclr;
-        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
-        if(hmap.get(name)==null){
-            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
-            mclr = 1;
-        } else if(hmap.get(name).equals("-")){
-            clr = Color.argb(100,140,140,140);
-            mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>150){
-            clr = Color.argb(100,255,0,0);
-            mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>80){
-            clr = Color.argb(100,255,255,0);
-            mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>30){
-            clr = Color.argb(100,0,255,0);
-            mclr = 5;
-        }else {
-            clr = Color.argb(100,0,0,255);
-            mclr = 4;
-        }
-
-        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+    public void drawPolygon61() { //안산시
+        name = "안산시";
+        colorArray = checkColor(name); // colorArray[0] 폴리곤 채우기색, colorArray[1] 아이콘색 배열
+        point = new LatLng(37.323148, 126.830889);
+        polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
                         new LatLng(37.211753	,126.653752	),
                         new LatLng(37.20984 	,126.653688	),
@@ -11326,52 +10290,21 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.211753	,126.653752	)
                 )
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr));
+                .fillColor(colorArray[0]));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr);
+        nameHashMap.put(polygon.hashCode(),name);
+        colorHashMap.put(polygon.hashCode(), colorArray[0]);
+        latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
+        iconFactory = new IconGenerator(this);
 
-        IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr);
-        if(mclr == 2){
-            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
-        }else if(mclr == 3){
-            iconFactory.setStyle(IconGenerator.STYLE_RED);
-        }else if(mclr == 7){
-            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
-        }else if(mclr == 5){
-            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
-        }else {
-            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
-        }
-        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.323148, 126.830889));
+        iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
     }//안산시 단원구
-    public void drawPolygon612(GoogleMap googlemap) { //
-        String name = "안산시";
-        int clr = Color.argb(100,255,0,0);
-        int mclr;
-        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
-        if(hmap.get(name)==null){
-            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
-            mclr = 1;
-        } else if(hmap.get(name).equals("-")){
-            clr = Color.argb(100,140,140,140);
-            mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>150){
-            clr = Color.argb(100,255,0,0);
-            mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>80){
-            clr = Color.argb(100,255,255,0);
-            mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>30){
-            clr = Color.argb(100,0,255,0);
-            mclr = 5;
-        }else {
-            clr = Color.argb(100,0,0,255);
-            mclr = 4;
-        }
-
-        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+    public void drawPolygon612() { //
+        name = "안산시";
+        colorArray = checkColor(name); // colorArray[0] 폴리곤 채우기색, colorArray[1] 아이콘색 배열
+        point = new LatLng(37.323148, 126.830889);
+        polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
                         new LatLng(37.315989	,126.843011	),
                         new LatLng(37.306112	,126.841611	),
@@ -11433,52 +10366,21 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.315989	,126.843011	)
                 )
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr));
+                .fillColor(colorArray[0]));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr);
+        nameHashMap.put(polygon.hashCode(),name);
+        colorHashMap.put(polygon.hashCode(), colorArray[0]);
+        latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
+        iconFactory = new IconGenerator(this);
 
-        IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr);
-        if(mclr == 2){
-            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
-        }else if(mclr == 3){
-            iconFactory.setStyle(IconGenerator.STYLE_RED);
-        }else if(mclr == 7){
-            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
-        }else if(mclr == 5){
-            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
-        }else {
-            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
-        }
-        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.323148, 126.830889));
+        iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
     }//안산시 단원구2
-    public void drawPolygon23(GoogleMap googlemap) { //서울 성동구
-        String name = "수원시";
-        int clr = Color.argb(100,255,0,0);
-        int mclr;
-        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
-        if(hmap.get(name)==null){
-            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
-            mclr = 1;
-        } else if(hmap.get(name).equals("-")){
-            clr = Color.argb(100,140,140,140);
-            mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>150){
-            clr = Color.argb(100,255,0,0);
-            mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>80){
-            clr = Color.argb(100,255,255,0);
-            mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>30){
-            clr = Color.argb(100,0,255,0);
-            mclr = 5;
-        }else {
-            clr = Color.argb(100,0,0,255);
-            mclr = 4;
-        }
-        Log.d("log","kbc   ++))++))++  "+clr);
-        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+    public void drawPolygon23() { //수원시 장안구
+        name = "수원시";
+        colorArray = checkColor(name); // colorArray[0] 폴리곤 채우기색, colorArray[1] 아이콘색 배열
+        point = new LatLng(37.281390, 127.008683);
+        polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
                         new LatLng(37.321097	,127.039754	),
                         new LatLng(37.320937	,127.039696	),
@@ -11536,53 +10438,22 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.321097	,127.039754	)
                 )
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr));
+                .fillColor(colorArray[0]));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr);
+        nameHashMap.put(polygon.hashCode(),name);
+        colorHashMap.put(polygon.hashCode(), colorArray[0]);
+        latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
+        iconFactory = new IconGenerator(this);
 
-        IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr);
-        if(mclr == 2){
-            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
-        }else if(mclr == 3){
-            iconFactory.setStyle(IconGenerator.STYLE_RED);
-        }else if(mclr == 7){
-            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
-        }else if(mclr == 5){
-            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
-        }else {
-            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
-        }
-        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.281390, 127.008683));
+        iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
 
     }//수원시 장안구
-    public void drawPolygon19(GoogleMap googlemap) { //서울 성동구
-        String name = "수원시";
-        int clr = Color.argb(100,255,0,0);
-        int mclr;
-        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
-        if(hmap.get(name)==null){
-            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
-            mclr = 1;
-        } else if(hmap.get(name).equals("-")){
-            clr = Color.argb(100,140,140,140);
-            mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>150){
-            clr = Color.argb(100,255,0,0);
-            mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>80){
-            clr = Color.argb(100,255,255,0);
-            mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>30){
-            clr = Color.argb(100,0,255,0);
-            mclr = 5;
-        }else {
-            clr = Color.argb(100,0,0,255);
-            mclr = 4;
-        }
-        Log.d("log","kbc   ++))++))++  "+clr);
-        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+    public void drawPolygon19() { //수원시 팔달구
+        name = "수원시";
+        colorArray = checkColor(name); // colorArray[0] 폴리곤 채우기색, colorArray[1] 아이콘색 배열
+        point = new LatLng(37.281390, 127.008683);
+        polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
                         new LatLng(37.27429 	,127.045965	),
                         new LatLng(37.274966	,127.037258	),
@@ -11621,53 +10492,22 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.27429 	,127.045965	)
                 )
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr));
+                .fillColor(colorArray[0]));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr);
+        nameHashMap.put(polygon.hashCode(),name);
+        colorHashMap.put(polygon.hashCode(), colorArray[0]);
+        latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
+        iconFactory = new IconGenerator(this);
 
-        IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr);
-        if(mclr == 2){
-            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
-        }else if(mclr == 3){
-            iconFactory.setStyle(IconGenerator.STYLE_RED);
-        }else if(mclr == 7){
-            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
-        }else if(mclr == 5){
-            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
-        }else {
-            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
-        }
-        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.281390, 127.008683));
+        iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
 
     }//수원시 팔달구
-    public void drawPolygon21(GoogleMap googlemap) { //
-        String name = "수원시";
-        int clr = Color.argb(100,255,0,0);
-        int mclr;
-        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
-        if(hmap.get(name)==null){
-            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
-            mclr = 1;
-        } else if(hmap.get(name).equals("-")){
-            clr = Color.argb(100,140,140,140);
-            mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>150){
-            clr = Color.argb(100,255,0,0);
-            mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>80){
-            clr = Color.argb(100,255,255,0);
-            mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>30){
-            clr = Color.argb(100,0,255,0);
-            mclr = 5;
-        }else {
-            clr = Color.argb(100,0,0,255);
-            mclr = 4;
-        }
-        Log.d("log","kbc   ++))++))++  "+clr);
-        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+    public void drawPolygon21() { //수원시 권선구
+        name = "수원시";
+        colorArray = checkColor(name); // colorArray[0] 폴리곤 채우기색, colorArray[1] 아이콘색 배열
+        point = new LatLng(37.281390, 127.008683);
+        polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
                         new LatLng(37.250981	,127.042171	),
                         new LatLng(37.244441	,127.040202	),
@@ -12392,53 +11232,22 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.250981	,127.042171	)
                 )
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr));
+                .fillColor(colorArray[0]));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr);
+        nameHashMap.put(polygon.hashCode(),name);
+        colorHashMap.put(polygon.hashCode(), colorArray[0]);
+        latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
+        iconFactory = new IconGenerator(this);
 
-        IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr);
-        if(mclr == 2){
-            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
-        }else if(mclr == 3){
-            iconFactory.setStyle(IconGenerator.STYLE_RED);
-        }else if(mclr == 7){
-            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
-        }else if(mclr == 5){
-            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
-        }else {
-            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
-        }
-        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.281390, 127.008683));
+        iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
 
     }//수원시 권선구
-    public void drawPolygon20(GoogleMap googlemap) { //
-        String name = "수원시";
-        int clr = Color.argb(100,255,0,0);
-        int mclr;
-        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
-        if(hmap.get(name)==null){
-            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
-            mclr = 1;
-        } else if(hmap.get(name).equals("-")){
-            clr = Color.argb(100,140,140,140);
-            mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>150){
-            clr = Color.argb(100,255,0,0);
-            mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>80){
-            clr = Color.argb(100,255,255,0);
-            mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>30){
-            clr = Color.argb(100,0,255,0);
-            mclr = 5;
-        }else {
-            clr = Color.argb(100,0,0,255);
-            mclr = 4;
-        }
-        Log.d("log","kbc   ++))++))++  "+clr);
-        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+    public void drawPolygon20() { //
+        name = "수원시";
+        colorArray = checkColor(name); // colorArray[0] 폴리곤 채우기색, colorArray[1] 아이콘색 배열
+        point = new LatLng(37.281390, 127.008683);
+        polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
                         new LatLng(37.298258	,127.089632	),
                         new LatLng(37.288052	,127.088812	),
@@ -12700,53 +11509,22 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.298258	,127.089632	)
                 )
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr));
+                .fillColor(colorArray[0]));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr);
+        nameHashMap.put(polygon.hashCode(),name);
+        colorHashMap.put(polygon.hashCode(), colorArray[0]);
+        latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
+        iconFactory = new IconGenerator(this);
 
-        IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr);
-        if(mclr == 2){
-            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
-        }else if(mclr == 3){
-            iconFactory.setStyle(IconGenerator.STYLE_RED);
-        }else if(mclr == 7){
-            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
-        }else if(mclr == 5){
-            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
-        }else {
-            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
-        }
-        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.281390, 127.008683));
+        iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
 
     }//수원시 영통구
-    public void drawPolygon44(GoogleMap googlemap) { //서울 성동구
-        String name = "고양시";
-        int clr = Color.argb(100,255,0,0);
-        int mclr;
-        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
-        if(hmap.get(name)==null){
-            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
-            mclr = 1;
-        } else if(hmap.get(name).equals("-")){
-            clr = Color.argb(100,140,140,140);
-            mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>150){
-            clr = Color.argb(100,255,0,0);
-            mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>80){
-            clr = Color.argb(100,255,255,0);
-            mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>30){
-            clr = Color.argb(100,0,255,0);
-            mclr = 5;
-        }else {
-            clr = Color.argb(100,0,0,255);
-            mclr = 4;
-        }
-        Log.d("log","kbc   ++))++))++  "+clr);
-        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+    public void drawPolygon44() { //고양시
+        name = "고양시";
+        colorArray = checkColor(name); // colorArray[0] 폴리곤 채우기색, colorArray[1] 아이콘색 배열
+        point = new LatLng(37.666273, 126.836938);
+        polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
                         new LatLng(37.669811	,126.994351	),
                         new LatLng(37.66802 	,126.993629	),
@@ -12927,53 +11705,22 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.669811	,126.994351	)
                 )
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr));
+                .fillColor(colorArray[0]));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr);
+        nameHashMap.put(polygon.hashCode(),name);
+        colorHashMap.put(polygon.hashCode(), colorArray[0]);
+        latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
+        iconFactory = new IconGenerator(this);
 
-        IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr);
-        if(mclr == 2){
-            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
-        }else if(mclr == 3){
-            iconFactory.setStyle(IconGenerator.STYLE_RED);
-        }else if(mclr == 7){
-            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
-        }else if(mclr == 5){
-            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
-        }else {
-            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
-        }
-        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.666273, 126.836938));
+        iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
 
     }//고양시 덕양구
-    public void drawPolygon31(GoogleMap googlemap) { //서울 성동구
-        String name = "고양시";
-        int clr = Color.argb(100,255,0,0);
-        int mclr;
-        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
-        if(hmap.get(name)==null){
-            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
-            mclr = 1;
-        } else if(hmap.get(name).equals("-")){
-            clr = Color.argb(100,140,140,140);
-            mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>150){
-            clr = Color.argb(100,255,0,0);
-            mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>80){
-            clr = Color.argb(100,255,255,0);
-            mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>30){
-            clr = Color.argb(100,0,255,0);
-            mclr = 5;
-        }else {
-            clr = Color.argb(100,0,0,255);
-            mclr = 4;
-        }
-        Log.d("log","kbc   ++))++))++  "+clr);
-        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+    public void drawPolygon31() { //고양시
+        name = "고양시";
+        colorArray = checkColor(name); // colorArray[0] 폴리곤 채우기색, colorArray[1] 아이콘색 배열
+        point = new LatLng(37.666273, 126.836938);
+        polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
                         new LatLng(37.694087	,126.855969	),
                         new LatLng(37.687981	,126.853813	),
@@ -13033,53 +11780,22 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.694087	,126.855969	)
                 )
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr));
+                .fillColor(colorArray[0]));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr);
+        nameHashMap.put(polygon.hashCode(),name);
+        colorHashMap.put(polygon.hashCode(), colorArray[0]);
+        latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
+        iconFactory = new IconGenerator(this);
 
-        IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr);
-        if(mclr == 2){
-            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
-        }else if(mclr == 3){
-            iconFactory.setStyle(IconGenerator.STYLE_RED);
-        }else if(mclr == 7){
-            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
-        }else if(mclr == 5){
-            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
-        }else {
-            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
-        }
-        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.666273, 126.836938));
+        iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
 
     }//고양시 일산동구
-    public void drawPolygon38(GoogleMap googlemap) { //서울 성동구
-        String name = "고양시";
-        int clr = Color.argb(100,255,0,0);
-        int mclr;
-        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
-        if(hmap.get(name)==null){
-            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
-            mclr = 1;
-        } else if(hmap.get(name).equals("-")){
-            clr = Color.argb(100,140,140,140);
-            mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>150){
-            clr = Color.argb(100,255,0,0);
-            mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>80){
-            clr = Color.argb(100,255,255,0);
-            mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>30){
-            clr = Color.argb(100,0,255,0);
-            mclr = 5;
-        }else {
-            clr = Color.argb(100,0,0,255);
-            mclr = 4;
-        }
-        Log.d("log","kbc   ++))++))++  "+clr);
-        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+    public void drawPolygon38() { //고양시
+        name = "고양시";
+        colorArray = checkColor(name); // colorArray[0] 폴리곤 채우기색, colorArray[1] 아이콘색 배열
+        point = new LatLng(37.666273, 126.836938);
+        polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
                         new LatLng(37.699112	,126.781796	),
                         new LatLng(37.690833	,126.777138	),
@@ -13115,53 +11831,22 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.699112	,126.781796	)
                 )
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr));
+                .fillColor(colorArray[0]));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr);
+        nameHashMap.put(polygon.hashCode(),name);
+        colorHashMap.put(polygon.hashCode(), colorArray[0]);
+        latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
+        iconFactory = new IconGenerator(this);
 
-        IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr);
-        if(mclr == 2){
-            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
-        }else if(mclr == 3){
-            iconFactory.setStyle(IconGenerator.STYLE_RED);
-        }else if(mclr == 7){
-            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
-        }else if(mclr == 5){
-            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
-        }else {
-            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
-        }
-        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.666273, 126.836938));
+        iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
 
     }//고양시 일산서구
-    public void drawPolygon52(GoogleMap googlemap) { //서울 성동구
-        String name = "양주시";
-        int clr = Color.argb(100,255,0,0);
-        int mclr;
-        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
-        if(hmap.get(name)==null){
-            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
-            mclr = 1;
-        } else if(hmap.get(name).equals("-")){
-            clr = Color.argb(100,140,140,140);
-            mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>150){
-            clr = Color.argb(100,255,0,0);
-            mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>80){
-            clr = Color.argb(100,255,255,0);
-            mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>30){
-            clr = Color.argb(100,0,255,0);
-            mclr = 5;
-        }else {
-            clr = Color.argb(100,0,0,255);
-            mclr = 4;
-        }
-        Log.d("log","kbc   ++))++))++  "+clr);
-        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+    public void drawPolygon52() { //양주시
+        name = "양주시";
+        colorArray = checkColor(name); // colorArray[0] 폴리곤 채우기색, colorArray[1] 아이콘색 배열
+        point = new LatLng(37.810037, 127.001330);
+        polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
                         new LatLng(37.828304	,127.121794	),
                         new LatLng(37.811357	,127.120994	),
@@ -13321,53 +12006,22 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.828304	,127.121794)
                 )
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr));
+                .fillColor(colorArray[0]));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr);
+        nameHashMap.put(polygon.hashCode(),name);
+        colorHashMap.put(polygon.hashCode(), colorArray[0]);
+        latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
+        iconFactory = new IconGenerator(this);
 
-        IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr);
-        if(mclr == 2){
-            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
-        }else if(mclr == 3){
-            iconFactory.setStyle(IconGenerator.STYLE_RED);
-        }else if(mclr == 7){
-            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
-        }else if(mclr == 5){
-            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
-        }else {
-            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
-        }
-        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.810037, 127.001330));
+        iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
 
     }//양주시
-    public void drawPolygon49(GoogleMap googlemap) { //서울 성동구
-        String name = "파주시";
-        int clr = Color.argb(100,255,0,0);
-        int mclr;
-        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
-        if(hmap.get(name)==null){
-            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
-            mclr = 1;
-        } else if(hmap.get(name).equals("-")){
-            clr = Color.argb(100,140,140,140);
-            mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>150){
-            clr = Color.argb(100,255,0,0);
-            mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>80){
-            clr = Color.argb(100,255,255,0);
-            mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>30){
-            clr = Color.argb(100,0,255,0);
-            mclr = 5;
-        }else {
-            clr = Color.argb(100,0,0,255);
-            mclr = 4;
-        }
-        Log.d("log","kbc   ++))++))++  "+clr);
-        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+    public void drawPolygon49() { //파주시
+        name = "파주시";
+        colorArray = checkColor(name); // colorArray[0] 폴리곤 채우기색, colorArray[1] 아이콘색 배열
+        point = new LatLng(37.866497, 126.791697);
+        polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
                         new LatLng(37.986963	,127.017107	),
                         new LatLng(37.983785	,127.011804	),
@@ -13562,53 +12216,22 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.986963	,127.017107	)
                 )
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr));
+                .fillColor(colorArray[0]));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr);
+        nameHashMap.put(polygon.hashCode(),name);
+        colorHashMap.put(polygon.hashCode(), colorArray[0]);
+        latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
+        iconFactory = new IconGenerator(this);
 
-        IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr);
-        if(mclr == 2){
-            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
-        }else if(mclr == 3){
-            iconFactory.setStyle(IconGenerator.STYLE_RED);
-        }else if(mclr == 7){
-            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
-        }else if(mclr == 5){
-            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
-        }else {
-            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
-        }
-        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.866497, 126.791697));
+        iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
 
     }//파주시
-    public void drawPolygon43(GoogleMap googlemap) { //서울 성동구
-        String name = "김포시";
-        int clr = Color.argb(100,255,0,0);
-        int mclr;
-        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
-        if(hmap.get(name)==null){
-            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
-            mclr = 1;
-        } else if(hmap.get(name).equals("-")){
-            clr = Color.argb(100,140,140,140);
-            mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>150){
-            clr = Color.argb(100,255,0,0);
-            mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>80){
-            clr = Color.argb(100,255,255,0);
-            mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>30){
-            clr = Color.argb(100,0,255,0);
-            mclr = 5;
-        }else {
-            clr = Color.argb(100,0,0,255);
-            mclr = 4;
-        }
-        Log.d("log","kbc   ++))++))++  "+clr);
-        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+    public void drawPolygon43() { //김포시
+        name = "김포시";
+        colorArray = checkColor(name); // colorArray[0] 폴리곤 채우기색, colorArray[1] 아이콘색 배열
+        point = new LatLng(37.727020, 126.613844);
+        polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
                         new LatLng(37.605033	,126.802581	),
                         new LatLng(37.597743	,126.797115	),
@@ -13989,53 +12612,22 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.605033	,126.802581	)
                 )
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr));
+                .fillColor(colorArray[0]));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr);
+        nameHashMap.put(polygon.hashCode(),name);
+        colorHashMap.put(polygon.hashCode(), colorArray[0]);
+        latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
+        iconFactory = new IconGenerator(this);
 
-        IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr);
-        if(mclr == 2){
-            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
-        }else if(mclr == 3){
-            iconFactory.setStyle(IconGenerator.STYLE_RED);
-        }else if(mclr == 7){
-            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
-        }else if(mclr == 5){
-            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
-        }else {
-            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
-        }
-        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.727020, 126.613844));
+        iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
 
     }//김포시
-    public void drawPolygon29(GoogleMap googlemap) { //서울 성동구
-        String name = "동두천시";
-        int clr = Color.argb(100,255,0,0);
-        int mclr;
-        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
-        if(hmap.get(name)==null){
-            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
-            mclr = 1;
-        } else if(hmap.get(name).equals("-")){
-            clr = Color.argb(100,140,140,140);
-            mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>150){
-            clr = Color.argb(100,255,0,0);
-            mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>80){
-            clr = Color.argb(100,255,255,0);
-            mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>30){
-            clr = Color.argb(100,0,255,0);
-            mclr = 5;
-        }else {
-            clr = Color.argb(100,0,0,255);
-            mclr = 4;
-        }
-        Log.d("log","kbc   ++))++))++  "+clr);
-        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+    public void drawPolygon29() { //동두천시
+        name = "동두천시";
+        colorArray = checkColor(name); // colorArray[0] 폴리곤 채우기색, colorArray[1] 아이콘색 배열
+        point = new LatLng(37.917071, 127.078007);
+        polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
                         new LatLng(37.895624	,127.155371	),
                         new LatLng(37.89556 	,127.155333	),
@@ -14103,454 +12695,392 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.895624	,127.155371	)
                 )
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr));
+                .fillColor(colorArray[0]));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr);
+        nameHashMap.put(polygon.hashCode(),name);
+        colorHashMap.put(polygon.hashCode(), colorArray[0]);
+        latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
+        iconFactory = new IconGenerator(this);
 
-        IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr);
-        if(mclr == 2){
-            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
-        }else if(mclr == 3){
-            iconFactory.setStyle(IconGenerator.STYLE_RED);
-        }else if(mclr == 7){
-            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
-        }else if(mclr == 5){
-            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
-        }else {
-            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
-        }
-        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.917071, 127.078007));
+        iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
 
     }//동두천시
-    public void drawPolygon30(GoogleMap googlemap) { //서울 성동구
-        String name = "포천시";
-        int clr = Color.argb(100,255,0,0);
-        int mclr;
-        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
-        if(hmap.get(name)==null){
-            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
-            mclr = 1;
-        } else if(hmap.get(name).equals("-")){
-            clr = Color.argb(100,140,140,140);
-            mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>150){
-            clr = Color.argb(100,255,0,0);
-            mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>80){
-            clr = Color.argb(100,255,255,0);
-            mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>30){
-            clr = Color.argb(100,0,255,0);
-            mclr = 5;
-        }else {
-            clr = Color.argb(100,0,0,255);
-            mclr = 4;
-        }
-        Log.d("log","kbc   ++))++))++  "+clr);
-        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+    public void drawPolygon30() { //포천시
+        name = "포천시";
+        colorArray = checkColor(name); // colorArray[0] 폴리곤 채우기색, colorArray[1] 아이콘색 배열
+        point = new LatLng(37.972607, 127.251062);
+        polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
-                            new LatLng(38.051214	,127.446239	),
-                            new LatLng(38.051213	,127.446239	),
-                            new LatLng(38.050029	,127.445389	),
-                            new LatLng(38.038361	,127.435689	),
-                            new LatLng(38.033452	,127.424667	),
-                            new LatLng(38.025746	,127.426719	),
-                            new LatLng(38.017448	,127.419838	),
-                            new LatLng(37.997822	,127.412837	),
-                            new LatLng(37.990338	,127.405237	),
-                            new LatLng(37.982333	,127.384859	),
-                            new LatLng(37.975454	,127.384839	),
-                            new LatLng(37.961617	,127.376691	),
-                            new LatLng(37.958205	,127.379447	),
-                            new LatLng(37.953192	,127.376646	),
-                            new LatLng(37.946938	,127.38519	),
-                            new LatLng(37.943267	,127.384578	),
-                            new LatLng(37.928891	,127.365906	),
-                            new LatLng(37.926233	,127.365732	),
-                            new LatLng(37.921114	,127.35654	),
-                            new LatLng(37.921458	,127.349837	),
-                            new LatLng(37.926399	,127.345348	),
-                            new LatLng(37.923091	,127.338322	),
-                            new LatLng(37.925567	,127.330235	),
-                            new LatLng(37.916318	,127.329905	),
-                            new LatLng(37.911568	,127.326624	),
-                            new LatLng(37.909319	,127.329575	),
-                            new LatLng(37.902373	,127.326428	),
-                            new LatLng(37.894015	,127.328481	),
-                            new LatLng(37.887296	,127.322427	),
-                            new LatLng(37.877145	,127.325098	),
-                            new LatLng(37.871368	,127.322887	),
-                            new LatLng(37.871438	,127.319172	),
-                            new LatLng(37.865758	,127.312736	),
-                            new LatLng(37.868619	,127.306106	),
-                            new LatLng(37.868864	,127.29582	),
-                            new LatLng(37.875392	,127.291914	),
-                            new LatLng(37.86969 	,127.287827	),
-                            new LatLng(37.855691	,127.280407	),
-                            new LatLng(37.848023	,127.286554	),
-                            new LatLng(37.842262	,127.278955	),
-                            new LatLng(37.830446	,127.274098	),
-                            new LatLng(37.816336	,127.279328	),
-                            new LatLng(37.807319	,127.276799	),
-                            new LatLng(37.804688	,127.278505	),
-                            new LatLng(37.794616	,127.271007	),
-                            new LatLng(37.789963	,127.273049	),
-                            new LatLng(37.779871	,127.266914	),
-                            new LatLng(37.780522	,127.265729	),
-                            new LatLng(37.779144	,127.265486	),
-                            new LatLng(37.779068	,127.26541	),
-                            new LatLng(37.778973	,127.265122	),
-                            new LatLng(37.778191	,127.264358	),
-                            new LatLng(37.77821 	,127.263973	),
-                            new LatLng(37.776664	,127.262276	),
-                            new LatLng(37.77401 	,127.260814	),
-                            new LatLng(37.773991	,127.260816	),
-                            new LatLng(37.771089	,127.261553	),
-                            new LatLng(37.770622	,127.260836	),
-                            new LatLng(37.770451	,127.260824	),
-                            new LatLng(37.769965	,127.260448	),
-                            new LatLng(37.769849	,127.260175	),
-                            new LatLng(37.768307	,127.259943	),
-                            new LatLng(37.768291	,127.259942	),
-                            new LatLng(37.768689	,127.259002	),
-                            new LatLng(37.767919	,127.256741	),
-                            new LatLng(37.768037	,127.256351	),
-                            new LatLng(37.768011	,127.256151	),
-                            new LatLng(37.76777 	,127.254811	),
-                            new LatLng(37.767521	,127.253516	),
-                            new LatLng(37.766578	,127.252128	),
-                            new LatLng(37.76604 	,127.250526	),
-                            new LatLng(37.765782	,127.249254	),
-                            new LatLng(37.765189	,127.248378	),
-                            new LatLng(37.765245	,127.247573	),
-                            new LatLng(37.765218	,127.247357	),
-                            new LatLng(37.765066	,127.246676	),
-                            new LatLng(37.764483	,127.245437	),
-                            new LatLng(37.764116	,127.244312	),
-                            new LatLng(37.763758	,127.243301	),
-                            new LatLng(37.762826	,127.240903	),
-                            new LatLng(37.762728	,127.240506	),
-                            new LatLng(37.763044	,127.239814	),
-                            new LatLng(37.763344	,127.238465	),
-                            new LatLng(37.763553	,127.238011	),
-                            new LatLng(37.763591	,127.236979	),
-                            new LatLng(37.762285	,127.236566	),
-                            new LatLng(37.760405	,127.234847	),
-                            new LatLng(37.759731	,127.234186	),
-                            new LatLng(37.759254	,127.234094	),
-                            new LatLng(37.758867	,127.234002	),
-                            new LatLng(37.757833	,127.232546	),
-                            new LatLng(37.757557	,127.231116	),
-                            new LatLng(37.757414	,127.230616	),
-                            new LatLng(37.75736 	,127.23057	),
-                            new LatLng(37.756477	,127.230193	),
-                            new LatLng(37.754499	,127.228349	),
-                            new LatLng(37.754111	,127.228381	),
-                            new LatLng(37.754394	,127.22659	),
-                            new LatLng(37.753738	,127.225986	),
-                            new LatLng(37.754265	,127.223491	),
-                            new LatLng(37.754373	,127.223219	),
-                            new LatLng(37.754843	,127.222835	),
-                            new LatLng(37.7553  	,127.22272	),
-                            new LatLng(37.755365	,127.222802	),
-                            new LatLng(37.756517	,127.223555	),
-                            new LatLng(37.757104	,127.223091	),
-                            new LatLng(37.7575  	,127.222888	),
-                            new LatLng(37.757825	,127.222571	),
-                            new LatLng(37.757862	,127.222265	),
-                            new LatLng(37.757862	,127.222072	),
-                            new LatLng(37.758007	,127.221902	),
-                            new LatLng(37.758205	,127.221744	),
-                            new LatLng(37.758026	,127.221335	),
-                            new LatLng(37.757994	,127.220854	),
-                            new LatLng(37.757955	,127.220779	),
-                            new LatLng(37.75791 	,127.220756	),
-                            new LatLng(37.757874	,127.220688	),
-                            new LatLng(37.757843	,127.220664	),
-                            new LatLng(37.757748	,127.220574	),
-                            new LatLng(37.757784	,127.220562	),
-                            new LatLng(37.757991	,127.220529	),
-                            new LatLng(37.758235	,127.220314	),
-                            new LatLng(37.758325	,127.220167	),
-                            new LatLng(37.758389	,127.220008	),
-                            new LatLng(37.758425	,127.219827	),
-                            new LatLng(37.758452	,127.219781	),
-                            new LatLng(37.758443	,127.219725	),
-                            new LatLng(37.758434	,127.219679	),
-                            new LatLng(37.758303	,127.217761	),
-                            new LatLng(37.759855	,127.216154	),
-                            new LatLng(37.760858	,127.214659	),
-                            new LatLng(37.760814	,127.214284	),
-                            new LatLng(37.760815	,127.213853	),
-                            new LatLng(37.761537	,127.212868	),
-                            new LatLng(37.764364	,127.212713	),
-                            new LatLng(37.764738	,127.212655	),
-                            new LatLng(37.765834	,127.213039	),
-                            new LatLng(37.766024	,127.21304	),
-                            new LatLng(37.766934	,127.212781	),
-                            new LatLng(37.76765 	,127.21314	),
-                            new LatLng(37.767735	,127.213249	),
-                            new LatLng(37.769366	,127.211644	),
-                            new LatLng(37.769369	,127.211642	),
-                            new LatLng(37.769376	,127.211504	),
-                            new LatLng(37.767339	,127.207925	),
-                            new LatLng(37.766501	,127.208093	),
-                            new LatLng(37.764524	,127.207543	),
-                            new LatLng(37.76389 	,127.2072	),
-                            new LatLng(37.763405	,127.205789	),
-                            new LatLng(37.763244	,127.205144	),
-                            new LatLng(37.765295	,127.202109	),
-                            new LatLng(37.765238	,127.202066	),
-                            new LatLng(37.765134	,127.20162	),
-                            new LatLng(37.764018	,127.199905	),
-                            new LatLng(37.763938	,127.199744	),
-                            new LatLng(37.76321 	,127.198732	),
-                            new LatLng(37.762294	,127.197334	),
-                            new LatLng(37.762124	,127.197086	),
-                            new LatLng(37.762387	,127.195405	),
-                            new LatLng(37.762577	,127.194611	),
-                            new LatLng(37.762668	,127.194452	),
-                            new LatLng(37.762848	,127.194237	),
-                            new LatLng(37.762939	,127.194101	),
-                            new LatLng(37.762984	,127.194124	),
-                            new LatLng(37.763164	,127.193977	),
-                            new LatLng(37.764266	,127.192618	),
-                            new LatLng(37.763467	,127.190834	),
-                            new LatLng(37.762458	,127.19065	),
-                            new LatLng(37.762388	,127.189504	),
-                            new LatLng(37.762532	,127.189356	),
-                            new LatLng(37.762841	,127.18736	),
-                            new LatLng(37.764159	,127.186092	),
-                            new LatLng(37.764398	,127.182824	),
-                            new LatLng(37.763042	,127.18012	),
-                            new LatLng(37.759164	,127.176615	),
-                            new LatLng(37.758369	,127.176135	),
-                            new LatLng(37.75767 	,127.172537	),
-                            new LatLng(37.755719	,127.172783	),
-                            new LatLng(37.754655	,127.17303	),
-                            new LatLng(37.753291	,127.173255	),
-                            new LatLng(37.750648	,127.171693	),
-                            new LatLng(37.750169	,127.172441	),
-                            new LatLng(37.749674	,127.17219	),
-                            new LatLng(37.749059	,127.167934	),
-                            new LatLng(37.746968	,127.164042	),
-                            new LatLng(37.746929	,127.163811	),
-                            new LatLng(37.749217	,127.157972	),
-                            new LatLng(37.75113 	,127.155309	),
-                            new LatLng(37.75511 	,127.150098	),
-                            new LatLng(37.755517	,127.14937	),
-                            new LatLng(37.756112	,127.148307	),
-                            new LatLng(37.755523	,127.146175	),
-                            new LatLng(37.75552 	,127.146172	),
-                            new LatLng(37.755498	,127.146178	),
-                            new LatLng(37.763447	,127.14015	),
-                            new LatLng(37.764011	,127.139656	),
-                            new LatLng(37.762094	,127.133713	),
-                            new LatLng(37.763643	,127.125806	),
-                            new LatLng(37.768956	,127.12889	),
-                            new LatLng(37.773123	,127.124255	),
-                            new LatLng(37.772959	,127.124055	),
-                            new LatLng(37.772681	,127.116128	),
-                            new LatLng(37.777024	,127.115124	),
-                            new LatLng(37.780291	,127.105743	),
-                            new LatLng(37.79599 	,127.11771	),
-                            new LatLng(37.804385	,127.117029	),
-                            new LatLng(37.810834	,127.120699	),
-                            new LatLng(37.811357	,127.120994	),
-                            new LatLng(37.828304	,127.121794	),
-                            new LatLng(37.834561	,127.117182	),
-                            new LatLng(37.85052 	,127.114799	),
-                            new LatLng(37.853636	,127.110686	),
-                            new LatLng(37.860325	,127.108857	),
-                            new LatLng(37.860386	,127.108863	),
-                            new LatLng(37.864816	,127.111622	),
-                            new LatLng(37.867057	,127.123308	),
-                            new LatLng(37.867306	,127.123396	),
-                            new LatLng(37.873953	,127.128287	),
-                            new LatLng(37.87622 	,127.14684	),
-                            new LatLng(37.894715	,127.154823	),
-                            new LatLng(37.89556 	,127.155333	),
-                            new LatLng(37.895624	,127.155371	),
-                            new LatLng(37.895606	,127.1552	),
-                            new LatLng(37.898127	,127.149271	),
-                            new LatLng(37.912016	,127.145466	),
-                            new LatLng(37.912242	,127.144921	),
-                            new LatLng(37.917278	,127.120514	),
-                            new LatLng(37.921404	,127.120395	),
-                            new LatLng(37.939605	,127.108582	),
-                            new LatLng(37.944256	,127.095438	),
-                            new LatLng(37.953437	,127.098776	),
-                            new LatLng(37.954777	,127.098341	),
-                            new LatLng(37.958809	,127.092373	),
-                            new LatLng(37.967069	,127.094602	),
-                            new LatLng(37.971629	,127.091319	),
-                            new LatLng(37.971628	,127.091234	),
-                            new LatLng(37.97453 	,127.092758	),
-                            new LatLng(37.983286	,127.089796	),
-                            new LatLng(37.985307	,127.096945	),
-                            new LatLng(37.989665	,127.100546	),
-                            new LatLng(37.988759	,127.112146	),
-                            new LatLng(37.985219	,127.117404	),
-                            new LatLng(37.97894 	,127.120272	),
-                            new LatLng(37.991959	,127.141356	),
-                            new LatLng(37.991689	,127.141808	),
-                            new LatLng(37.992437	,127.145026	),
-                            new LatLng(37.996837	,127.147333	),
-                            new LatLng(37.999499	,127.145484	),
-                            new LatLng(38.014733	,127.147356	),
-                            new LatLng(38.021037	,127.139483	),
-                            new LatLng(38.029613	,127.135265	),
-                            new LatLng(38.038088	,127.137477	),
-                            new LatLng(38.038713	,127.118891	),
-                            new LatLng(38.038877	,127.117126	),
-                            new LatLng(38.039794	,127.114638	),
-                            new LatLng(38.043565	,127.118073	),
-                            new LatLng(38.051125	,127.111892	),
-                            new LatLng(38.060293	,127.115721	),
-                            new LatLng(38.060276	,127.128278	),
-                            new LatLng(38.06645 	,127.138195	),
-                            new LatLng(38.07014 	,127.138469	),
-                            new LatLng(38.071134	,127.139679	),
-                            new LatLng(38.073051	,127.143375	),
-                            new LatLng(38.0695  	,127.147491	),
-                            new LatLng(38.060719	,127.146346	),
-                            new LatLng(38.057801	,127.148907	),
-                            new LatLng(38.063327	,127.156772	),
-                            new LatLng(38.061623	,127.166363	),
-                            new LatLng(38.066309	,127.172862	),
-                            new LatLng(38.063843	,127.185014	),
-                            new LatLng(38.064539	,127.188804	),
-                            new LatLng(38.067448	,127.189969	),
-                            new LatLng(38.08338 	,127.192093	),
-                            new LatLng(38.091576	,127.184096	),
-                            new LatLng(38.11506 	,127.1825	),
-                            new LatLng(38.118372	,127.180626	),
-                            new LatLng(38.121827	,127.171302	),
-                            new LatLng(38.128909	,127.175542	),
-                            new LatLng(38.141184	,127.172892	),
-                            new LatLng(38.152472	,127.177022	),
-                            new LatLng(38.161349	,127.173317	),
-                            new LatLng(38.17271 	,127.173997	),
-                            new LatLng(38.173098	,127.173931	),
-                            new LatLng(38.180383	,127.174582	),
-                            new LatLng(38.186007	,127.180201	),
-                            new LatLng(38.186134	,127.18053	),
-                            new LatLng(38.185956	,127.181388	),
-                            new LatLng(38.188321	,127.189225	),
-                            new LatLng(38.188018	,127.189278	),
-                            new LatLng(38.179609	,127.18829	),
-                            new LatLng(38.179458	,127.188212	),
-                            new LatLng(38.1742  	,127.18614	),
-                            new LatLng(38.17388 	,127.185856	),
-                            new LatLng(38.161156	,127.189233	),
-                            new LatLng(38.153477	,127.202968	),
-                            new LatLng(38.137432	,127.222042	),
-                            new LatLng(38.147857	,127.224728	),
-                            new LatLng(38.14706 	,127.234578	),
-                            new LatLng(38.156604	,127.239392	),
-                            new LatLng(38.162991	,127.25605	),
-                            new LatLng(38.168888	,127.258601	),
-                            new LatLng(38.168898	,127.2586	),
-                            new LatLng(38.171744	,127.26448	),
-                            new LatLng(38.180437	,127.266441	),
-                            new LatLng(38.182902	,127.283133	),
-                            new LatLng(38.180281	,127.286112	),
-                            new LatLng(38.179525	,127.286109	),
-                            new LatLng(38.17685 	,127.288253	),
-                            new LatLng(38.175203	,127.29799	),
-                            new LatLng(38.169457	,127.288996	),
-                            new LatLng(38.164559	,127.288569	),
-                            new LatLng(38.159219	,127.283975	),
-                            new LatLng(38.152639	,127.286405	),
-                            new LatLng(38.146848	,127.284264	),
-                            new LatLng(38.137282	,127.275011	),
-                            new LatLng(38.124176	,127.275813	),
-                            new LatLng(38.125128	,127.279646	),
-                            new LatLng(38.125143	,127.280141	),
-                            new LatLng(38.122081	,127.283111	),
-                            new LatLng(38.116488	,127.282751	),
-                            new LatLng(38.114288	,127.286087	),
-                            new LatLng(38.116401	,127.288572	),
-                            new LatLng(38.114146	,127.292546	),
-                            new LatLng(38.115432	,127.304736	),
-                            new LatLng(38.119019	,127.307553	),
-                            new LatLng(38.118941	,127.307807	),
-                            new LatLng(38.115931	,127.31137	),
-                            new LatLng(38.098638	,127.316273	),
-                            new LatLng(38.094684	,127.32067	),
-                            new LatLng(38.094381	,127.32872	),
-                            new LatLng(38.089769	,127.336958	),
-                            new LatLng(38.101295	,127.339765	),
-                            new LatLng(38.104826	,127.348134	),
-                            new LatLng(38.10693 	,127.365941	),
-                            new LatLng(38.118429	,127.378614	),
-                            new LatLng(38.118305	,127.378816	),
-                            new LatLng(38.117081	,127.383272	),
-                            new LatLng(38.114319	,127.384289	),
-                            new LatLng(38.113535	,127.393323	),
-                            new LatLng(38.113401	,127.394123	),
-                            new LatLng(38.112961	,127.403452	),
-                            new LatLng(38.102954	,127.405524	),
-                            new LatLng(38.102013	,127.413408	),
-                            new LatLng(38.106765	,127.422622	),
-                            new LatLng(38.114819	,127.429911	),
-                            new LatLng(38.115395	,127.430565	),
-                            new LatLng(38.111019	,127.433502	),
-                            new LatLng(38.108832	,127.440453	),
-                            new LatLng(38.09747 	,127.445167	),
-                            new LatLng(38.051797	,127.445997	),
-                            new LatLng(38.051214	,127.446239	)
+                        new LatLng(38.051214	,127.446239	),
+                        new LatLng(38.051213	,127.446239	),
+                        new LatLng(38.050029	,127.445389	),
+                        new LatLng(38.038361	,127.435689	),
+                        new LatLng(38.033452	,127.424667	),
+                        new LatLng(38.025746	,127.426719	),
+                        new LatLng(38.017448	,127.419838	),
+                        new LatLng(37.997822	,127.412837	),
+                        new LatLng(37.990338	,127.405237	),
+                        new LatLng(37.982333	,127.384859	),
+                        new LatLng(37.975454	,127.384839	),
+                        new LatLng(37.961617	,127.376691	),
+                        new LatLng(37.958205	,127.379447	),
+                        new LatLng(37.953192	,127.376646	),
+                        new LatLng(37.946938	,127.38519	),
+                        new LatLng(37.943267	,127.384578	),
+                        new LatLng(37.928891	,127.365906	),
+                        new LatLng(37.926233	,127.365732	),
+                        new LatLng(37.921114	,127.35654	),
+                        new LatLng(37.921458	,127.349837	),
+                        new LatLng(37.926399	,127.345348	),
+                        new LatLng(37.923091	,127.338322	),
+                        new LatLng(37.925567	,127.330235	),
+                        new LatLng(37.916318	,127.329905	),
+                        new LatLng(37.911568	,127.326624	),
+                        new LatLng(37.909319	,127.329575	),
+                        new LatLng(37.902373	,127.326428	),
+                        new LatLng(37.894015	,127.328481	),
+                        new LatLng(37.887296	,127.322427	),
+                        new LatLng(37.877145	,127.325098	),
+                        new LatLng(37.871368	,127.322887	),
+                        new LatLng(37.871438	,127.319172	),
+                        new LatLng(37.865758	,127.312736	),
+                        new LatLng(37.868619	,127.306106	),
+                        new LatLng(37.868864	,127.29582	),
+                        new LatLng(37.875392	,127.291914	),
+                        new LatLng(37.86969 	,127.287827	),
+                        new LatLng(37.855691	,127.280407	),
+                        new LatLng(37.848023	,127.286554	),
+                        new LatLng(37.842262	,127.278955	),
+                        new LatLng(37.830446	,127.274098	),
+                        new LatLng(37.816336	,127.279328	),
+                        new LatLng(37.807319	,127.276799	),
+                        new LatLng(37.804688	,127.278505	),
+                        new LatLng(37.794616	,127.271007	),
+                        new LatLng(37.789963	,127.273049	),
+                        new LatLng(37.779871	,127.266914	),
+                        new LatLng(37.780522	,127.265729	),
+                        new LatLng(37.779144	,127.265486	),
+                        new LatLng(37.779068	,127.26541	),
+                        new LatLng(37.778973	,127.265122	),
+                        new LatLng(37.778191	,127.264358	),
+                        new LatLng(37.77821 	,127.263973	),
+                        new LatLng(37.776664	,127.262276	),
+                        new LatLng(37.77401 	,127.260814	),
+                        new LatLng(37.773991	,127.260816	),
+                        new LatLng(37.771089	,127.261553	),
+                        new LatLng(37.770622	,127.260836	),
+                        new LatLng(37.770451	,127.260824	),
+                        new LatLng(37.769965	,127.260448	),
+                        new LatLng(37.769849	,127.260175	),
+                        new LatLng(37.768307	,127.259943	),
+                        new LatLng(37.768291	,127.259942	),
+                        new LatLng(37.768689	,127.259002	),
+                        new LatLng(37.767919	,127.256741	),
+                        new LatLng(37.768037	,127.256351	),
+                        new LatLng(37.768011	,127.256151	),
+                        new LatLng(37.76777 	,127.254811	),
+                        new LatLng(37.767521	,127.253516	),
+                        new LatLng(37.766578	,127.252128	),
+                        new LatLng(37.76604 	,127.250526	),
+                        new LatLng(37.765782	,127.249254	),
+                        new LatLng(37.765189	,127.248378	),
+                        new LatLng(37.765245	,127.247573	),
+                        new LatLng(37.765218	,127.247357	),
+                        new LatLng(37.765066	,127.246676	),
+                        new LatLng(37.764483	,127.245437	),
+                        new LatLng(37.764116	,127.244312	),
+                        new LatLng(37.763758	,127.243301	),
+                        new LatLng(37.762826	,127.240903	),
+                        new LatLng(37.762728	,127.240506	),
+                        new LatLng(37.763044	,127.239814	),
+                        new LatLng(37.763344	,127.238465	),
+                        new LatLng(37.763553	,127.238011	),
+                        new LatLng(37.763591	,127.236979	),
+                        new LatLng(37.762285	,127.236566	),
+                        new LatLng(37.760405	,127.234847	),
+                        new LatLng(37.759731	,127.234186	),
+                        new LatLng(37.759254	,127.234094	),
+                        new LatLng(37.758867	,127.234002	),
+                        new LatLng(37.757833	,127.232546	),
+                        new LatLng(37.757557	,127.231116	),
+                        new LatLng(37.757414	,127.230616	),
+                        new LatLng(37.75736 	,127.23057	),
+                        new LatLng(37.756477	,127.230193	),
+                        new LatLng(37.754499	,127.228349	),
+                        new LatLng(37.754111	,127.228381	),
+                        new LatLng(37.754394	,127.22659	),
+                        new LatLng(37.753738	,127.225986	),
+                        new LatLng(37.754265	,127.223491	),
+                        new LatLng(37.754373	,127.223219	),
+                        new LatLng(37.754843	,127.222835	),
+                        new LatLng(37.7553  	,127.22272	),
+                        new LatLng(37.755365	,127.222802	),
+                        new LatLng(37.756517	,127.223555	),
+                        new LatLng(37.757104	,127.223091	),
+                        new LatLng(37.7575  	,127.222888	),
+                        new LatLng(37.757825	,127.222571	),
+                        new LatLng(37.757862	,127.222265	),
+                        new LatLng(37.757862	,127.222072	),
+                        new LatLng(37.758007	,127.221902	),
+                        new LatLng(37.758205	,127.221744	),
+                        new LatLng(37.758026	,127.221335	),
+                        new LatLng(37.757994	,127.220854	),
+                        new LatLng(37.757955	,127.220779	),
+                        new LatLng(37.75791 	,127.220756	),
+                        new LatLng(37.757874	,127.220688	),
+                        new LatLng(37.757843	,127.220664	),
+                        new LatLng(37.757748	,127.220574	),
+                        new LatLng(37.757784	,127.220562	),
+                        new LatLng(37.757991	,127.220529	),
+                        new LatLng(37.758235	,127.220314	),
+                        new LatLng(37.758325	,127.220167	),
+                        new LatLng(37.758389	,127.220008	),
+                        new LatLng(37.758425	,127.219827	),
+                        new LatLng(37.758452	,127.219781	),
+                        new LatLng(37.758443	,127.219725	),
+                        new LatLng(37.758434	,127.219679	),
+                        new LatLng(37.758303	,127.217761	),
+                        new LatLng(37.759855	,127.216154	),
+                        new LatLng(37.760858	,127.214659	),
+                        new LatLng(37.760814	,127.214284	),
+                        new LatLng(37.760815	,127.213853	),
+                        new LatLng(37.761537	,127.212868	),
+                        new LatLng(37.764364	,127.212713	),
+                        new LatLng(37.764738	,127.212655	),
+                        new LatLng(37.765834	,127.213039	),
+                        new LatLng(37.766024	,127.21304	),
+                        new LatLng(37.766934	,127.212781	),
+                        new LatLng(37.76765 	,127.21314	),
+                        new LatLng(37.767735	,127.213249	),
+                        new LatLng(37.769366	,127.211644	),
+                        new LatLng(37.769369	,127.211642	),
+                        new LatLng(37.769376	,127.211504	),
+                        new LatLng(37.767339	,127.207925	),
+                        new LatLng(37.766501	,127.208093	),
+                        new LatLng(37.764524	,127.207543	),
+                        new LatLng(37.76389 	,127.2072	),
+                        new LatLng(37.763405	,127.205789	),
+                        new LatLng(37.763244	,127.205144	),
+                        new LatLng(37.765295	,127.202109	),
+                        new LatLng(37.765238	,127.202066	),
+                        new LatLng(37.765134	,127.20162	),
+                        new LatLng(37.764018	,127.199905	),
+                        new LatLng(37.763938	,127.199744	),
+                        new LatLng(37.76321 	,127.198732	),
+                        new LatLng(37.762294	,127.197334	),
+                        new LatLng(37.762124	,127.197086	),
+                        new LatLng(37.762387	,127.195405	),
+                        new LatLng(37.762577	,127.194611	),
+                        new LatLng(37.762668	,127.194452	),
+                        new LatLng(37.762848	,127.194237	),
+                        new LatLng(37.762939	,127.194101	),
+                        new LatLng(37.762984	,127.194124	),
+                        new LatLng(37.763164	,127.193977	),
+                        new LatLng(37.764266	,127.192618	),
+                        new LatLng(37.763467	,127.190834	),
+                        new LatLng(37.762458	,127.19065	),
+                        new LatLng(37.762388	,127.189504	),
+                        new LatLng(37.762532	,127.189356	),
+                        new LatLng(37.762841	,127.18736	),
+                        new LatLng(37.764159	,127.186092	),
+                        new LatLng(37.764398	,127.182824	),
+                        new LatLng(37.763042	,127.18012	),
+                        new LatLng(37.759164	,127.176615	),
+                        new LatLng(37.758369	,127.176135	),
+                        new LatLng(37.75767 	,127.172537	),
+                        new LatLng(37.755719	,127.172783	),
+                        new LatLng(37.754655	,127.17303	),
+                        new LatLng(37.753291	,127.173255	),
+                        new LatLng(37.750648	,127.171693	),
+                        new LatLng(37.750169	,127.172441	),
+                        new LatLng(37.749674	,127.17219	),
+                        new LatLng(37.749059	,127.167934	),
+                        new LatLng(37.746968	,127.164042	),
+                        new LatLng(37.746929	,127.163811	),
+                        new LatLng(37.749217	,127.157972	),
+                        new LatLng(37.75113 	,127.155309	),
+                        new LatLng(37.75511 	,127.150098	),
+                        new LatLng(37.755517	,127.14937	),
+                        new LatLng(37.756112	,127.148307	),
+                        new LatLng(37.755523	,127.146175	),
+                        new LatLng(37.75552 	,127.146172	),
+                        new LatLng(37.755498	,127.146178	),
+                        new LatLng(37.763447	,127.14015	),
+                        new LatLng(37.764011	,127.139656	),
+                        new LatLng(37.762094	,127.133713	),
+                        new LatLng(37.763643	,127.125806	),
+                        new LatLng(37.768956	,127.12889	),
+                        new LatLng(37.773123	,127.124255	),
+                        new LatLng(37.772959	,127.124055	),
+                        new LatLng(37.772681	,127.116128	),
+                        new LatLng(37.777024	,127.115124	),
+                        new LatLng(37.780291	,127.105743	),
+                        new LatLng(37.79599 	,127.11771	),
+                        new LatLng(37.804385	,127.117029	),
+                        new LatLng(37.810834	,127.120699	),
+                        new LatLng(37.811357	,127.120994	),
+                        new LatLng(37.828304	,127.121794	),
+                        new LatLng(37.834561	,127.117182	),
+                        new LatLng(37.85052 	,127.114799	),
+                        new LatLng(37.853636	,127.110686	),
+                        new LatLng(37.860325	,127.108857	),
+                        new LatLng(37.860386	,127.108863	),
+                        new LatLng(37.864816	,127.111622	),
+                        new LatLng(37.867057	,127.123308	),
+                        new LatLng(37.867306	,127.123396	),
+                        new LatLng(37.873953	,127.128287	),
+                        new LatLng(37.87622 	,127.14684	),
+                        new LatLng(37.894715	,127.154823	),
+                        new LatLng(37.89556 	,127.155333	),
+                        new LatLng(37.895624	,127.155371	),
+                        new LatLng(37.895606	,127.1552	),
+                        new LatLng(37.898127	,127.149271	),
+                        new LatLng(37.912016	,127.145466	),
+                        new LatLng(37.912242	,127.144921	),
+                        new LatLng(37.917278	,127.120514	),
+                        new LatLng(37.921404	,127.120395	),
+                        new LatLng(37.939605	,127.108582	),
+                        new LatLng(37.944256	,127.095438	),
+                        new LatLng(37.953437	,127.098776	),
+                        new LatLng(37.954777	,127.098341	),
+                        new LatLng(37.958809	,127.092373	),
+                        new LatLng(37.967069	,127.094602	),
+                        new LatLng(37.971629	,127.091319	),
+                        new LatLng(37.971628	,127.091234	),
+                        new LatLng(37.97453 	,127.092758	),
+                        new LatLng(37.983286	,127.089796	),
+                        new LatLng(37.985307	,127.096945	),
+                        new LatLng(37.989665	,127.100546	),
+                        new LatLng(37.988759	,127.112146	),
+                        new LatLng(37.985219	,127.117404	),
+                        new LatLng(37.97894 	,127.120272	),
+                        new LatLng(37.991959	,127.141356	),
+                        new LatLng(37.991689	,127.141808	),
+                        new LatLng(37.992437	,127.145026	),
+                        new LatLng(37.996837	,127.147333	),
+                        new LatLng(37.999499	,127.145484	),
+                        new LatLng(38.014733	,127.147356	),
+                        new LatLng(38.021037	,127.139483	),
+                        new LatLng(38.029613	,127.135265	),
+                        new LatLng(38.038088	,127.137477	),
+                        new LatLng(38.038713	,127.118891	),
+                        new LatLng(38.038877	,127.117126	),
+                        new LatLng(38.039794	,127.114638	),
+                        new LatLng(38.043565	,127.118073	),
+                        new LatLng(38.051125	,127.111892	),
+                        new LatLng(38.060293	,127.115721	),
+                        new LatLng(38.060276	,127.128278	),
+                        new LatLng(38.06645 	,127.138195	),
+                        new LatLng(38.07014 	,127.138469	),
+                        new LatLng(38.071134	,127.139679	),
+                        new LatLng(38.073051	,127.143375	),
+                        new LatLng(38.0695  	,127.147491	),
+                        new LatLng(38.060719	,127.146346	),
+                        new LatLng(38.057801	,127.148907	),
+                        new LatLng(38.063327	,127.156772	),
+                        new LatLng(38.061623	,127.166363	),
+                        new LatLng(38.066309	,127.172862	),
+                        new LatLng(38.063843	,127.185014	),
+                        new LatLng(38.064539	,127.188804	),
+                        new LatLng(38.067448	,127.189969	),
+                        new LatLng(38.08338 	,127.192093	),
+                        new LatLng(38.091576	,127.184096	),
+                        new LatLng(38.11506 	,127.1825	),
+                        new LatLng(38.118372	,127.180626	),
+                        new LatLng(38.121827	,127.171302	),
+                        new LatLng(38.128909	,127.175542	),
+                        new LatLng(38.141184	,127.172892	),
+                        new LatLng(38.152472	,127.177022	),
+                        new LatLng(38.161349	,127.173317	),
+                        new LatLng(38.17271 	,127.173997	),
+                        new LatLng(38.173098	,127.173931	),
+                        new LatLng(38.180383	,127.174582	),
+                        new LatLng(38.186007	,127.180201	),
+                        new LatLng(38.186134	,127.18053	),
+                        new LatLng(38.185956	,127.181388	),
+                        new LatLng(38.188321	,127.189225	),
+                        new LatLng(38.188018	,127.189278	),
+                        new LatLng(38.179609	,127.18829	),
+                        new LatLng(38.179458	,127.188212	),
+                        new LatLng(38.1742  	,127.18614	),
+                        new LatLng(38.17388 	,127.185856	),
+                        new LatLng(38.161156	,127.189233	),
+                        new LatLng(38.153477	,127.202968	),
+                        new LatLng(38.137432	,127.222042	),
+                        new LatLng(38.147857	,127.224728	),
+                        new LatLng(38.14706 	,127.234578	),
+                        new LatLng(38.156604	,127.239392	),
+                        new LatLng(38.162991	,127.25605	),
+                        new LatLng(38.168888	,127.258601	),
+                        new LatLng(38.168898	,127.2586	),
+                        new LatLng(38.171744	,127.26448	),
+                        new LatLng(38.180437	,127.266441	),
+                        new LatLng(38.182902	,127.283133	),
+                        new LatLng(38.180281	,127.286112	),
+                        new LatLng(38.179525	,127.286109	),
+                        new LatLng(38.17685 	,127.288253	),
+                        new LatLng(38.175203	,127.29799	),
+                        new LatLng(38.169457	,127.288996	),
+                        new LatLng(38.164559	,127.288569	),
+                        new LatLng(38.159219	,127.283975	),
+                        new LatLng(38.152639	,127.286405	),
+                        new LatLng(38.146848	,127.284264	),
+                        new LatLng(38.137282	,127.275011	),
+                        new LatLng(38.124176	,127.275813	),
+                        new LatLng(38.125128	,127.279646	),
+                        new LatLng(38.125143	,127.280141	),
+                        new LatLng(38.122081	,127.283111	),
+                        new LatLng(38.116488	,127.282751	),
+                        new LatLng(38.114288	,127.286087	),
+                        new LatLng(38.116401	,127.288572	),
+                        new LatLng(38.114146	,127.292546	),
+                        new LatLng(38.115432	,127.304736	),
+                        new LatLng(38.119019	,127.307553	),
+                        new LatLng(38.118941	,127.307807	),
+                        new LatLng(38.115931	,127.31137	),
+                        new LatLng(38.098638	,127.316273	),
+                        new LatLng(38.094684	,127.32067	),
+                        new LatLng(38.094381	,127.32872	),
+                        new LatLng(38.089769	,127.336958	),
+                        new LatLng(38.101295	,127.339765	),
+                        new LatLng(38.104826	,127.348134	),
+                        new LatLng(38.10693 	,127.365941	),
+                        new LatLng(38.118429	,127.378614	),
+                        new LatLng(38.118305	,127.378816	),
+                        new LatLng(38.117081	,127.383272	),
+                        new LatLng(38.114319	,127.384289	),
+                        new LatLng(38.113535	,127.393323	),
+                        new LatLng(38.113401	,127.394123	),
+                        new LatLng(38.112961	,127.403452	),
+                        new LatLng(38.102954	,127.405524	),
+                        new LatLng(38.102013	,127.413408	),
+                        new LatLng(38.106765	,127.422622	),
+                        new LatLng(38.114819	,127.429911	),
+                        new LatLng(38.115395	,127.430565	),
+                        new LatLng(38.111019	,127.433502	),
+                        new LatLng(38.108832	,127.440453	),
+                        new LatLng(38.09747 	,127.445167	),
+                        new LatLng(38.051797	,127.445997	),
+                        new LatLng(38.051214	,127.446239	)
                 )
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr));
+                .fillColor(colorArray[0]));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr);
+        nameHashMap.put(polygon.hashCode(),name);
+        colorHashMap.put(polygon.hashCode(), colorArray[0]);
+        latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
+        iconFactory = new IconGenerator(this);
 
-        IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr);
-        if(mclr == 2){
-            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
-        }else if(mclr == 3){
-            iconFactory.setStyle(IconGenerator.STYLE_RED);
-        }else if(mclr == 7){
-            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
-        }else if(mclr == 5){
-            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
-        }else {
-            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
-        }
-        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.972607, 127.251062));
+        iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
 
     }//포천시
-    public void drawPolygon28(GoogleMap googlemap) { //서울 성동구
-        String name = "가평군";
-        int clr = Color.argb(100,255,0,0);
-        int mclr;
-        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
-        if(hmap.get(name)==null){
-            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
-            mclr = 1;
-        } else if(hmap.get(name).equals("-")){
-            clr = Color.argb(100,140,140,140);
-            mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>150){
-            clr = Color.argb(100,255,0,0);
-            mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>80){
-            clr = Color.argb(100,255,255,0);
-            mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>30){
-            clr = Color.argb(100,0,255,0);
-            mclr = 5;
-        }else {
-            clr = Color.argb(100,0,0,255);
-            mclr = 4;
-        }
-        Log.d("log","kbc   ++))++))++  "+clr);
-        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+    public void drawPolygon28() { //가평군
+        name = "가평군";
+        colorArray = checkColor(name); // colorArray[0] 폴리곤 채우기색, colorArray[1] 아이콘색 배열
+        point = new LatLng(37.821519, 127.452461);
+        polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
                         new LatLng(37.906362	,127.617141	),
                         new LatLng(37.88966 	,127.607403	),
@@ -14922,53 +13452,22 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.906362	,127.617141	)
                 )
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr));
+                .fillColor(colorArray[0]));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr);
+        nameHashMap.put(polygon.hashCode(),name);
+        colorHashMap.put(polygon.hashCode(), colorArray[0]);
+        latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
+        iconFactory = new IconGenerator(this);
 
-        IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr);
-        if(mclr == 2){
-            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
-        }else if(mclr == 3){
-            iconFactory.setStyle(IconGenerator.STYLE_RED);
-        }else if(mclr == 7){
-            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
-        }else if(mclr == 5){
-            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
-        }else {
-            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
-        }
-        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.821519, 127.452461));
+        iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
 
     }//가평군
-    public void drawPolygon53(GoogleMap googlemap) { //서울 성동구
-        String name = "양평군";
-        int clr = Color.argb(100,255,0,0);
-        int mclr;
-        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
-        if(hmap.get(name)==null){
-            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
-            mclr = 1;
-        } else if(hmap.get(name).equals("-")){
-            clr = Color.argb(100,140,140,140);
-            mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>150){
-            clr = Color.argb(100,255,0,0);
-            mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>80){
-            clr = Color.argb(100,255,255,0);
-            mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>30){
-            clr = Color.argb(100,0,255,0);
-            mclr = 5;
-        }else {
-            clr = Color.argb(100,0,0,255);
-            mclr = 4;
-        }
-        Log.d("log","kbc   ++))++))++  "+clr);
-        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+    public void drawPolygon53() { //양평군
+        name = "양평군";
+        colorArray = checkColor(name); // colorArray[0] 폴리곤 채우기색, colorArray[1] 아이콘색 배열
+        point = new LatLng(37.522524, 127.579168);
+        polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
                         new LatLng(37.552302	,127.848076	),
                         new LatLng(37.538901	,127.842023	),
@@ -15839,53 +14338,21 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.552302	,127.848076	)
                 )
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr));
+                .fillColor(colorArray[0]));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr);
+        nameHashMap.put(polygon.hashCode(),name);
+        colorHashMap.put(polygon.hashCode(), colorArray[0]);
+        latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
+        iconFactory = new IconGenerator(this);
 
-        IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr);
-        if(mclr == 2){
-            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
-        }else if(mclr == 3){
-            iconFactory.setStyle(IconGenerator.STYLE_RED);
-        }else if(mclr == 7){
-            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
-        }else if(mclr == 5){
-            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
-        }else {
-            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
-        }
-        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.522524, 127.579168));
-
+        iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
     }//양평군
-    public void drawPolygon55(GoogleMap googlemap) { //서울 성동구
-        String name = "연천군";
-        int clr = Color.argb(100,255,0,0);
-        int mclr;
-        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
-        if(hmap.get(name)==null){
-            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
-            mclr = 1;
-        } else if(hmap.get(name).equals("-")){
-            clr = Color.argb(100,140,140,140);
-            mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>150){
-            clr = Color.argb(100,255,0,0);
-            mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>80){
-            clr = Color.argb(100,255,255,0);
-            mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>30){
-            clr = Color.argb(100,0,255,0);
-            mclr = 5;
-        }else {
-            clr = Color.argb(100,0,0,255);
-            mclr = 4;
-        }
-        Log.d("log","kbc   ++))++))++  "+clr);
-        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+    public void drawPolygon55() {//연천군
+        name = "연천군";
+        colorArray = checkColor(name); // colorArray[0] 폴리곤 채우기색, colorArray[1] 아이콘색 배열
+        point = new LatLng(38.103768, 126.988260);
+        polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
                         new LatLng(38.08338 	,127.192093	),
                         new LatLng(38.067448	,127.189969	),
@@ -16264,53 +14731,21 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(38.08338 	,127.192093	)
                 )
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr));
+                .fillColor(colorArray[0]));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr);
+        nameHashMap.put(polygon.hashCode(),name);
+        colorHashMap.put(polygon.hashCode(), colorArray[0]);
+        latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
+        iconFactory = new IconGenerator(this);
 
-        IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr);
-        if(mclr == 2){
-            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
-        }else if(mclr == 3){
-            iconFactory.setStyle(IconGenerator.STYLE_RED);
-        }else if(mclr == 7){
-            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
-        }else if(mclr == 5){
-            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
-        }else {
-            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
-        }
-        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(38.103768, 126.988260));
-
+        iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
     }//연천군
-    public void drawPolygon27(GoogleMap googlemap) { //서울 성동구
-        String name = "부천시";
-        int clr = Color.argb(100,255,0,0);
-        int mclr;
-        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
-        if(hmap.get(name)==null){
-            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
-            mclr = 1;
-        } else if(hmap.get(name).equals("-")){
-            clr = Color.argb(100,140,140,140);
-            mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>150){
-            clr = Color.argb(100,255,0,0);
-            mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>80){
-            clr = Color.argb(100,255,255,0);
-            mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>30){
-            clr = Color.argb(100,0,255,0);
-            mclr = 5;
-        }else {
-            clr = Color.argb(100,0,0,255);
-            mclr = 4;
-        }
-        Log.d("log","kbc   ++))++))++  "+clr);
-        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+    public void drawPolygon27() {//부천시
+        name = "부천시";
+        colorArray = checkColor(name); // colorArray[0] 폴리곤 채우기색, colorArray[1] 아이콘색 배열
+        point = new LatLng(37.505620, 126.788776);
+        polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
                         new LatLng(37.477246	,126.833052	),
                         new LatLng(37.473865	,126.832412	),
@@ -16359,53 +14794,22 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.477246	,126.833052	)
                 )
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr));
+                .fillColor(colorArray[0]));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr);
+        nameHashMap.put(polygon.hashCode(),name);
+        colorHashMap.put(polygon.hashCode(), colorArray[0]);
+        latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
+        iconFactory = new IconGenerator(this);
 
-        IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr);
-        if(mclr == 2){
-            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
-        }else if(mclr == 3){
-            iconFactory.setStyle(IconGenerator.STYLE_RED);
-        }else if(mclr == 7){
-            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
-        }else if(mclr == 5){
-            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
-        }else {
-            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
-        }
-        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.505620, 126.788776));
+        iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
 
     }//부천시 소사구
-    public void drawPolygon37(GoogleMap googlemap) { //서울 성동구
-        String name = "부천시";
-        int clr = Color.argb(100,255,0,0);
-        int mclr;
-        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
-        if(hmap.get(name)==null){
-            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
-            mclr = 1;
-        } else if(hmap.get(name).equals("-")){
-            clr = Color.argb(100,140,140,140);
-            mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>150){
-            clr = Color.argb(100,255,0,0);
-            mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>80){
-            clr = Color.argb(100,255,255,0);
-            mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>30){
-            clr = Color.argb(100,0,255,0);
-            mclr = 5;
-        }else {
-            clr = Color.argb(100,0,0,255);
-            mclr = 4;
-        }
-        Log.d("log","kbc   ++))++))++  "+clr);
-        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+    public void drawPolygon37() { //부천시
+        name = "부천시";
+        colorArray = checkColor(name); // colorArray[0] 폴리곤 채우기색, colorArray[1] 아이콘색 배열
+        point = new LatLng(37.505620, 126.788776);
+        polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
                         new LatLng(37.526516	,126.828837	),
                         new LatLng(37.522814	,126.825193	),
@@ -16434,53 +14838,21 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.526516	,126.828837	)
                 )
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr));
+                .fillColor(colorArray[0]));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr);
+        nameHashMap.put(polygon.hashCode(),name);
+        colorHashMap.put(polygon.hashCode(), colorArray[0]);
+        latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
+        iconFactory = new IconGenerator(this);
 
-        IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr);
-        if(mclr == 2){
-            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
-        }else if(mclr == 3){
-            iconFactory.setStyle(IconGenerator.STYLE_RED);
-        }else if(mclr == 7){
-            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
-        }else if(mclr == 5){
-            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
-        }else {
-            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
-        }
-        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.505620, 126.788776));
-
+        iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
     }//부천시 오정구
-    public void drawPolygon36(GoogleMap googlemap) { //서울 성동구
-        String name = "부천시";
-        int clr = Color.argb(100,255,0,0);
-        int mclr;
-        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
-        if(hmap.get(name)==null){
-            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
-            mclr = 1;
-        } else if(hmap.get(name).equals("-")){
-            clr = Color.argb(100,140,140,140);
-            mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>150){
-            clr = Color.argb(100,255,0,0);
-            mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>80){
-            clr = Color.argb(100,255,255,0);
-            mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>30){
-            clr = Color.argb(100,0,255,0);
-            mclr = 5;
-        }else {
-            clr = Color.argb(100,0,0,255);
-            mclr = 4;
-        }
-        Log.d("log","kbc   ++))++))++  "+clr);
-        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+    public void drawPolygon36() { //부천시
+        name = "부천시";
+        colorArray = checkColor(name); // colorArray[0] 폴리곤 채우기색, colorArray[1] 아이콘색 배열
+        point = new LatLng(37.505620, 126.788776);
+        polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
                         new LatLng(37.506114	,126.822383	),
                         new LatLng(37.499211	,126.81964	),
@@ -16510,53 +14882,21 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.506114	,126.822383	)
                 )
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr));
+                .fillColor(colorArray[0]));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr);
+        nameHashMap.put(polygon.hashCode(),name);
+        colorHashMap.put(polygon.hashCode(), colorArray[0]);
+        latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
+        iconFactory = new IconGenerator(this);
 
-        IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr);
-        if(mclr == 2){
-            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
-        }else if(mclr == 3){
-            iconFactory.setStyle(IconGenerator.STYLE_RED);
-        }else if(mclr == 7){
-            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
-        }else if(mclr == 5){
-            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
-        }else {
-            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
-        }
-        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.505620, 126.788776));
-
+        iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
     }//부천시 원미구
-    public void drawPolygon34(GoogleMap googlemap) { //
-        String name = "안산시";
-        int clr = Color.argb(100,255,0,0);
-        int mclr;
-        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
-        if(hmap.get(name)==null){
-            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
-            mclr = 1;
-        } else if(hmap.get(name).equals("-")){
-            clr = Color.argb(100,140,140,140);
-            mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>150){
-            clr = Color.argb(100,255,0,0);
-            mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>80){
-            clr = Color.argb(100,255,255,0);
-            mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>30){
-            clr = Color.argb(100,0,255,0);
-            mclr = 5;
-        }else {
-            clr = Color.argb(100,0,0,255);
-            mclr = 4;
-        }
-
-        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+    public void drawPolygon34() { //안산시
+        name = "안산시";
+        colorArray = checkColor(name); // colorArray[0] 폴리곤 채우기색, colorArray[1] 아이콘색 배열
+        point = new LatLng(37.323148, 126.830889);
+        polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
                         new LatLng(37.295446	,126.939607	),
                         new LatLng(37.295315	,126.939586	),
@@ -16833,52 +15173,21 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.295446	,126.939607	)
                 )
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr));
+                .fillColor(colorArray[0]));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr);
+        nameHashMap.put(polygon.hashCode(),name);
+        colorHashMap.put(polygon.hashCode(), colorArray[0]);
+        latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
+        iconFactory = new IconGenerator(this);
 
-        IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr);
-        if(mclr == 2){
-            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
-        }else if(mclr == 3){
-            iconFactory.setStyle(IconGenerator.STYLE_RED);
-        }else if(mclr == 7){
-            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
-        }else if(mclr == 5){
-            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
-        }else {
-            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
-        }
-        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.323148, 126.830889));
+        iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
     }//안산시 상록구
-    public void drawPolygon48(GoogleMap googlemap) { //서울 성동구
-        String name = "화성시";
-        int clr = Color.argb(100,255,0,0);
-        int mclr;
-        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
-        if(hmap.get(name)==null){
-            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
-            mclr = 1;
-        } else if(hmap.get(name).equals("-")){
-            clr = Color.argb(100,140,140,140);
-            mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>150){
-            clr = Color.argb(100,255,0,0);
-            mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>80){
-            clr = Color.argb(100,255,255,0);
-            mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>30){
-            clr = Color.argb(100,0,255,0);
-            mclr = 5;
-        }else {
-            clr = Color.argb(100,0,0,255);
-            mclr = 4;
-        }
-        Log.d("log","kbc   ++))++))++  "+clr);
-        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+    public void drawPolygon48() { //화성시
+        name = "화성시";
+        colorArray = checkColor(name); // colorArray[0] 폴리곤 채우기색, colorArray[1] 아이콘색 배열
+        point = new LatLng(37.155413, 126.796033);
+        polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
                         new LatLng(37.190897	,127.16134	),
                         new LatLng(37.190472	,127.161288	),
@@ -19743,53 +18052,21 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.190897	,127.16134	)
                 )
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr));
+                .fillColor(colorArray[0]));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr);
+        nameHashMap.put(polygon.hashCode(),name);
+        colorHashMap.put(polygon.hashCode(), colorArray[0]);
+        latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
+        iconFactory = new IconGenerator(this);
 
-        IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr);
-        if(mclr == 2){
-            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
-        }else if(mclr == 3){
-            iconFactory.setStyle(IconGenerator.STYLE_RED);
-        }else if(mclr == 7){
-            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
-        }else if(mclr == 5){
-            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
-        }else {
-            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
-        }
-        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.155413, 126.796033));
-
+        iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
     }//화성시 엄청김...
-    public void drawPolygon26(GoogleMap googlemap) { //
-        String name = "여주군";
-        int clr = Color.argb(100,255,0,0);
-        int mclr;
-        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
-        if(hmap.get(name)==null){
-            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
-            mclr = 1;
-        } else if(hmap.get(name).equals("-")){
-            clr = Color.argb(100,140,140,140);
-            mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>150){
-            clr = Color.argb(100,255,0,0);
-            mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>80){
-            clr = Color.argb(100,255,255,0);
-            mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>30){
-            clr = Color.argb(100,0,255,0);
-            mclr = 5;
-        }else {
-            clr = Color.argb(100,0,0,255);
-            mclr = 4;
-        }
-        Log.d("log","kbc   ++))++))++  "+clr);
-        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+    public void drawPolygon26() { //여주군
+        name = "여주군";
+        colorArray = checkColor(name); // colorArray[0] 폴리곤 채우기색, colorArray[1] 아이콘색 배열
+        point = new LatLng(37.306681, 127.616758);
+        polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
                         new LatLng(37.308313	,127.768412	),
                         new LatLng(37.307525	,127.768221	),
@@ -21458,53 +19735,21 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.308313	,127.768412	)
                 )
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr));
+                .fillColor(colorArray[0]));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr);
+        nameHashMap.put(polygon.hashCode(),name);
+        colorHashMap.put(polygon.hashCode(), colorArray[0]);
+        latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
+        iconFactory = new IconGenerator(this);
 
-        IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr);
-        if(mclr == 2){
-            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
-        }else if(mclr == 3){
-            iconFactory.setStyle(IconGenerator.STYLE_RED);
-        }else if(mclr == 7){
-            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
-        }else if(mclr == 5){
-            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
-        }else {
-            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
-        }
-        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.306681, 127.616758));
-
+        iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
     }//여주시
-    public void drawPolygon39(GoogleMap googlemap) { //
-        String name = "이천시";
-        int clr = Color.argb(100,255,0,0);
-        int mclr;
-        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
-        if(hmap.get(name)==null){
-            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
-            mclr = 1;
-        } else if(hmap.get(name).equals("-")){
-            clr = Color.argb(100,140,140,140);
-            mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>150){
-            clr = Color.argb(100,255,0,0);
-            mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>80){
-            clr = Color.argb(100,255,255,0);
-            mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>30){
-            clr = Color.argb(100,0,255,0);
-            mclr = 5;
-        }else {
-            clr = Color.argb(100,0,0,255);
-            mclr = 4;
-        }
-        Log.d("log","kbc   ++))++))++  "+clr);
-        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+    public void drawPolygon39() { //이천시
+        name = "이천시";
+        colorArray = checkColor(name); // colorArray[0] 폴리곤 채우기색, colorArray[1] 아이콘색 배열
+        point = new LatLng(37.212323, 127.482121);
+        polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
                         new LatLng(37.14119 	,127.637768	),
                         new LatLng(37.120158	,127.633102	),
@@ -22491,53 +20736,21 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.14119 	,127.637768	)
                 )
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr));
+                .fillColor(colorArray[0]));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr);
+        nameHashMap.put(polygon.hashCode(),name);
+        colorHashMap.put(polygon.hashCode(), colorArray[0]);
+        latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
+        iconFactory = new IconGenerator(this);
 
-        IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr);
-        if(mclr == 2){
-            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
-        }else if(mclr == 3){
-            iconFactory.setStyle(IconGenerator.STYLE_RED);
-        }else if(mclr == 7){
-            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
-        }else if(mclr == 5){
-            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
-        }else {
-            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
-        }
-        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.212323, 127.482121));
-
+        iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
     }//이천시
-    public void drawPolygon60(GoogleMap googlemap) { //
-        String name = "용인시";
-        int clr = Color.argb(100,255,0,0);
-        int mclr;
-        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
-        if(hmap.get(name)==null){
-            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
-            mclr = 1;
-        } else if(hmap.get(name).equals("-")){
-            clr = Color.argb(100,140,140,140);
-            mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>150){
-            clr = Color.argb(100,255,0,0);
-            mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>80){
-            clr = Color.argb(100,255,255,0);
-            mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>30){
-            clr = Color.argb(100,0,255,0);
-            mclr = 5;
-        }else {
-            clr = Color.argb(100,0,0,255);
-            mclr = 4;
-        }
-        Log.d("log","kbc   ++))++))++  "+clr);
-        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+    public void drawPolygon60() { //영인시
+        name = "용인시";
+        colorArray = checkColor(name); // colorArray[0] 폴리곤 채우기색, colorArray[1] 아이콘색 배열
+        point = new LatLng(37.229821, 127.220852);
+        polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
                         new LatLng(37.325707	,127.142444	),
                         new LatLng(37.324199	,127.137523	),
@@ -22933,53 +21146,21 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.325707	,127.142444	)
                 )
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr));
+                .fillColor(colorArray[0]));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr);
+        nameHashMap.put(polygon.hashCode(),name);
+        colorHashMap.put(polygon.hashCode(), colorArray[0]);
+        latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
+        iconFactory = new IconGenerator(this);
 
-        IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr);
-        if(mclr == 2){
-            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
-        }else if(mclr == 3){
-            iconFactory.setStyle(IconGenerator.STYLE_RED);
-        }else if(mclr == 7){
-            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
-        }else if(mclr == 5){
-            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
-        }else {
-            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
-        }
-        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.229821, 127.220852));
-
+        iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
     }//용인시 수지구
-    public void drawPolygon62(GoogleMap googlemap) { //
-        String name = "용인시";
-        int clr = Color.argb(100,255,0,0);
-        int mclr;
-        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
-        if(hmap.get(name)==null){
-            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
-            mclr = 1;
-        } else if(hmap.get(name).equals("-")){
-            clr = Color.argb(100,140,140,140);
-            mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>150){
-            clr = Color.argb(100,255,0,0);
-            mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>80){
-            clr = Color.argb(100,255,255,0);
-            mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>30){
-            clr = Color.argb(100,0,255,0);
-            mclr = 5;
-        }else {
-            clr = Color.argb(100,0,0,255);
-            mclr = 4;
-        }
-        Log.d("log","kbc   ++))++))++  "+clr);
-        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+    public void drawPolygon62() { //용인시
+        name = "용인시";
+        colorArray = checkColor(name); // colorArray[0] 폴리곤 채우기색, colorArray[1] 아이콘색 배열
+        point = new LatLng(37.229821, 127.220852);
+        polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
                         new LatLng(37.282258	,127.177128	),
                         new LatLng(37.269327	,127.171585	),
@@ -23592,53 +21773,21 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.282258	,127.177128	)
                 )
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr));
+                .fillColor(colorArray[0]));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr);
+        nameHashMap.put(polygon.hashCode(),name);
+        colorHashMap.put(polygon.hashCode(), colorArray[0]);
+        latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
+        iconFactory = new IconGenerator(this);
 
-        IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr);
-        if(mclr == 2){
-            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
-        }else if(mclr == 3){
-            iconFactory.setStyle(IconGenerator.STYLE_RED);
-        }else if(mclr == 7){
-            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
-        }else if(mclr == 5){
-            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
-        }else {
-            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
-        }
-        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.229821, 127.220852));
-
+        iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
     }//용인시 기흥구
-    public void drawPolygon58(GoogleMap googlemap) { //
-        String name = "용인시";
-        int clr = Color.argb(100,255,0,0);
-        int mclr;
-        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
-        if(hmap.get(name)==null){
-            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
-            mclr = 1;
-        } else if(hmap.get(name).equals("-")){
-            clr = Color.argb(100,140,140,140);
-            mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>150){
-            clr = Color.argb(100,255,0,0);
-            mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>80){
-            clr = Color.argb(100,255,255,0);
-            mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>30){
-            clr = Color.argb(100,0,255,0);
-            mclr = 5;
-        }else {
-            clr = Color.argb(100,0,0,255);
-            mclr = 4;
-        }
-        Log.d("log","kbc   ++))++))++  "+clr);
-        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+    public void drawPolygon58() { //용인시
+        name = "용인시";
+        colorArray = checkColor(name); // colorArray[0] 폴리곤 채우기색, colorArray[1] 아이콘색 배열
+        point = new LatLng(37.229821, 127.220852);
+        polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
                         new LatLng(37.146438	,127.427754	),
                         new LatLng(37.145241	,127.42741	),
@@ -25244,53 +23393,21 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.146438	,127.427754	)
                 )
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr));
+                .fillColor(colorArray[0]));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr);
+        nameHashMap.put(polygon.hashCode(),name);
+        colorHashMap.put(polygon.hashCode(), colorArray[0]);
+        latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
+        iconFactory = new IconGenerator(this);
 
-        IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr);
-        if(mclr == 2){
-            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
-        }else if(mclr == 3){
-            iconFactory.setStyle(IconGenerator.STYLE_RED);
-        }else if(mclr == 7){
-            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
-        }else if(mclr == 5){
-            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
-        }else {
-            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
-        }
-        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.229821, 127.220852));
-
+        iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
     }//용인시 처인구
-    public void drawPolygon42(GoogleMap googlemap) { //서울 성동구
-        String name = "오산시";
-        int clr = Color.argb(100,255,0,0);
-        int mclr;
-        Log.d("log","kbc ++++++++"+hmap.get(name));//값 가져옴
-        if(hmap.get(name)==null){
-            Log.d("log","kbc ------------------------------------hmap.get(name)==null");
-            mclr = 1;
-        } else if(hmap.get(name).equals("-")){
-            clr = Color.argb(100,140,140,140);
-            mclr = 2;
-        }else if(Integer.parseInt(hmap.get(name))>150){
-            clr = Color.argb(100,255,0,0);
-            mclr = 3;
-        }else if(Integer.parseInt(hmap.get(name))>80){
-            clr = Color.argb(100,255,255,0);
-            mclr = 7;
-        }else if(Integer.parseInt(hmap.get(name))>30){
-            clr = Color.argb(100,0,255,0);
-            mclr = 5;
-        }else {
-            clr = Color.argb(100,0,0,255);
-            mclr = 4;
-        }
-        Log.d("log","kbc   ++))++))++  "+clr);
-        Polygon polygon = mMap.addPolygon(new PolygonOptions()
+    public void drawPolygon42() {//오산시
+        name = "오산시";
+        colorArray = checkColor(name); // colorArray[0] 폴리곤 채우기색, colorArray[1] 아이콘색 배열
+        point = new LatLng(37.163980, 127.051345);
+        polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
                         new LatLng(37.143863	,127.103038	),
                         new LatLng(37.137155	,127.097833	),
@@ -25695,39 +23812,2421 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.143863	,127.103038	)
                 )
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
-                .fillColor(clr));
+                .fillColor(colorArray[0]));
         polygon.setClickable(true);
-        namehmap.put(polygon.hashCode(),name);
-        colorhmap.put(polygon.hashCode(),clr);
+        nameHashMap.put(polygon.hashCode(),name);
+        colorHashMap.put(polygon.hashCode(), colorArray[0]);
+        latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
+        iconFactory = new IconGenerator(this);
 
-        IconGenerator iconFactory = new IconGenerator(this);
-        iconFactory.setColor(clr);
-        if(mclr == 2){
-            iconFactory.setStyle(IconGenerator.STYLE_WHITE);
-        }else if(mclr == 3){
-            iconFactory.setStyle(IconGenerator.STYLE_RED);
-        }else if(mclr == 7){
-            iconFactory.setStyle(IconGenerator.STYLE_ORANGE);
-        }else if(mclr == 5){
-            iconFactory.setStyle(IconGenerator.STYLE_GREEN);
-        }else {
-            iconFactory.setStyle(IconGenerator.STYLE_BLUE);
-        }
-        addIcon(iconFactory, name+"\n   "+hmap.get(name), new LatLng(37.163980, 127.051345));
-
+        iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
     }//오산시
+    public void drawPolygon54() { //평택시
+        name = "평택시";
+        colorArray = checkColor(name); // colorArray[0] 폴리곤 채우기색, colorArray[1] 아이콘색 배열
+        point = new LatLng(37.016069, 126.980145);
+        polygon = mMap.addPolygon(new PolygonOptions()
+                .add(
+                        new LatLng(36.997692	,127.154273	),
+                        new LatLng(36.997181	,127.144566	),
+                        new LatLng(36.993595	,127.136707	),
+                        new LatLng(36.993281	,127.135662	),
+                        new LatLng(36.986664	,127.130629	),
+                        new LatLng(36.984756	,127.136411	),
+                        new LatLng(36.979002	,127.14114	),
+                        new LatLng(36.980115	,127.136447	),
+                        new LatLng(36.976856	,127.133948	),
+                        new LatLng(36.976838	,127.125637	),
+                        new LatLng(36.97684 	,127.124245	),
+                        new LatLng(36.971576	,127.121949	),
+                        new LatLng(36.971547	,127.121925	),
+                        new LatLng(36.971364	,127.121676	),
+                        new LatLng(36.970347	,127.120214	),
+                        new LatLng(36.97063 	,127.119375	),
+                        new LatLng(36.970877	,127.118578	),
+                        new LatLng(36.970918	,127.118378	),
+                        new LatLng(36.970959	,127.118139	),
+                        new LatLng(36.971033	,127.117481	),
+                        new LatLng(36.971008	,127.116842	),
+                        new LatLng(36.971001	,127.116719	),
+                        new LatLng(36.970903	,127.116016	),
+                        new LatLng(36.97091 	,127.115635	),
+                        new LatLng(36.970995	,127.115174	),
+                        new LatLng(36.971322	,127.114558	),
+                        new LatLng(36.971432	,127.114443	),
+                        new LatLng(36.971661	,127.114292	),
+                        new LatLng(36.971891	,127.114189	),
+                        new LatLng(36.971941	,127.114168	),
+                        new LatLng(36.972176	,127.114134	),
+                        new LatLng(36.972452	,127.114057	),
+                        new LatLng(36.972607	,127.11397	),
+                        new LatLng(36.972928	,127.113701	),
+                        new LatLng(36.972986	,127.113523	),
+                        new LatLng(36.973023	,127.113325	),
+                        new LatLng(36.97295 	,127.112823	),
+                        new LatLng(36.972682	,127.112459	),
+                        new LatLng(36.97217 	,127.111947	),
+                        new LatLng(36.97195 	,127.111751	),
+                        new LatLng(36.9717  	,127.111663	),
+                        new LatLng(36.971475	,127.111598	),
+                        new LatLng(36.971111	,127.111503	),
+                        new LatLng(36.970458	,127.111451	),
+                        new LatLng(36.970131	,127.111422	),
+                        new LatLng(36.969078	,127.110612	),
+                        new LatLng(36.968962	,127.110336	),
+                        new LatLng(36.968816	,127.109433	),
+                        new LatLng(36.968885	,127.108103	),
+                        new LatLng(36.96881 	,127.1079	),
+                        new LatLng(36.968666	,127.107732	),
+                        new LatLng(36.968348	,127.107452	),
+                        new LatLng(36.967663	,127.107267	),
+                        new LatLng(36.967376	,127.107232	),
+                        new LatLng(36.967374	,127.107232	),
+                        new LatLng(36.966934	,127.107194	),
+                        new LatLng(36.966549	,127.107085	),
+                        new LatLng(36.966256	,127.106917	),
+                        new LatLng(36.966254	,127.106916	),
+                        new LatLng(36.966136	,127.106814	),
+                        new LatLng(36.965904	,127.106504	),
+                        new LatLng(36.96567 	,127.105792	),
+                        new LatLng(36.965701	,127.104831	),
+                        new LatLng(36.965763	,127.104547	),
+                        new LatLng(36.965743	,127.104501	),
+                        new LatLng(36.965336	,127.103615	),
+                        new LatLng(36.965197	,127.103437	),
+                        new LatLng(36.965026	,127.103421	),
+                        new LatLng(36.964955	,127.1034	),
+                        new LatLng(36.964802	,127.102742	),
+                        new LatLng(36.964761	,127.102505	),
+                        new LatLng(36.964557	,127.102324	),
+                        new LatLng(36.964427	,127.102211	),
+                        new LatLng(36.964426	,127.10221	),
+                        new LatLng(36.964195	,127.101949	),
+                        new LatLng(36.964118	,127.101864	),
+                        new LatLng(36.964117	,127.101863	),
+                        new LatLng(36.96408 	,127.10183	),
+                        new LatLng(36.963956	,127.10191	),
+                        new LatLng(36.963743	,127.101943	),
+                        new LatLng(36.96371 	,127.10193	),
+                        new LatLng(36.963685	,127.101749	),
+                        new LatLng(36.96362 	,127.101684	),
+                        new LatLng(36.963585	,127.101645	),
+                        new LatLng(36.963578	,127.101638	),
+                        new LatLng(36.963473	,127.101482	),
+                        new LatLng(36.96301 	,127.101354	),
+                        new LatLng(36.962686	,127.101317	),
+                        new LatLng(36.962342	,127.101176	),
+                        new LatLng(36.961888	,127.100978	),
+                        new LatLng(36.961258	,127.100814	),
+                        new LatLng(36.961145	,127.100783	),
+                        new LatLng(36.96104  	,127.1008		),
+                        new LatLng(36.960916	,127.100866	),
+                        new LatLng(36.960854	,127.100859	),
+                        new LatLng(36.960657	,127.10072	),
+                        new LatLng(36.960795	,127.099938	),
+                        new LatLng(36.960818	,127.099706	),
+                        new LatLng(36.960814	,127.09958	),
+                        new LatLng(36.960847	,127.098995	),
+                        new LatLng(36.960849	,127.098873	),
+                        new LatLng(36.960829	,127.098484	),
+                        new LatLng(36.960644	,127.09802	),
+                        new LatLng(36.960497	,127.09781	),
+                        new LatLng(36.960259	,127.097396	),
+                        new LatLng(36.960123	,127.097184	),
+                        new LatLng(36.959802	,127.097062	),
+                        new LatLng(36.959559	,127.096787	),
+                        new LatLng(36.959508	,127.096495	),
+                        new LatLng(36.95945 	,127.096469	),
+                        new LatLng(36.959394	,127.09642	),
+                        new LatLng(36.95892 	,127.096559	),
+                        new LatLng(36.958539	,127.096604	),
+                        new LatLng(36.958084	,127.096582	),
+                        new LatLng(36.957837	,127.09657	),
+                        new LatLng(36.95753 	,127.096541	),
+                        new LatLng(36.957133	,127.096503	),
+                        new LatLng(36.957012	,127.096495	),
+                        new LatLng(36.95658 	,127.096502	),
+                        new LatLng(36.956135	,127.096342	),
+                        new LatLng(36.956024	,127.096356	),
+                        new LatLng(36.955197	,127.097625	),
+                        new LatLng(36.954728	,127.098127	),
+                        new LatLng(36.954463	,127.098436	),
+                        new LatLng(36.954525	,127.099148	),
+                        new LatLng(36.953832	,127.101758	),
+                        new LatLng(36.953914	,127.101777	),
+                        new LatLng(36.953897	,127.101818	),
+                        new LatLng(36.953821	,127.101827	),
+                        new LatLng(36.953835	,127.102106	),
+                        new LatLng(36.953286	,127.102907	),
+                        new LatLng(36.953129	,127.102998	),
+                        new LatLng(36.95308 	,127.102996	),
+                        new LatLng(36.952745	,127.102919	),
+                        new LatLng(36.95257 	,127.102672	),
+                        new LatLng(36.952472	,127.102516	),
+                        new LatLng(36.952071	,127.101983	),
+                        new LatLng(36.951948	,127.101876	),
+                        new LatLng(36.951145	,127.101021	),
+                        new LatLng(36.951022	,127.100932	),
+                        new LatLng(36.950981	,127.100817	),
+                        new LatLng(36.950927	,127.100787	),
+                        new LatLng(36.950854	,127.100794	),
+                        new LatLng(36.950837	,127.100739	),
+                        new LatLng(36.950832	,127.100724	),
+                        new LatLng(36.950832	,127.100723	),
+                        new LatLng(36.950725	,127.100624	),
+                        new LatLng(36.9505  	,127.100263	),
+                        new LatLng(36.950444	,127.100228	),
+                        new LatLng(36.950443	,127.100226	),
+                        new LatLng(36.950408	,127.100174	),
+                        new LatLng(36.950337	,127.100063	),
+                        new LatLng(36.950301	,127.100009	),
+                        new LatLng(36.95026 	,127.099935	),
+                        new LatLng(36.950188	,127.099852	),
+                        new LatLng(36.950026	,127.099681	),
+                        new LatLng(36.949901	,127.099546	),
+                        new LatLng(36.94982 	,127.099488	),
+                        new LatLng(36.949757	,127.099421	),
+                        new LatLng(36.949691	,127.099346	),
+                        new LatLng(36.949604	,127.099266	),
+                        new LatLng(36.949548	,127.099169	),
+                        new LatLng(36.949526	,127.099141	),
+                        new LatLng(36.949481	,127.099075	),
+                        new LatLng(36.949329	,127.098751	),
+                        new LatLng(36.949275	,127.098537	),
+                        new LatLng(36.949149	,127.098474	),
+                        new LatLng(36.949076	,127.098547	),
+                        new LatLng(36.948909	,127.098601	),
+                        new LatLng(36.948629	,127.098638	),
+                        new LatLng(36.948592	,127.098637	),
+                        new LatLng(36.94841 	,127.098405	),
+                        new LatLng(36.948162	,127.097562	),
+                        new LatLng(36.947994	,127.097003	),
+                        new LatLng(36.947177	,127.096929	),
+                        new LatLng(36.946941	,127.097127	),
+                        new LatLng(36.946487	,127.09696	),
+                        new LatLng(36.945913	,127.096789	),
+                        new LatLng(36.945389	,127.096577	),
+                        new LatLng(36.944441	,127.096326	),
+                        new LatLng(36.94392 	,127.096057	),
+                        new LatLng(36.943444	,127.096229	),
+                        new LatLng(36.943127	,127.096134	),
+                        new LatLng(36.942182	,127.095042	),
+                        new LatLng(36.942339	,127.094497	),
+                        new LatLng(36.942326	,127.094317	),
+                        new LatLng(36.942378	,127.093839	),
+                        new LatLng(36.94282 	,127.092893	),
+                        new LatLng(36.94313 	,127.092411	),
+                        new LatLng(36.943448	,127.091915	),
+                        new LatLng(36.944674	,127.090933	),
+                        new LatLng(36.944648	,127.090863	),
+                        new LatLng(36.944882	,127.090604	),
+                        new LatLng(36.944943	,127.090533	),
+                        new LatLng(36.945004	,127.090391	),
+                        new LatLng(36.945701	,127.089832	),
+                        new LatLng(36.945906	,127.089522	),
+                        new LatLng(36.947086	,127.087295	),
+                        new LatLng(36.947738	,127.086212	),
+                        new LatLng(36.947643	,127.08596	),
+                        new LatLng(36.947594	,127.085829	),
+                        new LatLng(36.946789	,127.084953	),
+                        new LatLng(36.946474	,127.084658	),
+                        new LatLng(36.945273	,127.08318	),
+                        new LatLng(36.94446 	,127.081891	),
+                        new LatLng(36.944138	,127.08121	),
+                        new LatLng(36.943864	,127.080517	),
+                        new LatLng(36.943635	,127.080206	),
+                        new LatLng(36.943445	,127.079908	),
+                        new LatLng(36.943142	,127.079312	),
+                        new LatLng(36.943084	,127.079219	),
+                        new LatLng(36.942505	,127.078322	),
+                        new LatLng(36.942243	,127.078035	),
+                        new LatLng(36.942131	,127.07797	),
+                        new LatLng(36.941612	,127.077625	),
+                        new LatLng(36.940687	,127.07623	),
+                        new LatLng(36.94043 	,127.075891	),
+                        new LatLng(36.940099	,127.075432	),
+                        new LatLng(36.940073	,127.075312	),
+                        new LatLng(36.939856	,127.074903	),
+                        new LatLng(36.939549	,127.074759	),
+                        new LatLng(36.939397	,127.074657	),
+                        new LatLng(36.938899	,127.074435	),
+                        new LatLng(36.938736	,127.074279	),
+                        new LatLng(36.938625	,127.074083	),
+                        new LatLng(36.938634	,127.074077	),
+                        new LatLng(36.938913	,127.073628	),
+                        new LatLng(36.939063	,127.073566	),
+                        new LatLng(36.939177	,127.073566	),
+                        new LatLng(36.939382	,127.073587	),
+                        new LatLng(36.939475	,127.073696	),
+                        new LatLng(36.939539	,127.073797	),
+                        new LatLng(36.939674	,127.073814	),
+                        new LatLng(36.939808	,127.073796	),
+                        new LatLng(36.940024	,127.073591	),
+                        new LatLng(36.94046 	,127.072974	),
+                        new LatLng(36.940562	,127.07277	),
+                        new LatLng(36.940608	,127.072596	),
+                        new LatLng(36.940615	,127.072571	),
+                        new LatLng(36.94061 	,127.072127	),
+                        new LatLng(36.940658	,127.07174	),
+                        new LatLng(36.940676	,127.071546	),
+                        new LatLng(36.940668	,127.071507	),
+                        new LatLng(36.940576	,127.071208	),
+                        new LatLng(36.940145	,127.070285	),
+                        new LatLng(36.939984	,127.069913	),
+                        new LatLng(36.940032	,127.068535	),
+                        new LatLng(36.940151	,127.068423	),
+                        new LatLng(36.940255	,127.06836	),
+                        new LatLng(36.94026 	,127.068357	),
+                        new LatLng(36.940609	,127.068339	),
+                        new LatLng(36.940611	,127.068339	),
+                        new LatLng(36.941071	,127.068393	),
+                        new LatLng(36.941156	,127.068413	),
+                        new LatLng(36.941677	,127.068518	),
+                        new LatLng(36.941786	,127.068407	),
+                        new LatLng(36.941808	,127.068351	),
+                        new LatLng(36.941962	,127.068149	),
+                        new LatLng(36.94201 	,127.068132	),
+                        new LatLng(36.942232	,127.06777	),
+                        new LatLng(36.94224 	,127.0676	),
+                        new LatLng(36.942239	,127.067528	),
+                        new LatLng(36.942191	,127.067274	),
+                        new LatLng(36.94205 	,127.066887	),
+                        new LatLng(36.941962	,127.066503	),
+                        new LatLng(36.941944	,127.066313	),
+                        new LatLng(36.941927	,127.065487	),
+                        new LatLng(36.941827	,127.065213	),
+                        new LatLng(36.94175 	,127.065039	),
+                        new LatLng(36.941548	,127.064714	),
+                        new LatLng(36.940177	,127.062918	),
+                        new LatLng(36.939817	,127.062492	),
+                        new LatLng(36.939723	,127.062282	),
+                        new LatLng(36.939739	,127.062016	),
+                        new LatLng(36.939727	,127.061673	),
+                        new LatLng(36.939589	,127.060842	),
+                        new LatLng(36.939139	,127.059514	),
+                        new LatLng(36.93908 	,127.059312	),
+                        new LatLng(36.938744	,127.059405	),
+                        new LatLng(36.938567	,127.059448	),
+                        new LatLng(36.937956	,127.059208	),
+                        new LatLng(36.937848	,127.059128	),
+                        new LatLng(36.937704	,127.058992	),
+                        new LatLng(36.937395	,127.058502	),
+                        new LatLng(36.937321	,127.058014	),
+                        new LatLng(36.937295	,127.057888	),
+                        new LatLng(36.937095	,127.057422	),
+                        new LatLng(36.936951	,127.056973	),
+                        new LatLng(36.936949	,127.056934	),
+                        new LatLng(36.93695 	,127.056903	),
+                        new LatLng(36.936966	,127.056803	),
+                        new LatLng(36.937041	,127.056619	),
+                        new LatLng(36.937097	,127.05651	),
+                        new LatLng(36.937077	,127.056444	),
+                        new LatLng(36.93706 	,127.056391	),
+                        new LatLng(36.93748 	,127.056064	),
+                        new LatLng(36.937518	,127.055929	),
+                        new LatLng(36.937631	,127.055461	),
+                        new LatLng(36.937659	,127.055254	),
+                        new LatLng(36.937582	,127.05471	),
+                        new LatLng(36.937514	,127.054618	),
+                        new LatLng(36.937095	,127.05442	),
+                        new LatLng(36.937079	,127.054407	),
+                        new LatLng(36.936972	,127.054144	),
+                        new LatLng(36.936874	,127.053792	),
+                        new LatLng(36.936847	,127.053781	),
+                        new LatLng(36.936802	,127.053767	),
+                        new LatLng(36.936597	,127.053701	),
+                        new LatLng(36.936404	,127.053617	),
+                        new LatLng(36.936067	,127.053383	),
+                        new LatLng(36.935845	,127.05316	),
+                        new LatLng(36.935827	,127.053143	),
+                        new LatLng(36.935593	,127.052967	),
+                        new LatLng(36.935459	,127.052913	),
+                        new LatLng(36.935271	,127.052779	),
+                        new LatLng(36.935225	,127.052439	),
+                        new LatLng(36.935142	,127.052159	),
+                        new LatLng(36.934855	,127.051489	),
+                        new LatLng(36.9344  	,127.0504	),
+                        new LatLng(36.934311	,127.049999	),
+                        new LatLng(36.933885	,127.049596	),
+                        new LatLng(36.933854	,127.049506	),
+                        new LatLng(36.933981	,127.048912	),
+                        new LatLng(36.933584	,127.048281	),
+                        new LatLng(36.933549	,127.048174	),
+                        new LatLng(36.933498	,127.048052	),
+                        new LatLng(36.933269	,127.04774	),
+                        new LatLng(36.933219	,127.047423	),
+                        new LatLng(36.933223	,127.047105	),
+                        new LatLng(36.93322 	,127.046918	),
+                        new LatLng(36.933218	,127.046813	),
+                        new LatLng(36.933209	,127.046273	),
+                        new LatLng(36.933209	,127.046036	),
+                        new LatLng(36.933248	,127.045832	),
+                        new LatLng(36.933414	,127.045391	),
+                        new LatLng(36.933367	,127.045113	),
+                        new LatLng(36.933455	,127.044896	),
+                        new LatLng(36.933518	,127.044746	),
+                        new LatLng(36.933508	,127.044627	),
+                        new LatLng(36.933585	,127.043304	),
+                        new LatLng(36.933076	,127.042641	),
+                        new LatLng(36.932802	,127.042235	),
+                        new LatLng(36.932663	,127.041826	),
+                        new LatLng(36.93236 	,127.039693	),
+                        new LatLng(36.93244 	,127.039107	),
+                        new LatLng(36.932394	,127.037779	),
+                        new LatLng(36.932329	,127.03738	),
+                        new LatLng(36.932249	,127.037216	),
+                        new LatLng(36.932056	,127.037001	),
+                        new LatLng(36.931501	,127.036516	),
+                        new LatLng(36.930817	,127.03633	),
+                        new LatLng(36.930726	,127.03605	),
+                        new LatLng(36.930599	,127.03503	),
+                        new LatLng(36.930371	,127.034659	),
+                        new LatLng(36.930091	,127.03473	),
+                        new LatLng(36.930063	,127.034738	),
+                        new LatLng(36.929735	,127.034745	),
+                        new LatLng(36.929537	,127.034221	),
+                        new LatLng(36.929423	,127.033888	),
+                        new LatLng(36.929245	,127.033898	),
+                        new LatLng(36.929192	,127.033816	),
+                        new LatLng(36.928983	,127.033569	),
+                        new LatLng(36.928909	,127.033503	),
+                        new LatLng(36.928844	,127.033485	),
+                        new LatLng(36.928733	,127.033449	),
+                        new LatLng(36.928725	,127.033446	),
+                        new LatLng(36.928695	,127.032907	),
+                        new LatLng(36.928322	,127.03178	),
+                        new LatLng(36.928257	,127.030408	),
+                        new LatLng(36.928556	,127.030138	),
+                        new LatLng(36.928863	,127.02992	),
+                        new LatLng(36.92889 	,127.029796	),
+                        new LatLng(36.928797	,127.029094	),
+                        new LatLng(36.928709	,127.028879	),
+                        new LatLng(36.928625	,127.028843	),
+                        new LatLng(36.928608	,127.028698	),
+                        new LatLng(36.928657	,127.028586	),
+                        new LatLng(36.928634	,127.028511	),
+                        new LatLng(36.928541	,127.028204	),
+                        new LatLng(36.92869 	,127.027543	),
+                        new LatLng(36.9289  	,127.02722	),
+                        new LatLng(36.928809	,127.026571	),
+                        new LatLng(36.928698	,127.026351	),
+                        new LatLng(36.928696	,127.026288	),
+                        new LatLng(36.928693	,127.026155	),
+                        new LatLng(36.92921 	,127.025279	),
+                        new LatLng(36.930215	,127.024277	),
+                        new LatLng(36.93042 	,127.023961	),
+                        new LatLng(36.930771	,127.021795	),
+                        new LatLng(36.930984	,127.021548	),
+                        new LatLng(36.931085	,127.021362	),
+                        new LatLng(36.931251	,127.021224	),
+                        new LatLng(36.931562	,127.02104	),
+                        new LatLng(36.931565	,127.021038	),
+                        new LatLng(36.931617	,127.020996	),
+                        new LatLng(36.932767	,127.020973	),
+                        new LatLng(36.932907	,127.021021	),
+                        new LatLng(36.933255	,127.021284	),
+                        new LatLng(36.93366 	,127.021318	),
+                        new LatLng(36.933708	,127.021313	),
+                        new LatLng(36.933884	,127.021295	),
+                        new LatLng(36.934383	,127.021103	),
+                        new LatLng(36.934461	,127.020951	),
+                        new LatLng(36.934602	,127.020826	),
+                        new LatLng(36.934499	,127.020475	),
+                        new LatLng(36.934377	,127.020281	),
+                        new LatLng(36.934223	,127.020075	),
+                        new LatLng(36.934159	,127.020022	),
+                        new LatLng(36.93406 	,127.019979	),
+                        new LatLng(36.934021	,127.019978	),
+                        new LatLng(36.933699	,127.019367	),
+                        new LatLng(36.933592	,127.019108	),
+                        new LatLng(36.93366 	,127.018875	),
+                        new LatLng(36.933923	,127.018277	),
+                        new LatLng(36.934142	,127.018038	),
+                        new LatLng(36.934366	,127.017298	),
+                        new LatLng(36.93457 	,127.017086	),
+                        new LatLng(36.934602	,127.017058	),
+                        new LatLng(36.934954	,127.016498	),
+                        new LatLng(36.935068	,127.016204	),
+                        new LatLng(36.935418	,127.015017	),
+                        new LatLng(36.935071	,127.014336	),
+                        new LatLng(36.934732	,127.01374	),
+                        new LatLng(36.934596	,127.01349	),
+                        new LatLng(36.934416	,127.012886	),
+                        new LatLng(36.934369	,127.012691	),
+                        new LatLng(36.934351	,127.012617	),
+                        new LatLng(36.934227	,127.012113	),
+                        new LatLng(36.934222	,127.011498	),
+                        new LatLng(36.93431 	,127.011313	),
+                        new LatLng(36.934486	,127.011163	),
+                        new LatLng(36.934542	,127.011114	),
+                        new LatLng(36.934538	,127.011265	),
+                        new LatLng(36.934919	,127.011141	),
+                        new LatLng(36.935082	,127.011055	),
+                        new LatLng(36.935242	,127.010964	),
+                        new LatLng(36.935914	,127.009799	),
+                        new LatLng(36.935868	,127.009643	),
+                        new LatLng(36.935808	,127.009392	),
+                        new LatLng(36.935784	,127.009293	),
+                        new LatLng(36.935729	,127.008986	),
+                        new LatLng(36.935653	,127.008446	),
+                        new LatLng(36.935656	,127.008187	),
+                        new LatLng(36.935708	,127.007917	),
+                        new LatLng(36.935738	,127.007551	),
+                        new LatLng(36.935639	,127.007223	),
+                        new LatLng(36.935577	,127.007125	),
+                        new LatLng(36.935517	,127.007049	),
+                        new LatLng(36.935412	,127.006977	),
+                        new LatLng(36.935216	,127.00697	),
+                        new LatLng(36.934527	,127.00741	),
+                        new LatLng(36.934336	,127.00748	),
+                        new LatLng(36.934219	,127.00745	),
+                        new LatLng(36.934169	,127.00738	),
+                        new LatLng(36.934151	,127.007291	),
+                        new LatLng(36.934144	,127.007249	),
+                        new LatLng(36.93424 	,127.00617	),
+                        new LatLng(36.934308	,127.006024	),
+                        new LatLng(36.934616	,127.005497	),
+                        new LatLng(36.93468 	,127.005386	),
+                        new LatLng(36.934829	,127.005036	),
+                        new LatLng(36.935013	,127.003378	),
+                        new LatLng(36.934827	,127.003286	),
+                        new LatLng(36.934673	,127.003253	),
+                        new LatLng(36.93446 	,127.003197	),
+                        new LatLng(36.934176	,127.003188	),
+                        new LatLng(36.934047	,127.003123	),
+                        new LatLng(36.933616	,127.001079	),
+                        new LatLng(36.933612	,127.000992	),
+                        new LatLng(36.933604	,127.000795	),
+                        new LatLng(36.933778	,126.999693	),
+                        new LatLng(36.934104	,126.999177	),
+                        new LatLng(36.93432 	,126.998838	),
+                        new LatLng(36.934716	,126.99821	),
+                        new LatLng(36.934802	,126.997879	),
+                        new LatLng(36.935359	,126.995182	),
+                        new LatLng(36.935336	,126.995157	),
+                        new LatLng(36.935083	,126.994696	),
+                        new LatLng(36.934663	,126.99348	),
+                        new LatLng(36.932486	,126.985551	),
+                        new LatLng(36.931974	,126.984859	),
+                        new LatLng(36.928207	,126.979783	),
+                        new LatLng(36.921227	,126.956415	),
+                        new LatLng(36.921199	,126.956319	),
+                        new LatLng(36.921196	,126.956308	),
+                        new LatLng(36.920574	,126.9542	),
+                        new LatLng(36.920139	,126.952244	),
+                        new LatLng(36.917331	,126.939626	),
+                        new LatLng(36.911028	,126.926657	),
+                        new LatLng(36.911024	,126.926649	),
+                        new LatLng(36.906209	,126.916743	),
+                        new LatLng(36.901666	,126.910194	),
+                        new LatLng(36.901602	,126.909705	),
+                        new LatLng(36.918123	,126.904589	),
+                        new LatLng(36.924744	,126.905305	),
+                        new LatLng(36.933581	,126.896755	),
+                        new LatLng(36.942277	,126.875782	),
+                        new LatLng(36.952643	,126.86089	),
+                        new LatLng(36.949714	,126.856863	),
+                        new LatLng(36.956146	,126.850245	),
+                        new LatLng(36.947561	,126.829191	),
+                        new LatLng(36.959073	,126.821094	),
+                        new LatLng(36.964675	,126.824257	),
+                        new LatLng(36.968337	,126.821676	),
+                        new LatLng(36.968322	,126.821637	),
+                        new LatLng(36.968484	,126.82169	),
+                        new LatLng(36.964515	,126.824369	),
+                        new LatLng(36.964627	,126.82429	),
+                        new LatLng(36.964624	,126.824284	),
+                        new LatLng(36.959127	,126.821174	),
+                        new LatLng(36.94767 	,126.82922	),
+                        new LatLng(36.955374	,126.846245	),
+                        new LatLng(36.966582	,126.83592	),
+                        new LatLng(36.968106	,126.842071	),
+                        new LatLng(36.986309	,126.826061	),
+                        new LatLng(36.987332	,126.828186	),
+                        new LatLng(36.992947	,126.827781	),
+                        new LatLng(36.996143	,126.824863	),
+                        new LatLng(36.995818	,126.811227	),
+                        new LatLng(36.999291	,126.808121	),
+                        new LatLng(36.999902	,126.799522	),
+                        new LatLng(36.994539	,126.790386	),
+                        new LatLng(37.002799	,126.783129	),
+                        new LatLng(37.002204	,126.781176	),
+                        new LatLng(37.003867	,126.782512	),
+                        new LatLng(37.007242	,126.779011	),
+                        new LatLng(37.012769	,126.787296	),
+                        new LatLng(37.01342 	,126.797713	),
+                        new LatLng(37.013409	,126.812652	),
+                        new LatLng(37.013384	,126.813944	),
+                        new LatLng(37.015429	,126.844581	),
+                        new LatLng(37.016945	,126.847921	),
+                        new LatLng(37.017538	,126.849234	),
+                        new LatLng(37.017742	,126.849689	),
+                        new LatLng(37.018393	,126.851138	),
+                        new LatLng(37.018398	,126.851144	),
+                        new LatLng(37.021043	,126.854071	),
+                        new LatLng(37.021289	,126.854346	),
+                        new LatLng(37.021695	,126.854795	),
+                        new LatLng(37.022012	,126.85505	),
+                        new LatLng(37.026816	,126.858805	),
+                        new LatLng(37.027206	,126.859111	),
+                        new LatLng(37.027945	,126.859646	),
+                        new LatLng(37.030489	,126.861487	),
+                        new LatLng(37.035458	,126.865007	),
+                        new LatLng(37.037036	,126.866084	),
+                        new LatLng(37.037955	,126.8667	),
+                        new LatLng(37.039921	,126.868034	),
+                        new LatLng(37.040318	,126.868315	),
+                        new LatLng(37.042149	,126.869559	),
+                        new LatLng(37.047586	,126.87354	),
+                        new LatLng(37.048128	,126.873955	),
+                        new LatLng(37.049805	,126.875223	),
+                        new LatLng(37.050148	,126.875492	),
+                        new LatLng(37.051049	,126.876165	),
+                        new LatLng(37.054512	,126.878532	),
+                        new LatLng(37.054809	,126.878717	),
+                        new LatLng(37.05487 	,126.878753	),
+                        new LatLng(37.056703	,126.879855	),
+                        new LatLng(37.057496	,126.880337	),
+                        new LatLng(37.057947	,126.880617	),
+                        new LatLng(37.059868	,126.881772	),
+                        new LatLng(37.066988	,126.88374	),
+                        new LatLng(37.068623	,126.897703	),
+                        new LatLng(37.073513	,126.905332	),
+                        new LatLng(37.071765	,126.905166	),
+                        new LatLng(37.071675	,126.905053	),
+                        new LatLng(37.069261	,126.906631	),
+                        new LatLng(37.069289	,126.906659	),
+                        new LatLng(37.069418	,126.906796	),
+                        new LatLng(37.069451	,126.906833	),
+                        new LatLng(37.068997	,126.908677	),
+                        new LatLng(37.06902 	,126.908801	),
+                        new LatLng(37.069094	,126.909147	),
+                        new LatLng(37.0691  	,126.909161	),
+                        new LatLng(37.069102	,126.909166	),
+                        new LatLng(37.069164	,126.909397	),
+                        new LatLng(37.069101	,126.909858	),
+                        new LatLng(37.069112	,126.909871	),
+                        new LatLng(37.069003	,126.910038	),
+                        new LatLng(37.065645	,126.915113	),
+                        new LatLng(37.06568 	,126.915173	),
+                        new LatLng(37.06588 	,126.915844	),
+                        new LatLng(37.065933	,126.915975	),
+                        new LatLng(37.065979	,126.916091	),
+                        new LatLng(37.066033	,126.916201	),
+                        new LatLng(37.066079	,126.916293	),
+                        new LatLng(37.066106	,126.916385	),
+                        new LatLng(37.065764	,126.917429	),
+                        new LatLng(37.065846	,126.917552	),
+                        new LatLng(37.065099	,126.919949	),
+                        new LatLng(37.065234	,126.920218	),
+                        new LatLng(37.065406	,126.921151	),
+                        new LatLng(37.065317	,126.921939	),
+                        new LatLng(37.065329	,126.922047	),
+                        new LatLng(37.065849	,126.922444	),
+                        new LatLng(37.065894	,126.922534	),
+                        new LatLng(37.065921	,126.922568	),
+                        new LatLng(37.065968	,126.922601	),
+                        new LatLng(37.065984	,126.922613	),
+                        new LatLng(37.065999	,126.922631	),
+                        new LatLng(37.066017	,126.922654	),
+                        new LatLng(37.066083	,126.92278	),
+                        new LatLng(37.066336	,126.923489	),
+                        new LatLng(37.067239	,126.926063	),
+                        new LatLng(37.067282	,126.926137	),
+                        new LatLng(37.067328	,126.926244	),
+                        new LatLng(37.067392	,126.926457	),
+                        new LatLng(37.067555	,126.926895	),
+                        new LatLng(37.067628	,126.926972	),
+                        new LatLng(37.067969	,126.927434	),
+                        new LatLng(37.068042	,126.927805	),
+                        new LatLng(37.06262 	,126.93151	),
+                        new LatLng(37.061676	,126.936458	),
+                        new LatLng(37.061541	,126.936649	),
+                        new LatLng(37.061156	,126.940754	),
+                        new LatLng(37.061381	,126.941012	),
+                        new LatLng(37.061256	,126.942226	),
+                        new LatLng(37.061175	,126.942428	),
+                        new LatLng(37.06164 	,126.946343	),
+                        new LatLng(37.061681	,126.946453	),
+                        new LatLng(37.061628	,126.948533	),
+                        new LatLng(37.064106	,126.947149	),
+                        new LatLng(37.064421	,126.94725	),
+                        new LatLng(37.065791	,126.947586	),
+                        new LatLng(37.065805	,126.947604	),
+                        new LatLng(37.065818	,126.94762	),
+                        new LatLng(37.065819	,126.947623	),
+                        new LatLng(37.065854	,126.947732	),
+                        new LatLng(37.065907	,126.947938	),
+                        new LatLng(37.066205	,126.948283	),
+                        new LatLng(37.06626 	,126.948339	),
+                        new LatLng(37.0663  	,126.948372	),
+                        new LatLng(37.066314	,126.948384	),
+                        new LatLng(37.067861	,126.948667	),
+                        new LatLng(37.067936	,126.948754	),
+                        new LatLng(37.067941	,126.948757	),
+                        new LatLng(37.068325	,126.953105	),
+                        new LatLng(37.068244	,126.953454	),
+                        new LatLng(37.06824 	,126.953448	),
+                        new LatLng(37.068226	,126.953679	),
+                        new LatLng(37.068273	,126.953864	),
+                        new LatLng(37.06828 	,126.953895	),
+                        new LatLng(37.068262	,126.954016	),
+                        new LatLng(37.0682  	,126.95604	),
+                        new LatLng(37.06824 	,126.956149	),
+                        new LatLng(37.068282	,126.95621	),
+                        new LatLng(37.068317	,126.956332	),
+                        new LatLng(37.068723	,126.957681	),
+                        new LatLng(37.068734	,126.957698	),
+                        new LatLng(37.068995	,126.958291	),
+                        new LatLng(37.069003	,126.958311	),
+                        new LatLng(37.069006	,126.958321	),
+                        new LatLng(37.069048	,126.958457	),
+                        new LatLng(37.068117	,126.960902	),
+                        new LatLng(37.068112	,126.960909	),
+                        new LatLng(37.068121	,126.961347	),
+                        new LatLng(37.068139	,126.96138	),
+                        new LatLng(37.068182	,126.961477	),
+                        new LatLng(37.068184	,126.961482	),
+                        new LatLng(37.068209	,126.964853	),
+                        new LatLng(37.068347	,126.965069	),
+                        new LatLng(37.068915	,126.965856	),
+                        new LatLng(37.068968	,126.965958	),
+                        new LatLng(37.069032	,126.966081	),
+                        new LatLng(37.06905 	,126.96612	),
+                        new LatLng(37.069087	,126.966205	),
+                        new LatLng(37.06914 	,126.966326	),
+                        new LatLng(37.069141	,126.966328	),
+                        new LatLng(37.069117	,126.966323	),
+                        new LatLng(37.069092	,126.966318	),
+                        new LatLng(37.069126	,126.966372	),
+                        new LatLng(37.069132	,126.966374	),
+                        new LatLng(37.069147	,126.966378	),
+                        new LatLng(37.06924 	,126.966407	),
+                        new LatLng(37.069591	,126.966575	),
+                        new LatLng(37.069663	,126.966632	),
+                        new LatLng(37.069672	,126.966587	),
+                        new LatLng(37.070339	,126.966901	),
+                        new LatLng(37.070727	,126.967148	),
+                        new LatLng(37.070817	,126.967205	),
+                        new LatLng(37.072802	,126.968695	),
+                        new LatLng(37.073088	,126.968992	),
+                        new LatLng(37.070765	,126.976257	),
+                        new LatLng(37.070783	,126.976441	),
+                        new LatLng(37.070919	,126.977539	),
+                        new LatLng(37.070883	,126.977468	),
+                        new LatLng(37.070846	,126.977449	),
+                        new LatLng(37.070878	,126.977501	),
+                        new LatLng(37.070946	,126.977676	),
+                        new LatLng(37.070982	,126.977786	),
+                        new LatLng(37.070937	,126.977831	),
+                        new LatLng(37.070942	,126.977844	),
+                        new LatLng(37.071406	,126.981946	),
+                        new LatLng(37.071463	,126.982432	),
+                        new LatLng(37.071469	,126.982488	),
+                        new LatLng(37.071478	,126.982666	),
+                        new LatLng(37.069433	,126.98776	),
+                        new LatLng(37.069438	,126.987773	),
+                        new LatLng(37.069444	,126.987798	),
+                        new LatLng(37.069451	,126.98785	),
+                        new LatLng(37.069693	,126.987992	),
+                        new LatLng(37.069722	,126.988019	),
+                        new LatLng(37.069787	,126.988541	),
+                        new LatLng(37.069803	,126.988615	),
+                        new LatLng(37.069854	,126.988699	),
+                        new LatLng(37.069884	,126.98875	),
+                        new LatLng(37.069848	,126.988829	),
+                        new LatLng(37.069863	,126.988856	),
+                        new LatLng(37.06991 	,126.988955	),
+                        new LatLng(37.069965	,126.989143	),
+                        new LatLng(37.069992	,126.989571	),
+                        new LatLng(37.070025	,126.989624	),
+                        new LatLng(37.070474	,126.989943	),
+                        new LatLng(37.070506	,126.989975	),
+                        new LatLng(37.07056 	,126.99002	),
+                        new LatLng(37.070575	,126.99006	),
+                        new LatLng(37.070614	,126.990167	),
+                        new LatLng(37.070641	,126.991066	),
+                        new LatLng(37.070665	,126.991084	),
+                        new LatLng(37.070011	,126.995305	),
+                        new LatLng(37.070043	,126.995529	),
+                        new LatLng(37.070047	,126.995553	),
+                        new LatLng(37.069966	,126.995688	),
+                        new LatLng(37.070311	,126.997011	),
+                        new LatLng(37.070344	,126.997037	),
+                        new LatLng(37.077039	,126.990413	),
+                        new LatLng(37.077041	,126.990414	),
+                        new LatLng(37.077051	,126.990417	),
+                        new LatLng(37.07712 	,126.990435	),
+                        new LatLng(37.077237	,126.99048	),
+                        new LatLng(37.077363	,126.990593	),
+                        new LatLng(37.077372	,126.990601	),
+                        new LatLng(37.077518	,126.9909	),
+                        new LatLng(37.077534	,126.990953	),
+                        new LatLng(37.07755 	,126.991134	),
+                        new LatLng(37.077327	,126.995395	),
+                        new LatLng(37.077335	,126.995405	),
+                        new LatLng(37.07736 	,126.995458	),
+                        new LatLng(37.077526	,126.995822	),
+                        new LatLng(37.077832	,126.996131	),
+                        new LatLng(37.077904	,126.996193	),
+                        new LatLng(37.082689	,126.993348	),
+                        new LatLng(37.082832	,126.993198	),
+                        new LatLng(37.083337	,126.992808	),
+                        new LatLng(37.08714 	,126.990479	),
+                        new LatLng(37.087392	,126.99049	),
+                        new LatLng(37.087536	,126.990516	),
+                        new LatLng(37.087626	,126.990569	),
+                        new LatLng(37.087672	,126.990618	),
+                        new LatLng(37.08779 	,126.990792	),
+                        new LatLng(37.087806	,126.990873	),
+                        new LatLng(37.087869	,126.991118	),
+                        new LatLng(37.08787 	,126.99112	),
+                        new LatLng(37.087879	,126.991266	),
+                        new LatLng(37.08451 	,126.998895	),
+                        new LatLng(37.084521	,126.998942	),
+                        new LatLng(37.084527	,126.998971	),
+                        new LatLng(37.084545	,126.999072	),
+                        new LatLng(37.08468 	,126.999398	),
+                        new LatLng(37.084712	,126.999438	),
+                        new LatLng(37.084753	,126.999496	),
+                        new LatLng(37.084779	,126.999533	),
+                        new LatLng(37.084853	,126.999633	),
+                        new LatLng(37.08519 	,126.99991	),
+                        new LatLng(37.085212	,126.999927	),
+                        new LatLng(37.085482	,127.000062	),
+                        new LatLng(37.085573	,127.000094	),
+                        new LatLng(37.090195	,126.995371	),
+                        new LatLng(37.090337	,126.995394	),
+                        new LatLng(37.090502	,126.995445	),
+                        new LatLng(37.090816	,126.995562	),
+                        new LatLng(37.091835	,126.99635	),
+                        new LatLng(37.091889	,126.996473	),
+                        new LatLng(37.091969	,126.996653	),
+                        new LatLng(37.092006	,126.996743	),
+                        new LatLng(37.092222	,126.997137	),
+                        new LatLng(37.092262	,126.997198	),
+                        new LatLng(37.092343	,126.997335	),
+                        new LatLng(37.092357	,126.997362	),
+                        new LatLng(37.092555	,126.997711	),
+                        new LatLng(37.092715	,126.997973	),
+                        new LatLng(37.092806	,126.998102	),
+                        new LatLng(37.092862	,126.998172	),
+                        new LatLng(37.097107	,126.997098	),
+                        new LatLng(37.097187	,126.997204	),
+                        new LatLng(37.097277	,126.997339	),
+                        new LatLng(37.097348	,126.997517	),
+                        new LatLng(37.097349	,126.997519	),
+                        new LatLng(37.097367	,126.997677	),
+                        new LatLng(37.097457	,126.998453	),
+                        new LatLng(37.09752 	,126.99859	),
+                        new LatLng(37.097617	,126.998719	),
+                        new LatLng(37.097628	,126.998734	),
+                        new LatLng(37.097634	,126.998739	),
+                        new LatLng(37.097778	,126.99875	),
+                        new LatLng(37.097817	,126.998755	),
+                        new LatLng(37.09808 	,126.99859	),
+                        new LatLng(37.098085	,126.998587	),
+                        new LatLng(37.098091	,126.998583	),
+                        new LatLng(37.098827	,126.996855	),
+                        new LatLng(37.098877	,126.996909	),
+                        new LatLng(37.09889 	,126.996923	),
+                        new LatLng(37.098952	,126.997037	),
+                        new LatLng(37.099029	,126.997186	),
+                        new LatLng(37.099052	,126.997238	),
+                        new LatLng(37.099073	,126.997264	),
+                        new LatLng(37.09915 	,126.997372	),
+                        new LatLng(37.099196	,126.99744	),
+                        new LatLng(37.099674	,126.997958	),
+                        new LatLng(37.099698	,126.99797	),
+                        new LatLng(37.10133 	,126.996719	),
+                        new LatLng(37.101368	,126.996822	),
+                        new LatLng(37.101836	,126.997755	),
+                        new LatLng(37.101859	,126.99776	),
+                        new LatLng(37.103631	,126.997081	),
+                        new LatLng(37.103629	,126.997069	),
+                        new LatLng(37.103563	,126.996953	),
+                        new LatLng(37.103545	,126.996922	),
+                        new LatLng(37.103539	,126.996911	),
+                        new LatLng(37.10351 	,126.996875	),
+                        new LatLng(37.103409	,126.996748	),
+                        new LatLng(37.103292	,126.9967	),
+                        new LatLng(37.103287	,126.996698	),
+                        new LatLng(37.102857	,126.996534	),
+                        new LatLng(37.102855	,126.996529	),
+                        new LatLng(37.103494	,126.995393	),
+                        new LatLng(37.103509	,126.995401	),
+                        new LatLng(37.103519	,126.995407	),
+                        new LatLng(37.103729	,126.995539	),
+                        new LatLng(37.103768	,126.995587	),
+                        new LatLng(37.103801	,126.995595	),
+                        new LatLng(37.104769	,126.995485	),
+                        new LatLng(37.104783	,126.995494	),
+                        new LatLng(37.104882	,126.99582	),
+                        new LatLng(37.104891	,126.995832	),
+                        new LatLng(37.10463 	,126.997485	),
+                        new LatLng(37.104686	,126.997727	),
+                        new LatLng(37.104709	,126.997778	),
+                        new LatLng(37.104837	,126.997958	),
+                        new LatLng(37.105149	,126.998058	),
+                        new LatLng(37.105152	,126.998059	),
+                        new LatLng(37.105224	,126.998068	),
+                        new LatLng(37.105802	,126.998083	),
+                        new LatLng(37.105828	,126.998094	),
+                        new LatLng(37.106333	,126.998194	),
+                        new LatLng(37.106513	,126.998161	),
+                        new LatLng(37.106515	,126.99816	),
+                        new LatLng(37.107062	,126.99672	),
+                        new LatLng(37.107108	,126.996609	),
+                        new LatLng(37.10718	    ,126.996439	),
+                        new LatLng(37.108207	,126.996169	),
+                        new LatLng(37.108261	,126.996181	),
+                        new LatLng(37.109895	,126.995625	),
+                        new LatLng(37.109901	,126.995629	),
+                        new LatLng(37.109916	,126.99564	),
+                        new LatLng(37.110072	,126.995786	),
+                        new LatLng(37.110125	,126.995873	),
+                        new LatLng(37.109906	,126.997754	),
+                        new LatLng(37.109909	,126.997778	),
+                        new LatLng(37.109955	,126.998002	),
+                        new LatLng(37.109928	,126.998205	),
+                        new LatLng(37.111541	,126.999802	),
+                        new LatLng(37.111631	,126.999487	),
+                        new LatLng(37.111478	,126.999094	),
+                        new LatLng(37.111451	,126.999049	),
+                        new LatLng(37.111271	,126.998824	),
+                        new LatLng(37.111045	,126.99843	),
+                        new LatLng(37.110955	,126.998002	),
+                        new LatLng(37.114541	,126.99421	),
+                        new LatLng(37.11464 	,126.994255	),
+                        new LatLng(37.114127	,126.998013	),
+                        new LatLng(37.114134	,126.998048	),
+                        new LatLng(37.114154	,126.998137	),
+                        new LatLng(37.114998	,126.998257	),
+                        new LatLng(37.114911	,126.998227	),
+                        new LatLng(37.116425	,126.995173	),
+                        new LatLng(37.116433	,126.995178	),
+                        new LatLng(37.116443	,126.995183	),
+                        new LatLng(37.116704	,126.995493	),
+                        new LatLng(37.116716	,126.995515	),
+                        new LatLng(37.116722	,126.995527	),
+                        new LatLng(37.116726	,126.995548	),
+                        new LatLng(37.115983	,126.997496	),
+                        new LatLng(37.116128	,126.99765	),
+                        new LatLng(37.11618 	,126.997702	),
+                        new LatLng(37.116262	,126.997777	),
+                        new LatLng(37.118569	,126.997901	),
+                        new LatLng(37.118875	,126.997913	),
+                        new LatLng(37.119497	,126.998362	),
+                        new LatLng(37.119506	,126.998373	),
+                        new LatLng(37.11959 	,126.998485	),
+                        new LatLng(37.119673	,126.998603	),
+                        new LatLng(37.119704	,126.998655	),
+                        new LatLng(37.119813	,126.998992	),
+                        new LatLng(37.119835	,126.999043	),
+                        new LatLng(37.119904	,126.99921	),
+                        new LatLng(37.119948	,126.999318	),
+                        new LatLng(37.120062	,126.999462	),
+                        new LatLng(37.120113	,126.999525	),
+                        new LatLng(37.120191	,126.999622	),
+                        new LatLng(37.122236	,126.999048	),
+                        new LatLng(37.12232 	,126.999065	),
+                        new LatLng(37.123146	,126.998744	),
+                        new LatLng(37.123237	,126.998853	),
+                        new LatLng(37.123345	,126.998981	),
+                        new LatLng(37.123441	,126.999194	),
+                        new LatLng(37.124309	,126.997608	),
+                        new LatLng(37.124561	,126.997439	),
+                        new LatLng(37.125417	,126.997619	),
+                        new LatLng(37.12551 	,126.997706	),
+                        new LatLng(37.125526	,126.997722	),
+                        new LatLng(37.125545	,126.997758	),
+                        new LatLng(37.125598	,126.997864	),
+                        new LatLng(37.125615	,126.99799	),
+                        new LatLng(37.124913	,126.99951	),
+                        new LatLng(37.125011	,126.999762	),
+                        new LatLng(37.125088	,126.999951	),
+                        new LatLng(37.125174	,127.00014	),
+                        new LatLng(37.127036	,126.999385	),
+                        new LatLng(37.127057	,126.999419	),
+                        new LatLng(37.127072	,126.999452	),
+                        new LatLng(37.126426	,127.001062	),
+                        new LatLng(37.126435	,127.001163	),
+                        new LatLng(37.126426	,127.001197	),
+                        new LatLng(37.126435	,127.001344	),
+                        new LatLng(37.126442	,127.001362	),
+                        new LatLng(37.126471	,127.001427	),
+                        new LatLng(37.126516	,127.001524	),
+                        new LatLng(37.127868	,127.001119	),
+                        new LatLng(37.127949	,127.001299	),
+                        new LatLng(37.127949	,127.004517	),
+                        new LatLng(37.128042	,127.004768	),
+                        new LatLng(37.128097	,127.004876	),
+                        new LatLng(37.128129	,127.004922	),
+                        new LatLng(37.128156	,127.005237	),
+                        new LatLng(37.128189	,127.005283	),
+                        new LatLng(37.128147	,127.006374	),
+                        new LatLng(37.12819 	,127.006457	),
+                        new LatLng(37.127976	,127.008323	),
+                        new LatLng(37.128039	,127.008388	),
+                        new LatLng(37.128048	,127.008392	),
+                        new LatLng(37.128218	,127.008479	),
+                        new LatLng(37.128282	,127.008535	),
+                        new LatLng(37.128426	,127.008793	),
+                        new LatLng(37.128429	,127.008797	),
+                        new LatLng(37.128432	,127.008801	),
+                        new LatLng(37.128517	,127.008929	),
+                        new LatLng(37.129038	,127.011666	),
+                        new LatLng(37.129047	,127.011686	),
+                        new LatLng(37.129049	,127.01169	),
+                        new LatLng(37.129084	,127.011854	),
+                        new LatLng(37.129156	,127.013723	),
+                        new LatLng(37.129157	,127.013727	),
+                        new LatLng(37.12916 	,127.013743	),
+                        new LatLng(37.129309	,127.01442	),
+                        new LatLng(37.129493	,127.015269	),
+                        new LatLng(37.129523	,127.015408	),
+                        new LatLng(37.129642	,127.015973	),
+                        new LatLng(37.129867	,127.016941	),
+                        new LatLng(37.129886	,127.017014	),
+                        new LatLng(37.130053	,127.017621	),
+                        new LatLng(37.130129	,127.017819	),
+                        new LatLng(37.130179	,127.017935	),
+                        new LatLng(37.130182	,127.017943	),
+                        new LatLng(37.130203	,127.017993	),
+                        new LatLng(37.130291	,127.018213	),
+                        new LatLng(37.130325	,127.018256	),
+                        new LatLng(37.130759	,127.018798	),
+                        new LatLng(37.130762	,127.018802	),
+                        new LatLng(37.130832	,127.018889	),
+                        new LatLng(37.130948	,127.019035	),
+                        new LatLng(37.131156	,127.019417	),
+                        new LatLng(37.131363	,127.020059	),
+                        new LatLng(37.131443	,127.020193	),
+                        new LatLng(37.13201 	,127.021126	),
+                        new LatLng(37.13202 	,127.021151	),
+                        new LatLng(37.1322  	,127.021983	),
+                        new LatLng(37.132227	,127.022265	),
+                        new LatLng(37.132389	,127.023041	),
+                        new LatLng(37.132402	,127.023061	),
+                        new LatLng(37.132479	,127.023176	),
+                        new LatLng(37.132705	,127.023537	),
+                        new LatLng(37.132724	,127.023572	),
+                        new LatLng(37.133103	,127.024155	),
+                        new LatLng(37.13311 	,127.024246	),
+                        new LatLng(37.132857	,127.025405	),
+                        new LatLng(37.132889	,127.025542	),
+                        new LatLng(37.132896	,127.02558	),
+                        new LatLng(37.13292 	,127.025742	),
+                        new LatLng(37.13302 	,127.026046	),
+                        new LatLng(37.133119	,127.026255	),
+                        new LatLng(37.133231	,127.026516	),
+                        new LatLng(37.13329 	,127.026744	),
+                        new LatLng(37.133329	,127.026787	),
+                        new LatLng(37.133402	,127.026928	),
+                        new LatLng(37.133479	,127.027127	),
+                        new LatLng(37.133551	,127.028702	),
+                        new LatLng(37.133558	,127.028775	),
+                        new LatLng(37.133812	,127.029918	),
+                        new LatLng(37.133857	,127.029986	),
+                        new LatLng(37.133974	,127.030076	),
+                        new LatLng(37.134082	,127.030154	),
+                        new LatLng(37.13428 	,127.030278	),
+                        new LatLng(37.134986	,127.031715	),
+                        new LatLng(37.135059	,127.031979	),
+                        new LatLng(37.135082	,127.032057	),
+                        new LatLng(37.135154	,127.032327	),
+                        new LatLng(37.135289	,127.032755	),
+                        new LatLng(37.135334	,127.032912	),
+                        new LatLng(37.135496	,127.033666	),
+                        new LatLng(37.135525	,127.03371	),
+                        new LatLng(37.135586	,127.033808	),
+                        new LatLng(37.135595	,127.033824	),
+                        new LatLng(37.135783	,127.035265	),
+                        new LatLng(37.135847	,127.035332	),
+                        new LatLng(37.135855	,127.035341	),
+                        new LatLng(37.135892	,127.035377	),
+                        new LatLng(37.135902	,127.035383	),
+                        new LatLng(37.136225	,127.035546	),
+                        new LatLng(37.136405	,127.035625	),
+                        new LatLng(37.136488	,127.035701	),
+                        new LatLng(37.135467	,127.037966	),
+                        new LatLng(37.135224	,127.03783	),
+                        new LatLng(37.125977	,127.045275	),
+                        new LatLng(37.125823	,127.045647	),
+                        new LatLng(37.129266	,127.045221	),
+                        new LatLng(37.129778	,127.050397	),
+                        new LatLng(37.12984 	,127.050459	),
+                        new LatLng(37.130254	,127.052491	),
+                        new LatLng(37.130297	,127.052589	),
+                        new LatLng(37.133595	,127.055656	),
+                        new LatLng(37.132432	,127.057591	),
+                        new LatLng(37.132188	,127.05848	),
+                        new LatLng(37.131942	,127.064928	),
+                        new LatLng(37.131446	,127.064871	),
+                        new LatLng(37.130788	,127.066368	),
+                        new LatLng(37.13068 	,127.066345	),
+                        new LatLng(37.127904	,127.066163	),
+                        new LatLng(37.127841	,127.066151	),
+                        new LatLng(37.12685 	,127.067129	),
+                        new LatLng(37.127381	,127.067636	),
+                        new LatLng(37.125323	,127.073013	),
+                        new LatLng(37.128122	,127.079127	),
+                        new LatLng(37.125752	,127.079597	),
+                        new LatLng(37.126684	,127.086451	),
+                        new LatLng(37.129853	,127.090123	),
+                        new LatLng(37.12988 	,127.090078	),
+                        new LatLng(37.129898	,127.090067	),
+                        new LatLng(37.129925	,127.089977	),
+                        new LatLng(37.129929	,127.089969	),
+                        new LatLng(37.12994 	,127.089942	),
+                        new LatLng(37.129718	,127.091315	),
+                        new LatLng(37.129716	,127.091318	),
+                        new LatLng(37.130726	,127.09143	),
+                        new LatLng(37.131029	,127.091021	),
+                        new LatLng(37.129932	,127.093218	),
+                        new LatLng(37.134793	,127.087754	),
+                        new LatLng(37.137241	,127.091505	),
+                        new LatLng(37.136796	,127.097655	),
+                        new LatLng(37.137155	,127.097833	),
+                        new LatLng(37.143863	,127.103038	),
+                        new LatLng(37.143333	,127.10367	),
+                        new LatLng(37.143268	,127.103747	),
+                        new LatLng(37.142052	,127.105371	),
+                        new LatLng(37.142068	,127.105546	),
+                        new LatLng(37.142014	,127.106019	),
+                        new LatLng(37.142035	,127.106195	),
+                        new LatLng(37.142049	,127.106311	),
+                        new LatLng(37.142267	,127.106388	),
+                        new LatLng(37.143357	,127.110873	),
+                        new LatLng(37.143793	,127.111142	),
+                        new LatLng(37.144016	,127.111606	),
+                        new LatLng(37.144146	,127.111964	),
+                        new LatLng(37.144278	,127.113237	),
+                        new LatLng(37.144511	,127.113822	),
+                        new LatLng(37.144564	,127.113862	),
+                        new LatLng(37.144673	,127.113946	),
+                        new LatLng(37.144376	,127.11452	),
+                        new LatLng(37.144626	,127.117174	),
+                        new LatLng(37.144634	,127.117199	),
+                        new LatLng(37.144589	,127.117503	),
+                        new LatLng(37.143659	,127.118897	),
+                        new LatLng(37.143937	,127.11917	),
+                        new LatLng(37.144451	,127.120519	),
+                        new LatLng(37.144452	,127.120524	),
+                        new LatLng(37.14455 	,127.12086	),
+                        new LatLng(37.144522	,127.121465	),
+                        new LatLng(37.144343	,127.121993	),
+                        new LatLng(37.144376	,127.122838	),
+                        new LatLng(37.144493	,127.122941	),
+                        new LatLng(37.143673	,127.123377	),
+                        new LatLng(37.143259	,127.122836	),
+                        new LatLng(37.142287	,127.121844	),
+                        new LatLng(37.141702	,127.121089	),
+                        new LatLng(37.141603	,127.121055	),
+                        new LatLng(37.140909	,127.120851	),
+                        new LatLng(37.140324	,127.120738	),
+                        new LatLng(37.139846	,127.120602	),
+                        new LatLng(37.139441	,127.120601	),
+                        new LatLng(37.139016	,127.121546	),
+                        new LatLng(37.138097	,127.121545	),
+                        new LatLng(37.138034	,127.121545	),
+                        new LatLng(37.137521	,127.1216	),
+                        new LatLng(37.136808	,127.121948	),
+                        new LatLng(37.13552 	,127.121484	),
+                        new LatLng(37.134395	,127.120582	),
+                        new LatLng(37.128909	,127.118672	),
+                        new LatLng(37.128504	,127.11821	),
+                        new LatLng(37.129034	,127.117425	),
+                        new LatLng(37.129172	,127.117052	),
+                        new LatLng(37.129651	,127.11559	),
+                        new LatLng(37.129688	,127.115252	),
+                        new LatLng(37.127491	,127.112717	),
+                        new LatLng(37.126293	,127.112467	),
+                        new LatLng(37.12606 	,127.11151	),
+                        new LatLng(37.126214	,127.110115	),
+                        new LatLng(37.126026	,127.109125	),
+                        new LatLng(37.125594	,127.108911	),
+                        new LatLng(37.125468	,127.108854	),
+                        new LatLng(37.125188	,127.108752	),
+                        new LatLng(37.124846	,127.108763	),
+                        new LatLng(37.123855	,127.108728	),
+                        new LatLng(37.123485	,127.108975	),
+                        new LatLng(37.122881	,127.109244	),
+                        new LatLng(37.122278	,127.109288	),
+                        new LatLng(37.121493	,127.109411	),
+                        new LatLng(37.121025	,127.109703	),
+                        new LatLng(37.120385	,127.109342	),
+                        new LatLng(37.119736	,127.109645	),
+                        new LatLng(37.118006	,127.109372	),
+                        new LatLng(37.11733 	,127.109641	),
+                        new LatLng(37.116925	,127.110001	),
+                        new LatLng(37.11623 	,127.11063	),
+                        new LatLng(37.116104	,127.110742	),
+                        new LatLng(37.115951	,127.110866	),
+                        new LatLng(37.115482	,127.111225	),
+                        new LatLng(37.115085	,127.111528	),
+                        new LatLng(37.114851	,127.111674	),
+                        new LatLng(37.114355	,127.112	),
+                        new LatLng(37.114102	,127.112146	),
+                        new LatLng(37.114039	,127.11218	),
+                        new LatLng(37.113291	,127.112651	),
+                        new LatLng(37.113084	,127.112752	),
+                        new LatLng(37.112633	,127.112965	),
+                        new LatLng(37.112534	,127.113021	),
+                        new LatLng(37.111966	,127.11329	),
+                        new LatLng(37.111515	,127.113492	),
+                        new LatLng(37.111488	,127.113503	),
+                        new LatLng(37.111181	,127.113649	),
+                        new LatLng(37.109901	,127.11421	),
+                        new LatLng(37.108261	,127.114927	),
+                        new LatLng(37.107621	,127.115219	),
+                        new LatLng(37.107567	,127.115241	),
+                        new LatLng(37.106909	,127.115533	),
+                        new LatLng(37.106341	,127.115791	),
+                        new LatLng(37.106088	,127.115914	),
+                        new LatLng(37.105196	,127.11634	),
+                        new LatLng(37.104709	,127.116576	),
+                        new LatLng(37.104105	,127.116856	),
+                        new LatLng(37.10351 	,127.117125	),
+                        new LatLng(37.102933	,127.117383	),
+                        new LatLng(37.101599	,127.117932	),
+                        new LatLng(37.101392	,127.118033	),
+                        new LatLng(37.101275	,127.118089	),
+                        new LatLng(37.100806	,127.118302	),
+                        new LatLng(37.100283	,127.11856	),
+                        new LatLng(37.100049	,127.118672	),
+                        new LatLng(37.099733	,127.118818	),
+                        new LatLng(37.099228	,127.119042	),
+                        new LatLng(37.098696	,127.119289	),
+                        new LatLng(37.098489	,127.11939	),
+                        new LatLng(37.09674 	,127.120118	),
+                        new LatLng(37.096154	,127.120365	),
+                        new LatLng(37.094757	,127.121094	),
+                        new LatLng(37.094279	,127.121307	),
+                        new LatLng(37.093973	,127.12143	),
+                        new LatLng(37.092718	,127.122016	),
+                        new LatLng(37.091767	,127.122448	),
+                        new LatLng(37.091638	,127.122506	),
+                        new LatLng(37.091124	,127.12273	),
+                        new LatLng(37.09043 	,127.123044	),
+                        new LatLng(37.090331	,127.123213	),
+                        new LatLng(37.090312	,127.12373	),
+                        new LatLng(37.081713	,127.126371	),
+                        new LatLng(37.077975	,127.124756	),
+                        new LatLng(37.075887	,127.103622	),
+                        new LatLng(37.07531 	,127.103442	),
+                        new LatLng(37.067787	,127.102903	),
+                        new LatLng(37.067462	,127.103024	),
+                        new LatLng(37.062041	,127.11894	),
+                        new LatLng(37.06472 	,127.124982	),
+                        new LatLng(37.058759	,127.130257	),
+                        new LatLng(37.053031	,127.12756	),
+                        new LatLng(37.03568 	,127.105592	),
+                        new LatLng(37.035364	,127.105558	),
+                        new LatLng(37.026816	,127.112604	),
+                        new LatLng(37.027335	,127.116099	),
+                        new LatLng(37.027038	,127.116178	),
+                        new LatLng(37.035141	,127.122214	),
+                        new LatLng(37.031584	,127.144889	),
+                        new LatLng(37.031597	,127.14495	),
+                        new LatLng(37.026113	,127.15297	),
+                        new LatLng(37.021393	,127.152332	),
+                        new LatLng(37.01686 	,127.145288	),
+                        new LatLng(37.013464	,127.144484	),
+                        new LatLng(37.013327	,127.144461	),
+                        new LatLng(37.009282	,127.144926	),
+                        new LatLng(37.009246	,127.144993	),
+                        new LatLng(37.004661	,127.151344	),
+                        new LatLng(36.997737	,127.154094	),
+                        new LatLng(36.997692	,127.154273	)
+                )
+                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .fillColor(colorArray[0]));
+        polygon.setClickable(true);
+        nameHashMap.put(polygon.hashCode(),name);
+        colorHashMap.put(polygon.hashCode(), colorArray[0]);
+        latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
+        iconFactory = new IconGenerator(this);
+
+        iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
+
+    }//평택시
+    public void drawPolygon35() { //안성시
+        name = "안성시";
+        colorArray = checkColor(name); // colorArray[0] 폴리곤 채우기색, colorArray[1] 아이콘색 배열
+        point = new LatLng(37.038319, 127.304098);
+        polygon = mMap.addPolygon(new PolygonOptions()
+                .add(
+                        new LatLng(37.081625	,127.516591	),
+                        new LatLng(37.078686	,127.512759	),
+                        new LatLng(37.076789	,127.514804	),
+                        new LatLng(37.072067	,127.512951	),
+                        new LatLng(37.069601	,127.506924	),
+                        new LatLng(37.064466	,127.50883	),
+                        new LatLng(37.057437	,127.498305	),
+                        new LatLng(37.054438	,127.486992	),
+                        new LatLng(37.053614	,127.481355	),
+                        new LatLng(37.053562	,127.48086	),
+                        new LatLng(37.053487	,127.468212	),
+                        new LatLng(37.05035 	,127.468384	),
+                        new LatLng(37.043634	,127.457585	),
+                        new LatLng(37.03813 	,127.459699	),
+                        new LatLng(37.029992	,127.457923	),
+                        new LatLng(37.029513	,127.458006	),
+                        new LatLng(37.025245	,127.459633	),
+                        new LatLng(37.025086	,127.459731	),
+                        new LatLng(37.020474	,127.458368	),
+                        new LatLng(37.020342	,127.457412	),
+                        new LatLng(37.021249	,127.453709	),
+                        new LatLng(37.01838 	,127.449737	),
+                        new LatLng(37.012396	,127.4476	),
+                        new LatLng(37.011965	,127.447149	),
+                        new LatLng(37.010868	,127.447088	),
+                        new LatLng(37.012106	,127.440835	),
+                        new LatLng(37.005598	,127.436539	),
+                        new LatLng(37.001244	,127.429571	),
+                        new LatLng(37.003959	,127.421239	),
+                        new LatLng(36.998545	,127.407953	),
+                        new LatLng(36.998529	,127.407369	),
+                        new LatLng(36.998375	,127.394213	),
+                        new LatLng(36.984186	,127.385031	),
+                        new LatLng(36.96852 	,127.400517	),
+                        new LatLng(36.967678	,127.401534	),
+                        new LatLng(36.964693	,127.397027	),
+                        new LatLng(36.96447 	,127.396318	),
+                        new LatLng(36.964463	,127.387268	),
+                        new LatLng(36.959624	,127.384818	),
+                        new LatLng(36.957895	,127.378723	),
+                        new LatLng(36.949137	,127.375649	),
+                        new LatLng(36.94866 	,127.375658	),
+                        new LatLng(36.950299	,127.367302	),
+                        new LatLng(36.947688	,127.357612	),
+                        new LatLng(36.952673	,127.353997	),
+                        new LatLng(36.952794	,127.349631	),
+                        new LatLng(36.948262	,127.343256	),
+                        new LatLng(36.943129	,127.34193	),
+                        new LatLng(36.938007	,127.330772	),
+                        new LatLng(36.937665	,127.330415	),
+                        new LatLng(36.934721	,127.316211	),
+                        new LatLng(36.931247	,127.314805	),
+                        new LatLng(36.929423	,127.305829	),
+                        new LatLng(36.92976 	,127.304226	),
+                        new LatLng(36.930667	,127.294969	),
+                        new LatLng(36.91639 	,127.303365	),
+                        new LatLng(36.894257	,127.289938	),
+                        new LatLng(36.894114	,127.289601	),
+                        new LatLng(36.893779	,127.287829	),
+                        new LatLng(36.893785	,127.287502	),
+                        new LatLng(36.894646	,127.285587	),
+                        new LatLng(36.895324	,127.284546	),
+                        new LatLng(36.896598	,127.283148	),
+                        new LatLng(36.897436	,127.283061	),
+                        new LatLng(36.897282	,127.283498	),
+                        new LatLng(36.897426	,127.283398	),
+                        new LatLng(36.897743	,127.283085	),
+                        new LatLng(36.897716	,127.283051	),
+                        new LatLng(36.90041 	,127.279157	),
+                        new LatLng(36.901985	,127.279813	),
+                        new LatLng(36.904816	,127.279117	),
+                        new LatLng(36.90625 	,127.278841	),
+                        new LatLng(36.906729	,127.277957	),
+                        new LatLng(36.907002	,127.27706	),
+                        new LatLng(36.907246	,127.276702	),
+                        new LatLng(36.908078	,127.275336	),
+                        new LatLng(36.910676	,127.273976	),
+                        new LatLng(36.911642	,127.273407	),
+                        new LatLng(36.912246	,127.273286	),
+                        new LatLng(36.913442	,127.274289	),
+                        new LatLng(36.913271	,127.270294	),
+                        new LatLng(36.913407	,127.270092	),
+                        new LatLng(36.913771	,127.268242	),
+                        new LatLng(36.9136  	,127.268275	),
+                        new LatLng(36.914434	,127.266011	),
+                        new LatLng(36.915229	,127.265037	),
+                        new LatLng(36.914805	,127.2614	),
+                        new LatLng(36.91543 	,127.25982	),
+                        new LatLng(36.916515	,127.257826	),
+                        new LatLng(36.917661	,127.257033	),
+                        new LatLng(36.918375	,127.256227	),
+                        new LatLng(36.919241	,127.255669	),
+                        new LatLng(36.920956	,127.254496	),
+                        new LatLng(36.922293	,127.252963	),
+                        new LatLng(36.921987	,127.252603	),
+                        new LatLng(36.921523	,127.250649	),
+                        new LatLng(36.921325	,127.250457	),
+                        new LatLng(36.921211	,127.248908	),
+                        new LatLng(36.919814	,127.249016	),
+                        new LatLng(36.918815	,127.24844	),
+                        new LatLng(36.918527	,127.248147	),
+                        new LatLng(36.918583	,127.247295	),
+                        new LatLng(36.918765	,127.246645	),
+                        new LatLng(36.918234	,127.246239	),
+                        new LatLng(36.917599	,127.244049	),
+                        new LatLng(36.918257	,127.243523	),
+                        new LatLng(36.918483	,127.243243	),
+                        new LatLng(36.91871 	,127.242537	),
+                        new LatLng(36.918774	,127.242234	),
+                        new LatLng(36.918855	,127.241909	),
+                        new LatLng(36.918901	,127.241696	),
+                        new LatLng(36.919119	,127.240799	),
+                        new LatLng(36.919229	,127.23998	),
+                        new LatLng(36.919464	,127.239408	),
+                        new LatLng(36.920558	,127.237661	),
+                        new LatLng(36.923498	,127.236424	),
+                        new LatLng(36.92376 	,127.236257	),
+                        new LatLng(36.923877	,127.236055	),
+                        new LatLng(36.924004	,127.235786	),
+                        new LatLng(36.92379 	,127.234753	),
+                        new LatLng(36.923754	,127.234607	),
+                        new LatLng(36.923646	,127.234472	),
+                        new LatLng(36.923601	,127.234214	),
+                        new LatLng(36.923647	,127.234146	),
+                        new LatLng(36.924127	,127.232599	),
+                        new LatLng(36.924398	,127.232207	),
+                        new LatLng(36.924651	,127.231972	),
+                        new LatLng(36.924678	,127.231882	),
+                        new LatLng(36.924661	,127.231669	),
+                        new LatLng(36.924724	,127.231433	),
+                        new LatLng(36.924359	,127.22939	),
+                        new LatLng(36.924458	,127.229087	),
+                        new LatLng(36.924812	,127.228089	),
+                        new LatLng(36.925173	,127.227821	),
+                        new LatLng(36.926573	,127.226063	),
+                        new LatLng(36.927033	,127.225705	),
+                        new LatLng(36.927159	,127.225638	),
+                        new LatLng(36.927223	,127.22547	),
+                        new LatLng(36.92734 	,127.225201	),
+                        new LatLng(36.928037	,127.223699	),
+                        new LatLng(36.928118	,127.223576	),
+                        new LatLng(36.928218	,127.223374	),
+                        new LatLng(36.928263	,127.223206	),
+                        new LatLng(36.928263	,127.223184	),
+                        new LatLng(36.928408	,127.222623	),
+                        new LatLng(36.928373	,127.222421	),
+                        new LatLng(36.928508	,127.222163	),
+                        new LatLng(36.928599	,127.221995	),
+                        new LatLng(36.92886 	,127.221782	),
+                        new LatLng(36.929339	,127.221447	),
+                        new LatLng(36.930169	,127.220877	),
+                        new LatLng(36.930386	,127.220451	),
+                        new LatLng(36.930449	,127.220328	),
+                        new LatLng(36.93045 	,127.219924	),
+                        new LatLng(36.930414	,127.219733	),
+                        new LatLng(36.929803	,127.218642	),
+                        new LatLng(36.930681	,127.216748	),
+                        new LatLng(36.93069 	,127.216736	),
+                        new LatLng(36.930547	,127.216029	),
+                        new LatLng(36.930117	,127.214805	),
+                        new LatLng(36.930189	,127.214558	),
+                        new LatLng(36.930245	,127.213649	),
+                        new LatLng(36.930147	,127.212896	),
+                        new LatLng(36.930166	,127.212302	),
+                        new LatLng(36.930167	,127.21201	),
+                        new LatLng(36.930221	,127.211864	),
+                        new LatLng(36.930131	,127.211651	),
+                        new LatLng(36.930167	,127.211606	),
+                        new LatLng(36.930348	,127.211236	),
+                        new LatLng(36.930375	,127.211157	),
+                        new LatLng(36.930556	,127.210765	),
+                        new LatLng(36.930593	,127.210686	),
+                        new LatLng(36.930575	,127.210608	),
+                        new LatLng(36.932081	,127.209849	),
+                        new LatLng(36.932234	,127.209804	),
+                        new LatLng(36.93273 	,127.209727	),
+                        new LatLng(36.933702	,127.210145	),
+                        new LatLng(36.934603	,127.210361	),
+                        new LatLng(36.935188	,127.210901	),
+                        new LatLng(36.93535 	,127.211126	),
+                        new LatLng(36.937376	,127.211558	),
+                        new LatLng(36.937809	,127.211559	),
+                        new LatLng(36.938882	,127.210788	),
+                        new LatLng(36.939181	,127.210149	),
+                        new LatLng(36.939461	,127.209622	),
+                        new LatLng(36.94031 	,127.208423	),
+                        new LatLng(36.940337	,127.208311	),
+                        new LatLng(36.940428	,127.208143	),
+                        new LatLng(36.941024	,127.207381	),
+                        new LatLng(36.941657	,127.206294	),
+                        new LatLng(36.942432	,127.205813	),
+                        new LatLng(36.943505	,127.205816	),
+                        new LatLng(36.943918	,127.20621	),
+                        new LatLng(36.945035	,127.206516	),
+                        new LatLng(36.947118	,127.205556	),
+                        new LatLng(36.947705	,127.204862	),
+                        new LatLng(36.949121	,127.204428	),
+                        new LatLng(36.950086	,127.204037	),
+                        new LatLng(36.950546	,127.203578	),
+                        new LatLng(36.951169	,127.202805	),
+                        new LatLng(36.951973	,127.201359	),
+                        new LatLng(36.952119	,127.200461	),
+                        new LatLng(36.952084	,127.200035	),
+                        new LatLng(36.952293	,127.198822	),
+                        new LatLng(36.952148	,127.193837	),
+                        new LatLng(36.952302	,127.193579	),
+                        new LatLng(36.95232 	,127.193288	),
+                        new LatLng(36.95223 	,127.193018	),
+                        new LatLng(36.952405	,127.191121	),
+                        new LatLng(36.953055	,127.189921	),
+                        new LatLng(36.953552	,127.189282	),
+                        new LatLng(36.954527	,127.188308	),
+                        new LatLng(36.955357	,127.187569	),
+                        new LatLng(36.955474	,127.187356	),
+                        new LatLng(36.955502	,127.187109	),
+                        new LatLng(36.955547	,127.186593	),
+                        new LatLng(36.95553 	,127.18648	),
+                        new LatLng(36.955297	,127.185615	),
+                        new LatLng(36.955207	,127.185514	),
+                        new LatLng(36.955081	,127.185356	),
+                        new LatLng(36.954991	,127.18512	),
+                        new LatLng(36.955172	,127.184907	),
+                        new LatLng(36.955325	,127.184739	),
+                        new LatLng(36.955397	,127.184627	),
+                        new LatLng(36.955569	,127.184414	),
+                        new LatLng(36.955704	,127.184201	),
+                        new LatLng(36.955813	,127.184033	),
+                        new LatLng(36.955858	,127.183753	),
+                        new LatLng(36.955822	,127.18373	),
+                        new LatLng(36.955822	,127.183607	),
+                        new LatLng(36.955814	,127.183528	),
+                        new LatLng(36.956131	,127.182125	),
+                        new LatLng(36.956276	,127.181845	),
+                        new LatLng(36.956276	,127.181834	),
+                        new LatLng(36.956357	,127.181688	),
+                        new LatLng(36.956547	,127.18134	),
+                        new LatLng(36.956619	,127.181329	),
+                        new LatLng(36.956565	,127.181284	),
+                        new LatLng(36.956502	,127.181283	),
+                        new LatLng(36.956538	,127.181138	),
+                        new LatLng(36.956529	,127.181036	),
+                        new LatLng(36.956529	,127.180992	),
+                        new LatLng(36.956638	,127.180801	),
+                        new LatLng(36.956674	,127.180711	),
+                        new LatLng(36.956656	,127.180722	),
+                        new LatLng(36.95666 	,127.1807	),
+                        new LatLng(36.956683	,127.180565	),
+                        new LatLng(36.957026	,127.180308	),
+                        new LatLng(36.95717 	,127.180162	),
+                        new LatLng(36.957216	,127.180028	),
+                        new LatLng(36.957261	,127.179837	),
+                        new LatLng(36.957288	,127.179657	),
+                        new LatLng(36.957676	,127.179164	),
+                        new LatLng(36.957812	,127.179075	),
+                        new LatLng(36.9581  	,127.179132	),
+                        new LatLng(36.958145	,127.179109	),
+                        new LatLng(36.958217	,127.179132	),
+                        new LatLng(36.958361	,127.179132	),
+                        new LatLng(36.958641	,127.179054	),
+                        new LatLng(36.958668	,127.179077	),
+                        new LatLng(36.958633	,127.179121	),
+                        new LatLng(36.958704	,127.179099	),
+                        new LatLng(36.958803	,127.179077	),
+                        new LatLng(36.9591  	,127.179044	),
+                        new LatLng(36.959434	,127.179011	),
+                        new LatLng(36.959515	,127.178989	),
+                        new LatLng(36.95983 	,127.178956	),
+                        new LatLng(36.9601  	,127.179024	),
+                        new LatLng(36.960389	,127.179047	),
+                        new LatLng(36.960488	,127.179002	),
+                        new LatLng(36.961372	,127.178589	),
+                        new LatLng(36.961498	,127.178544	),
+                        new LatLng(36.961696	,127.17841	),
+                        new LatLng(36.961768	,127.178388	),
+                        new LatLng(36.961931	,127.178343	),
+                        new LatLng(36.962183	,127.178276	),
+                        new LatLng(36.962327	,127.178254	),
+                        new LatLng(36.962399	,127.178243	),
+                        new LatLng(36.962517	,127.178198	),
+                        new LatLng(36.96258 	,127.17803	),
+                        new LatLng(36.962553	,127.177918	),
+                        new LatLng(36.962508	,127.177772	),
+                        new LatLng(36.962652	,127.177783	),
+                        new LatLng(36.962617	,127.177581	),
+                        new LatLng(36.962491	,127.177345	),
+                        new LatLng(36.96232 	,127.176929	),
+                        new LatLng(36.962275	,127.176794	),
+                        new LatLng(36.96223 	,127.176727	),
+                        new LatLng(36.962213	,127.176671	),
+                        new LatLng(36.962303	,127.176615	),
+                        new LatLng(36.962348	,127.176592	),
+                        new LatLng(36.962321	,127.176525	),
+                        new LatLng(36.962276	,127.176334	),
+                        new LatLng(36.962294	,127.176154	),
+                        new LatLng(36.962276	,127.176076	),
+                        new LatLng(36.962305	,127.175211	),
+                        new LatLng(36.962359	,127.17511	),
+                        new LatLng(36.962377	,127.175009	),
+                        new LatLng(36.962386	,127.174987	),
+                        new LatLng(36.962395	,127.174953	),
+                        new LatLng(36.962432	,127.174527	),
+                        new LatLng(36.962468	,127.17437	),
+                        new LatLng(36.962504	,127.174269	),
+                        new LatLng(36.962577	,127.17401	),
+                        new LatLng(36.962821	,127.173326	),
+                        new LatLng(36.962903	,127.173046	),
+                        new LatLng(36.96302 	,127.172754	),
+                        new LatLng(36.963192	,127.17244	),
+                        new LatLng(36.963246	,127.172316	),
+                        new LatLng(36.963246	,127.172216	),
+                        new LatLng(36.963228	,127.172159	),
+                        new LatLng(36.963192	,127.172148	),
+                        new LatLng(36.963165	,127.172125	),
+                        new LatLng(36.963192	,127.172013	),
+                        new LatLng(36.963256	,127.171912	),
+                        new LatLng(36.963193	,127.171531	),
+                        new LatLng(36.963166	,127.171351	),
+                        new LatLng(36.963131	,127.171126	),
+                        new LatLng(36.962987	,127.170811	),
+                        new LatLng(36.96296 	,127.170699	),
+                        new LatLng(36.962924	,127.170575	),
+                        new LatLng(36.962763	,127.170205	),
+                        new LatLng(36.962736	,127.170182	),
+                        new LatLng(36.962583	,127.169632	),
+                        new LatLng(36.962574	,127.16962	),
+                        new LatLng(36.962529	,127.169654	),
+                        new LatLng(36.962511	,127.169496	),
+                        new LatLng(36.962638	,127.169193	),
+                        new LatLng(36.962584	,127.168812	),
+                        new LatLng(36.962378	,127.168238	),
+                        new LatLng(36.962387	,127.167936	),
+                        new LatLng(36.962378	,127.167857	),
+                        new LatLng(36.96236 	,127.167767	),
+                        new LatLng(36.962217	,127.167441	),
+                        new LatLng(36.962199	,127.167385	),
+                        new LatLng(36.96219 	,127.167182	),
+                        new LatLng(36.96219 	,127.16707	),
+                        new LatLng(36.962119	,127.166711	),
+                        new LatLng(36.962128	,127.166475	),
+                        new LatLng(36.962173	,127.166194	),
+                        new LatLng(36.961994	,127.165599	),
+                        new LatLng(36.961877	,127.165576	),
+                        new LatLng(36.961697	,127.165351	),
+                        new LatLng(36.961887	,127.164936	),
+                        new LatLng(36.962148	,127.164735	),
+                        new LatLng(36.962456	,127.163927	),
+                        new LatLng(36.962655	,127.163557	),
+                        new LatLng(36.962853	,127.163389	),
+                        new LatLng(36.962979	,127.163378	),
+                        new LatLng(36.96307 	,127.163176	),
+                        new LatLng(36.963503	,127.162391	),
+                        new LatLng(36.963548	,127.162368	),
+                        new LatLng(36.964335	,127.160708	),
+                        new LatLng(36.964425	,127.160394	),
+                        new LatLng(36.964425	,127.160248	),
+                        new LatLng(36.96448	    ,127.159922	),
+                        new LatLng(36.96439 	,127.159293	),
+                        new LatLng(36.964364	,127.159046	),
+                        new LatLng(36.964265	,127.159001	),
+                        new LatLng(36.963949	,127.158922	),
+                        new LatLng(36.964104	,127.157833	),
+                        new LatLng(36.964167	,127.157642	),
+                        new LatLng(36.964287	,127.155981	),
+                        new LatLng(36.964296	,127.155868	),
+                        new LatLng(36.964296	,127.155823	),
+                        new LatLng(36.964368	,127.15561	),
+                        new LatLng(36.964459	,127.155363	),
+                        new LatLng(36.964621	,127.155274	),
+                        new LatLng(36.964702	,127.155263	),
+                        new LatLng(36.964918	,127.155308	),
+                        new LatLng(36.965125	,127.155421	),
+                        new LatLng(36.965152	,127.155421	),
+                        new LatLng(36.965252	,127.155106	),
+                        new LatLng(36.965405	,127.154882	),
+                        new LatLng(36.965586	,127.154714	),
+                        new LatLng(36.965631	,127.154602	),
+                        new LatLng(36.965829	,127.154479	),
+                        new LatLng(36.965974	,127.154434	),
+                        new LatLng(36.966037	,127.154401	),
+                        new LatLng(36.966154	,127.154412	),
+                        new LatLng(36.966226	,127.154424	),
+                        new LatLng(36.966109	,127.15467	),
+                        new LatLng(36.965919	,127.154973	),
+                        new LatLng(36.965901	,127.155007	),
+                        new LatLng(36.965874	,127.155063	),
+                        new LatLng(36.965838	,127.155175	),
+                        new LatLng(36.965756	,127.155332	),
+                        new LatLng(36.965711	,127.155545	),
+                        new LatLng(36.965747	,127.155557	),
+                        new LatLng(36.965747	,127.155512	),
+                        new LatLng(36.965963	,127.1554	),
+                        new LatLng(36.966063	,127.155288	),
+                        new LatLng(36.966153	,127.155198	),
+                        new LatLng(36.966333	,127.155311	),
+                        new LatLng(36.96636 	,127.155345	),
+                        new LatLng(36.966297	,127.155479	),
+                        new LatLng(36.966261	,127.155524	),
+                        new LatLng(36.966224	,127.155681	),
+                        new LatLng(36.966693	,127.155413	),
+                        new LatLng(36.966873	,127.155548	),
+                        new LatLng(36.966476	,127.156142	),
+                        new LatLng(36.966314	,127.156389	),
+                        new LatLng(36.966331	,127.156973	),
+                        new LatLng(36.96643 	,127.156906	),
+                        new LatLng(36.966439	,127.157063	),
+                        new LatLng(36.966511	,127.157299	),
+                        new LatLng(36.96652 	,127.157366	),
+                        new LatLng(36.966591	,127.157535	),
+                        new LatLng(36.966636	,127.157681	),
+                        new LatLng(36.966735	,127.157838	),
+                        new LatLng(36.966969	,127.157951	),
+                        new LatLng(36.967059	,127.157963	),
+                        new LatLng(36.967059	,127.158007	),
+                        new LatLng(36.968267	,127.158021	),
+                        new LatLng(36.968942	,127.158202	),
+                        new LatLng(36.969455	,127.158821	),
+                        new LatLng(36.969835	,127.157991	),
+                        new LatLng(36.969944	,127.157216	),
+                        new LatLng(36.969954	,127.15661	),
+                        new LatLng(36.970035	,127.156127	),
+                        new LatLng(36.970352	,127.15542	),
+                        new LatLng(36.970433	,127.155151	),
+                        new LatLng(36.97047 	,127.154847	),
+                        new LatLng(36.970452	,127.154612	),
+                        new LatLng(36.970227	,127.154151	),
+                        new LatLng(36.970074	,127.153847	),
+                        new LatLng(36.969835	,127.153544	),
+                        new LatLng(36.969562	,127.153038	),
+                        new LatLng(36.969418	,127.152543	),
+                        new LatLng(36.969364	,127.152363	),
+                        new LatLng(36.96943 	,127.150084	),
+                        new LatLng(36.969548	,127.149725	),
+                        new LatLng(36.969549	,127.149264	),
+                        new LatLng(36.969603	,127.148714	),
+                        new LatLng(36.969766	,127.1484	),
+                        new LatLng(36.969883	,127.148232	),
+                        new LatLng(36.97037 	,127.147817	),
+                        new LatLng(36.970876	,127.147212	),
+                        new LatLng(36.971011	,127.146763	),
+                        new LatLng(36.971048	,127.146448	),
+                        new LatLng(36.971031	,127.145663	),
+                        new LatLng(36.971113	,127.144854	),
+                        new LatLng(36.971131	,127.144674	),
+                        new LatLng(36.971141	,127.144259	),
+                        new LatLng(36.971069	,127.143753	),
+                        new LatLng(36.970755	,127.142978	),
+                        new LatLng(36.970512	,127.142461	),
+                        new LatLng(36.970126	,127.141472	),
+                        new LatLng(36.970009	,127.141157	),
+                        new LatLng(36.969569	,127.140168	),
+                        new LatLng(36.969011	,127.138831	),
+                        new LatLng(36.968679	,127.137876	),
+                        new LatLng(36.968572	,127.137269	),
+                        new LatLng(36.96841 	,127.136898	),
+                        new LatLng(36.968212	,127.136415	),
+                        new LatLng(36.967771	,127.135774	),
+                        new LatLng(36.967456	,127.13565	),
+                        new LatLng(36.967159	,127.135728	),
+                        new LatLng(36.967005	,127.13584	),
+                        new LatLng(36.966798	,127.136076	),
+                        new LatLng(36.966771	,127.136109	),
+                        new LatLng(36.966554	,127.136468	),
+                        new LatLng(36.965662	,127.136781	),
+                        new LatLng(36.965572	,127.136298	),
+                        new LatLng(36.966313	,127.134357	),
+                        new LatLng(36.966837	,127.133313	),
+                        new LatLng(36.966991	,127.132336	),
+                        new LatLng(36.966902	,127.131494	),
+                        new LatLng(36.966786	,127.130955	),
+                        new LatLng(36.96666 	,127.130573	),
+                        new LatLng(36.966418	,127.129663	),
+                        new LatLng(36.966472	,127.129214	),
+                        new LatLng(36.966635	,127.128776	),
+                        new LatLng(36.966806	,127.128395	),
+                        new LatLng(36.967095	,127.1278	),
+                        new LatLng(36.967195	,127.127609	),
+                        new LatLng(36.967403	,127.126756	),
+                        new LatLng(36.967566	,127.12615	),
+                        new LatLng(36.967674	,127.125499	),
+                        new LatLng(36.96836 	,127.124321	),
+                        new LatLng(36.96846 	,127.123512	),
+                        new LatLng(36.968416	,127.122726	),
+                        new LatLng(36.968228	,127.121951	),
+                        new LatLng(36.968228	,127.121626	),
+                        new LatLng(36.968273	,127.121356	),
+                        new LatLng(36.96877 	,127.120863	),
+                        new LatLng(36.96959 	,127.120718	),
+                        new LatLng(36.970347	,127.120214	),
+                        new LatLng(36.971364	,127.121676	),
+                        new LatLng(36.971547	,127.121925	),
+                        new LatLng(36.971576	,127.121949	),
+                        new LatLng(36.97684 	,127.124245	),
+                        new LatLng(36.976838	,127.125637	),
+                        new LatLng(36.976856	,127.133948	),
+                        new LatLng(36.980115	,127.136447	),
+                        new LatLng(36.979002	,127.14114	),
+                        new LatLng(36.984756	,127.136411	),
+                        new LatLng(36.986664	,127.130629	),
+                        new LatLng(36.993281	,127.135662	),
+                        new LatLng(36.993595	,127.136707	),
+                        new LatLng(36.997181	,127.144566	),
+                        new LatLng(36.997692	,127.154273	),
+                        new LatLng(36.997737	,127.154094	),
+                        new LatLng(37.004661	,127.151344	),
+                        new LatLng(37.009246	,127.144993	),
+                        new LatLng(37.009282	,127.144926	),
+                        new LatLng(37.013327	,127.144461	),
+                        new LatLng(37.013464	,127.144484	),
+                        new LatLng(37.01686 	,127.145288	),
+                        new LatLng(37.021393	,127.152332	),
+                        new LatLng(37.026113	,127.15297	),
+                        new LatLng(37.031597	,127.14495	),
+                        new LatLng(37.031584	,127.144889	),
+                        new LatLng(37.035141	,127.122214	),
+                        new LatLng(37.027038	,127.116178	),
+                        new LatLng(37.027335	,127.116099	),
+                        new LatLng(37.026816	,127.112604	),
+                        new LatLng(37.035364	,127.105558	),
+                        new LatLng(37.03568 	,127.105592	),
+                        new LatLng(37.053031	,127.12756	),
+                        new LatLng(37.058759	,127.130257	),
+                        new LatLng(37.06472 	,127.124982	),
+                        new LatLng(37.062041	,127.11894	),
+                        new LatLng(37.067462	,127.103024	),
+                        new LatLng(37.067787	,127.102903	),
+                        new LatLng(37.07531 	,127.103442	),
+                        new LatLng(37.075887	,127.103622	),
+                        new LatLng(37.077975	,127.124756	),
+                        new LatLng(37.081713	,127.126371	),
+                        new LatLng(37.090312	,127.12373	),
+                        new LatLng(37.090943	,127.123495	),
+                        new LatLng(37.091014	,127.123517	),
+                        new LatLng(37.091015	,127.123528	),
+                        new LatLng(37.091033	,127.12353	),
+                        new LatLng(37.091236	,127.123484	),
+                        new LatLng(37.091   	,127.124329	),
+                        new LatLng(37.091012	,127.124396	),
+                        new LatLng(37.091021	,127.124418	),
+                        new LatLng(37.091027	,127.12447	),
+                        new LatLng(37.090796	,127.124946	),
+                        new LatLng(37.090706	,127.12598	),
+                        new LatLng(37.090667	,127.126339	),
+                        new LatLng(37.091443	,127.128017	),
+                        new LatLng(37.091613	,127.128563	),
+                        new LatLng(37.091667	,127.128642	),
+                        new LatLng(37.091693	,127.129536	),
+                        new LatLng(37.09117 	,127.130188	),
+                        new LatLng(37.091209	,127.130378	),
+                        new LatLng(37.09125 	,127.130559	),
+                        new LatLng(37.091358	,127.132128	),
+                        new LatLng(37.091609	,127.132528	),
+                        new LatLng(37.091753	,127.132922	),
+                        new LatLng(37.092147	,127.133409	),
+                        new LatLng(37.092148	,127.133418	),
+                        new LatLng(37.091849	,127.13543	),
+                        new LatLng(37.091847	,127.13544	),
+                        new LatLng(37.091416	,127.135891	),
+                        new LatLng(37.091344	,127.135896	),
+                        new LatLng(37.090967	,127.135894	),
+                        new LatLng(37.089811	,127.136921	),
+                        new LatLng(37.089553	,127.136896	),
+                        new LatLng(37.089096	,127.137193	),
+                        new LatLng(37.08875 	,127.138917	),
+                        new LatLng(37.088454	,127.139652	),
+                        new LatLng(37.088448	,127.139686	),
+                        new LatLng(37.088478	,127.14003	),
+                        new LatLng(37.087892	,127.140918	),
+                        new LatLng(37.08774 	,127.142371	),
+                        new LatLng(37.087755	,127.142412	),
+                        new LatLng(37.0883  	,127.142888	),
+                        new LatLng(37.088548	,127.143036	),
+                        new LatLng(37.08915 	,127.143082	),
+                        new LatLng(37.089474	,127.143597	),
+                        new LatLng(37.089807	,127.144104	),
+                        new LatLng(37.090407	,127.144402	),
+                        new LatLng(37.090908	,127.144778	),
+                        new LatLng(37.090789	,127.146029	),
+                        new LatLng(37.090737	,127.14662	),
+                        new LatLng(37.09069 	,127.146799	),
+                        new LatLng(37.09076 	,127.147082	),
+                        new LatLng(37.090787	,127.147273	),
+                        new LatLng(37.091041	,127.14815	),
+                        new LatLng(37.091165	,127.148826	),
+                        new LatLng(37.091164	,127.148847	),
+                        new LatLng(37.091081	,127.149294	),
+                        new LatLng(37.090886	,127.149612	),
+                        new LatLng(37.090722	,127.150793	),
+                        new LatLng(37.090752	,127.151153	),
+                        new LatLng(37.091399	,127.154123	),
+                        new LatLng(37.091266	,127.154426	),
+                        new LatLng(37.090821	,127.154623	),
+                        new LatLng(37.090446	,127.155088	),
+                        new LatLng(37.090257	,127.155426	),
+                        new LatLng(37.090171	,127.155797	),
+                        new LatLng(37.090229	,127.156438	),
+                        new LatLng(37.090165	,127.156899	),
+                        new LatLng(37.090129	,127.157462	),
+                        new LatLng(37.090127	,127.157484	),
+                        new LatLng(37.089807	,127.158501	),
+                        new LatLng(37.089414	,127.159181	),
+                        new LatLng(37.089533	,127.161003	),
+                        new LatLng(37.088879	,127.16196	),
+                        new LatLng(37.088717	,127.162094	),
+                        new LatLng(37.088709	,127.162105	),
+                        new LatLng(37.088451	,127.162516	),
+                        new LatLng(37.088301	,127.162672	),
+                        new LatLng(37.088148	,127.162698	),
+                        new LatLng(37.087968	,127.162766	),
+                        new LatLng(37.087382	,127.163518	),
+                        new LatLng(37.087443	,127.164137	),
+                        new LatLng(37.087389	,127.164463	),
+                        new LatLng(37.087134	,127.164798	),
+                        new LatLng(37.086659	,127.165554	),
+                        new LatLng(37.086646	,127.165571	),
+                        new LatLng(37.086287	,127.166097	),
+                        new LatLng(37.086278	,127.166322	),
+                        new LatLng(37.086576	,127.166685	),
+                        new LatLng(37.086428	,127.167318	),
+                        new LatLng(37.086411	,127.168004	),
+                        new LatLng(37.086204	,127.168833	),
+                        new LatLng(37.086257	,127.168891	),
+                        new LatLng(37.086327	,127.169039	),
+                        new LatLng(37.08639 	,127.169196	),
+                        new LatLng(37.086498	,127.16968	),
+                        new LatLng(37.086006	,127.170722	),
+                        new LatLng(37.08597 	,127.17114	),
+                        new LatLng(37.085948	,127.171432	),
+                        new LatLng(37.086022	,127.171636	),
+                        new LatLng(37.086024	,127.171905	),
+                        new LatLng(37.085905	,127.172525	),
+                        new LatLng(37.085908	,127.172535	),
+                        new LatLng(37.085917	,127.173255	),
+                        new LatLng(37.085969	,127.173514	),
+                        new LatLng(37.086571	,127.173945	),
+                        new LatLng(37.086622	,127.174098	),
+                        new LatLng(37.086726	,127.17428	),
+                        new LatLng(37.086942	,127.174742	),
+                        new LatLng(37.086941	,127.174899	),
+                        new LatLng(37.086946	,127.174989	),
+                        new LatLng(37.086925	,127.175091	),
+                        new LatLng(37.086923	,127.17518	),
+                        new LatLng(37.087004	,127.175248	),
+                        new LatLng(37.087274	,127.17535	),
+                        new LatLng(37.087472	,127.175643	),
+                        new LatLng(37.087476	,127.175789	),
+                        new LatLng(37.087526	,127.175913	),
+                        new LatLng(37.087516	,127.176127	),
+                        new LatLng(37.087714	,127.17633	),
+                        new LatLng(37.087651	,127.176655	),
+                        new LatLng(37.087533	,127.176824	),
+                        new LatLng(37.087507	,127.17697	),
+                        new LatLng(37.087434	,127.17715	),
+                        new LatLng(37.087315	,127.177215	),
+                        new LatLng(37.087149	,127.177509	),
+                        new LatLng(37.087197	,127.177645	),
+                        new LatLng(37.087217	,127.177824	),
+                        new LatLng(37.086984	,127.178826	),
+                        new LatLng(37.086907	,127.179148	),
+                        new LatLng(37.086786	,127.179252	),
+                        new LatLng(37.086331	,127.179488	),
+                        new LatLng(37.086312	,127.179542	),
+                        new LatLng(37.086401	,127.180465	),
+                        new LatLng(37.086243	,127.181061	),
+                        new LatLng(37.086213	,127.181192	),
+                        new LatLng(37.086277	,127.181317	),
+                        new LatLng(37.086275	,127.181675	),
+                        new LatLng(37.085861	,127.18327	),
+                        new LatLng(37.084764	,127.184589	),
+                        new LatLng(37.084021	,127.185149	),
+                        new LatLng(37.083849	,127.185518	),
+                        new LatLng(37.083637	,127.185947	),
+                        new LatLng(37.084204	,127.18587	),
+                        new LatLng(37.084583	,127.18647	),
+                        new LatLng(37.085651	,127.187908	),
+                        new LatLng(37.086002	,127.188109	),
+                        new LatLng(37.086894	,127.188351	),
+                        new LatLng(37.087547	,127.191243	),
+                        new LatLng(37.088002	,127.19284	),
+                        new LatLng(37.088328	,127.193399	),
+                        new LatLng(37.089095	,127.194729	),
+                        new LatLng(37.090104	,127.19504	),
+                        new LatLng(37.091282	,127.195955	),
+                        new LatLng(37.091386	,127.196387	),
+                        new LatLng(37.091695	,127.196467	),
+                        new LatLng(37.093101	,127.197438	),
+                        new LatLng(37.093444	,127.197197	),
+                        new LatLng(37.097612	,127.199373	),
+                        new LatLng(37.098377	,127.200016	),
+                        new LatLng(37.098544	,127.200042	),
+                        new LatLng(37.099172	,127.200854	),
+                        new LatLng(37.099186	,127.200946	),
+                        new LatLng(37.10064 	,127.202262	),
+                        new LatLng(37.100865	,127.202295	),
+                        new LatLng(37.102412	,127.203593	),
+                        new LatLng(37.102276	,127.204352	),
+                        new LatLng(37.102538	,127.205399	),
+                        new LatLng(37.102914	,127.206084	),
+                        new LatLng(37.103447	,127.207246	),
+                        new LatLng(37.104156	,127.208096	),
+                        new LatLng(37.104368	,127.20834	),
+                        new LatLng(37.105844	,127.20948	),
+                        new LatLng(37.106087	,127.209537	),
+                        new LatLng(37.106664	,127.209471	),
+                        new LatLng(37.106799	,127.209494	),
+                        new LatLng(37.107745	,127.209834	),
+                        new LatLng(37.107952	,127.209688	),
+                        new LatLng(37.108015	,127.209531	),
+                        new LatLng(37.108151	,127.209531	),
+                        new LatLng(37.108151	,127.209542	),
+                        new LatLng(37.108286	,127.209543	),
+                        new LatLng(37.108538	,127.20951	),
+                        new LatLng(37.108754	,127.209567	),
+                        new LatLng(37.109196	,127.209275	),
+                        new LatLng(37.10954 	,127.208714	),
+                        new LatLng(37.110783	,127.20856	),
+                        new LatLng(37.111   	,127.208358	),
+                        new LatLng(37.111063	,127.208324	),
+                        new LatLng(37.111439	,127.209743	),
+                        new LatLng(37.111483	,127.210193	),
+                        new LatLng(37.111598	,127.211656	),
+                        new LatLng(37.111903	,127.212332	),
+                        new LatLng(37.111957	,127.21249	),
+                        new LatLng(37.111821	,127.213119	),
+                        new LatLng(37.111387	,127.213658	),
+                        new LatLng(37.1109  	,127.21405	),
+                        new LatLng(37.110881	,127.214286	),
+                        new LatLng(37.111196	,127.214985	),
+                        new LatLng(37.111636	,127.215515	),
+                        new LatLng(37.112291	,127.217216	),
+                        new LatLng(37.112479	,127.217801	),
+                        new LatLng(37.112667	,127.218432	),
+                        new LatLng(37.112855	,127.218939	),
+                        new LatLng(37.113368	,127.219615	),
+                        new LatLng(37.113556	,127.220111	),
+                        new LatLng(37.113404	,127.224037	),
+                        new LatLng(37.113521	,127.224488	),
+                        new LatLng(37.113726	,127.225546	),
+                        new LatLng(37.113995	,127.225985	),
+                        new LatLng(37.114328	,127.226301	),
+                        new LatLng(37.115327	,127.227069	),
+                        new LatLng(37.115784	,127.228196	),
+                        new LatLng(37.115991	,127.228433	),
+                        new LatLng(37.11672 	,127.228761	),
+                        new LatLng(37.117347	,127.231148	),
+                        new LatLng(37.117301	,127.231463	),
+                        new LatLng(37.117309	,127.231914	),
+                        new LatLng(37.117594	,127.233703	),
+                        new LatLng(37.119214	,127.2348	),
+                        new LatLng(37.119268	,127.234856	),
+                        new LatLng(37.121195	,127.235256	),
+                        new LatLng(37.12205 	,127.240243	),
+                        new LatLng(37.122139	,127.240604	),
+                        new LatLng(37.122001	,127.242043	),
+                        new LatLng(37.122046	,127.242156	),
+                        new LatLng(37.12228 	,127.242607	),
+                        new LatLng(37.122621	,127.24325	),
+                        new LatLng(37.122102	,127.245903	),
+                        new LatLng(37.122381	,127.246129	),
+                        new LatLng(37.122567	,127.247413	),
+                        new LatLng(37.122926	,127.247988	),
+                        new LatLng(37.122664	,127.248527	),
+                        new LatLng(37.12261 	,127.24864	),
+                        new LatLng(37.125028	,127.251393	),
+                        new LatLng(37.125965	,127.251475	),
+                        new LatLng(37.127072	,127.251906	),
+                        new LatLng(37.128728	,127.252834	),
+                        new LatLng(37.129323	,127.252881	),
+                        new LatLng(37.131757	,127.252169	),
+                        new LatLng(37.133092	,127.251228	),
+                        new LatLng(37.133679	,127.250836	),
+                        new LatLng(37.134148	,127.250489	),
+                        new LatLng(37.135901	,127.252374	),
+                        new LatLng(37.138494	,127.253328	),
+                        new LatLng(37.139702	,127.253377	),
+                        new LatLng(37.140784	,127.253032	),
+                        new LatLng(37.141389	,127.25246	),
+                        new LatLng(37.14147 	,127.25237	),
+                        new LatLng(37.142472	,127.25154	),
+                        new LatLng(37.144411	,127.250759	),
+                        new LatLng(37.144978	,127.250851	),
+                        new LatLng(37.14604 	,127.251428	),
+                        new LatLng(37.146318	,127.252251	),
+                        new LatLng(37.14682 	,127.253142	),
+                        new LatLng(37.147107	,127.253807	),
+                        new LatLng(37.147378	,127.253819	),
+                        new LatLng(37.149889	,127.254908	),
+                        new LatLng(37.151767	,127.257368	),
+                        new LatLng(37.151776	,127.257515	),
+                        new LatLng(37.151676	,127.258054	),
+                        new LatLng(37.15181 	,127.258573	),
+                        new LatLng(37.151809	,127.259045	),
+                        new LatLng(37.151862	,127.259215	),
+                        new LatLng(37.151959	,127.260093	),
+                        new LatLng(37.153542	,127.261427	),
+                        new LatLng(37.154387	,127.262465	),
+                        new LatLng(37.154746	,127.263198	),
+                        new LatLng(37.155315	,127.266622	),
+                        new LatLng(37.154827	,127.267409	),
+                        new LatLng(37.154555	,127.268207	),
+                        new LatLng(37.15431 	,127.268848	),
+                        new LatLng(37.152976	,127.268978	),
+                        new LatLng(37.151614	,127.269367	),
+                        new LatLng(37.150499	,127.268587	),
+                        new LatLng(37.149356	,127.267907	),
+                        new LatLng(37.146749	,127.269485	),
+                        new LatLng(37.145285	,127.271101	),
+                        new LatLng(37.144643	,127.272348	),
+                        new LatLng(37.142605	,127.27269	),
+                        new LatLng(37.141597	,127.272281	),
+                        new LatLng(37.140985	,127.27184	),
+                        new LatLng(37.138299	,127.272258	),
+                        new LatLng(37.136164	,127.272385	),
+                        new LatLng(37.13537 	,127.272878	),
+                        new LatLng(37.133659	,127.27425	),
+                        new LatLng(37.133748	,127.27469	),
+                        new LatLng(37.134062	,127.277059	),
+                        new LatLng(37.134304	,127.277725	),
+                        new LatLng(37.131602	,127.284844	),
+                        new LatLng(37.131917	,127.285256	),
+                        new LatLng(37.132349	,127.286996	),
+                        new LatLng(37.131712	,127.287967	),
+                        new LatLng(37.130994	,127.288072	),
+                        new LatLng(37.129647	,127.288629	),
+                        new LatLng(37.129215	,127.288773	),
+                        new LatLng(37.12859 	,127.289042	),
+                        new LatLng(37.128492	,127.289092	),
+                        new LatLng(37.127612	,127.289769	),
+                        new LatLng(37.12773 	,127.291306	),
+                        new LatLng(37.127038	,127.292445	),
+                        new LatLng(37.125731	,127.292626	),
+                        new LatLng(37.125284	,127.292928	),
+                        new LatLng(37.124284	,127.292927	),
+                        new LatLng(37.121604	,127.294467	),
+                        new LatLng(37.121012	,127.295421	),
+                        new LatLng(37.12078 	,127.296	),
+                        new LatLng(37.120874	,127.296517	),
+                        new LatLng(37.120507	,127.29709	),
+                        new LatLng(37.118912	,127.297489	),
+                        new LatLng(37.118353	,127.297571	),
+                        new LatLng(37.117636	,127.297495	),
+                        new LatLng(37.117203	,127.29796	),
+                        new LatLng(37.116877	,127.298719	),
+                        new LatLng(37.116146	,127.299149	),
+                        new LatLng(37.114031	,127.299776	),
+                        new LatLng(37.113363	,127.299586	),
+                        new LatLng(37.112333	,127.299539	),
+                        new LatLng(37.111766	,127.299413	),
+                        new LatLng(37.111413	,127.299991	),
+                        new LatLng(37.111482	,127.301009	),
+                        new LatLng(37.111296	,127.301633	),
+                        new LatLng(37.111318	,127.302021	),
+                        new LatLng(37.111221	,127.302803	),
+                        new LatLng(37.110727	,127.303462	),
+                        new LatLng(37.109876	,127.303923	),
+                        new LatLng(37.107824	,127.304702	),
+                        new LatLng(37.10707 	,127.305453	),
+                        new LatLng(37.106252	,127.307282	),
+                        new LatLng(37.105748	,127.307844	),
+                        new LatLng(37.105521	,127.308394	),
+                        new LatLng(37.105734	,127.309649	),
+                        new LatLng(37.105634	,127.30997	),
+                        new LatLng(37.105606	,127.310245	),
+                        new LatLng(37.105551	,127.310334	),
+                        new LatLng(37.105524	,127.310367	),
+                        new LatLng(37.105489	,127.310391	),
+                        new LatLng(37.105471	,127.310368	),
+                        new LatLng(37.10539 	,127.310413	),
+                        new LatLng(37.105308	,127.310592	),
+                        new LatLng(37.105318	,127.310603	),
+                        new LatLng(37.105954	,127.311139	),
+                        new LatLng(37.106515	,127.311584	),
+                        new LatLng(37.107502	,127.312244	),
+                        new LatLng(37.108187	,127.312547	),
+                        new LatLng(37.108672	,127.312761	),
+                        new LatLng(37.108845	,127.313161	),
+                        new LatLng(37.108823	,127.313616	),
+                        new LatLng(37.108752	,127.315146	),
+                        new LatLng(37.108697	,127.315377	),
+                        new LatLng(37.10871 	,127.315776	),
+                        new LatLng(37.110172	,127.316429	),
+                        new LatLng(37.110876	,127.317855	),
+                        new LatLng(37.111842	,127.318613	),
+                        new LatLng(37.113231	,127.31998	),
+                        new LatLng(37.114549	,127.320548	),
+                        new LatLng(37.115911	,127.321938	),
+                        new LatLng(37.116168	,127.32321	),
+                        new LatLng(37.11687 	,127.323668	),
+                        new LatLng(37.117755	,127.324545	),
+                        new LatLng(37.118145	,127.325143	),
+                        new LatLng(37.118603	,127.325769	),
+                        new LatLng(37.119657	,127.327072	),
+                        new LatLng(37.119374	,127.327524	),
+                        new LatLng(37.119294	,127.328896	),
+                        new LatLng(37.118561	,127.33008	),
+                        new LatLng(37.11695 	,127.330838	),
+                        new LatLng(37.116289	,127.331121	),
+                        new LatLng(37.11599 	,127.331003	),
+                        new LatLng(37.114865	,127.332219	),
+                        new LatLng(37.112642	,127.332918	),
+                        new LatLng(37.111839	,127.33476	),
+                        new LatLng(37.111644	,127.335288	),
+                        new LatLng(37.11142 	,127.336367	),
+                        new LatLng(37.110284	,127.338145	),
+                        new LatLng(37.109951	,127.339809	),
+                        new LatLng(37.109577	,127.339717	),
+                        new LatLng(37.108679	,127.340118	),
+                        new LatLng(37.103765	,127.34441	),
+                        new LatLng(37.103318	,127.344774	),
+                        new LatLng(37.102969	,127.348518	),
+                        new LatLng(37.102689	,127.34886	),
+                        new LatLng(37.101793	,127.350279	),
+                        new LatLng(37.101041	,127.351716	),
+                        new LatLng(37.100754	,127.354262	),
+                        new LatLng(37.101547	,127.354479	),
+                        new LatLng(37.102406	,127.354855	),
+                        new LatLng(37.104004	,127.355076	),
+                        new LatLng(37.104202	,127.355347	),
+                        new LatLng(37.104408	,127.35559	),
+                        new LatLng(37.105173	,127.356342	),
+                        new LatLng(37.106577	,127.357895	),
+                        new LatLng(37.107436	,127.35863	),
+                        new LatLng(37.107592	,127.359059	),
+                        new LatLng(37.107487	,127.35948	),
+                        new LatLng(37.107422	,127.360306	),
+                        new LatLng(37.107547	,127.36047	),
+                        new LatLng(37.107567	,127.361364	),
+                        new LatLng(37.107413	,127.36169	),
+                        new LatLng(37.106832	,127.363105	),
+                        new LatLng(37.106866	,127.363802	),
+                        new LatLng(37.106445	,127.364538	),
+                        new LatLng(37.106481	,127.364647	),
+                        new LatLng(37.106722	,127.365588	),
+                        new LatLng(37.106801	,127.365991	),
+                        new LatLng(37.106055	,127.371789	),
+                        new LatLng(37.105848	,127.37232	),
+                        new LatLng(37.105335	,127.37356	),
+                        new LatLng(37.104794	,127.373805	),
+                        new LatLng(37.104657	,127.373825	),
+                        new LatLng(37.104407	,127.373906	),
+                        new LatLng(37.104068	,127.374038	),
+                        new LatLng(37.103527	,127.374198	),
+                        new LatLng(37.103278	,127.374204	),
+                        new LatLng(37.102786	,127.37416	),
+                        new LatLng(37.102684	,127.374239	),
+                        new LatLng(37.102476	,127.374429	),
+                        new LatLng(37.102098	,127.374719	),
+                        new LatLng(37.10129 	,127.376448	),
+                        new LatLng(37.101155	,127.376871	),
+                        new LatLng(37.101481	,127.377141	),
+                        new LatLng(37.101782	,127.377373	),
+                        new LatLng(37.102778	,127.378638	),
+                        new LatLng(37.103371	,127.378948	),
+                        new LatLng(37.103548	,127.379013	),
+                        new LatLng(37.104264	,127.379045	),
+                        new LatLng(37.104806	,127.379047	),
+                        new LatLng(37.105101	,127.379263	),
+                        new LatLng(37.105196	,127.3796	),
+                        new LatLng(37.105503	,127.380373	),
+                        new LatLng(37.105743	,127.380661	),
+                        new LatLng(37.105936	,127.381551	),
+                        new LatLng(37.105963	,127.38163	),
+                        new LatLng(37.105939	,127.382169	),
+                        new LatLng(37.105593	,127.383186	),
+                        new LatLng(37.105899	,127.383858	),
+                        new LatLng(37.106017	,127.384611	),
+                        new LatLng(37.105649	,127.385492	),
+                        new LatLng(37.105575	,127.385948	),
+                        new LatLng(37.105692	,127.386546	),
+                        new LatLng(37.105894	,127.386905	),
+                        new LatLng(37.10605 	,127.386987	),
+                        new LatLng(37.106212	,127.38702	),
+                        new LatLng(37.106392	,127.38702	),
+                        new LatLng(37.106973	,127.387057	),
+                        new LatLng(37.107378	,127.387138	),
+                        new LatLng(37.107178	,127.388954	),
+                        new LatLng(37.107862	,127.389447	),
+                        new LatLng(37.107824	,127.389924	),
+                        new LatLng(37.107918	,127.390145	),
+                        new LatLng(37.106903	,127.391821	),
+                        new LatLng(37.106614	,127.392202	),
+                        new LatLng(37.106652	,127.392888	),
+                        new LatLng(37.106621	,127.39316	),
+                        new LatLng(37.105833	,127.393869	),
+                        new LatLng(37.103579	,127.394262	),
+                        new LatLng(37.102814	,127.395434	),
+                        new LatLng(37.10239 	,127.395589	),
+                        new LatLng(37.102047	,127.395824	),
+                        new LatLng(37.102202	,127.396443	),
+                        new LatLng(37.101192	,127.39691	),
+                        new LatLng(37.10071 	,127.396649	),
+                        new LatLng(37.100316	,127.396495	),
+                        new LatLng(37.099847	,127.39646	),
+                        new LatLng(37.099757	,127.396494	),
+                        new LatLng(37.099367	,127.396769	),
+                        new LatLng(37.099269	,127.39684	),
+                        new LatLng(37.098102	,127.39777	),
+                        new LatLng(37.096254	,127.397957	),
+                        new LatLng(37.095765	,127.398601	),
+                        new LatLng(37.095317	,127.399392	),
+                        new LatLng(37.095061	,127.400296	),
+                        new LatLng(37.094405	,127.401192	),
+                        new LatLng(37.093655	,127.401717	),
+                        new LatLng(37.093887	,127.403703	),
+                        new LatLng(37.093954	,127.404137	),
+                        new LatLng(37.094342	,127.405118	),
+                        new LatLng(37.094051	,127.405864	),
+                        new LatLng(37.093951	,127.406336	),
+                        new LatLng(37.094023	,127.406331	),
+                        new LatLng(37.094054	,127.406303	),
+                        new LatLng(37.094008	,127.406522	),
+                        new LatLng(37.093963	,127.406713	),
+                        new LatLng(37.093926	,127.406814	),
+                        new LatLng(37.09389 	,127.406898	),
+                        new LatLng(37.093777	,127.407049	),
+                        new LatLng(37.093781	,127.407123	),
+                        new LatLng(37.09378 	,127.407449	),
+                        new LatLng(37.09365 	,127.407694	),
+                        new LatLng(37.093376	,127.408206	),
+                        new LatLng(37.092924	,127.40885	),
+                        new LatLng(37.091693	,127.410497	),
+                        new LatLng(37.091027	,127.411427	),
+                        new LatLng(37.090492	,127.412436	),
+                        new LatLng(37.089864	,127.413035	),
+                        new LatLng(37.088928	,127.415301	),
+                        new LatLng(37.089493	,127.415974	),
+                        new LatLng(37.091568	,127.416553	),
+                        new LatLng(37.093132	,127.416455	),
+                        new LatLng(37.093907	,127.416302	),
+                        new LatLng(37.095264	,127.416163	),
+                        new LatLng(37.096531	,127.417002	),
+                        new LatLng(37.096903	,127.418877	),
+                        new LatLng(37.097267	,127.419295	),
+                        new LatLng(37.097587	,127.420405	),
+                        new LatLng(37.097327	,127.42127	),
+                        new LatLng(37.097999	,127.422235	),
+                        new LatLng(37.09899 	,127.423596	),
+                        new LatLng(37.10016 	,127.424019	),
+                        new LatLng(37.100274	,127.423783	),
+                        new LatLng(37.101662	,127.423289	),
+                        new LatLng(37.10268 	,127.422816	),
+                        new LatLng(37.103102	,127.422657	),
+                        new LatLng(37.104495	,127.422014	),
+                        new LatLng(37.105274	,127.421415	),
+                        new LatLng(37.106505	,127.421045	),
+                        new LatLng(37.106783	,127.421301	),
+                        new LatLng(37.10778 	,127.422396	),
+                        new LatLng(37.108247	,127.423	),
+                        new LatLng(37.108503	,127.423409	),
+                        new LatLng(37.109269	,127.424261	),
+                        new LatLng(37.109509	,127.424484	),
+                        new LatLng(37.109525	,127.424217	),
+                        new LatLng(37.109477	,127.424031	),
+                        new LatLng(37.109518	,127.423916	),
+                        new LatLng(37.109869	,127.423842	),
+                        new LatLng(37.110032	,127.423812	),
+                        new LatLng(37.110546	,127.423677	),
+                        new LatLng(37.111523	,127.423823	),
+                        new LatLng(37.111631	,127.423917	),
+                        new LatLng(37.111731	,127.423978	),
+                        new LatLng(37.111867	,127.424121	),
+                        new LatLng(37.111918	,127.424425	),
+                        new LatLng(37.111907	,127.424525	),
+                        new LatLng(37.111959	,127.425513	),
+                        new LatLng(37.112369	,127.425646	),
+                        new LatLng(37.112747	,127.42554	),
+                        new LatLng(37.113261	,127.425046	),
+                        new LatLng(37.113417	,127.424351	),
+                        new LatLng(37.11356 	,127.42366	),
+                        new LatLng(37.113961	,127.422597	),
+                        new LatLng(37.114262	,127.422159	),
+                        new LatLng(37.11569 	,127.41938	),
+                        new LatLng(37.115691	,127.418676	),
+                        new LatLng(37.114874	,127.417014	),
+                        new LatLng(37.114644	,127.416521	),
+                        new LatLng(37.11485 	,127.415645	),
+                        new LatLng(37.11619 	,127.415107	),
+                        new LatLng(37.116543	,127.414473	),
+                        new LatLng(37.116273	,127.41306	),
+                        new LatLng(37.116847	,127.412703	),
+                        new LatLng(37.116865	,127.412692	),
+                        new LatLng(37.117211	,127.412584	),
+                        new LatLng(37.117852	,127.412556	),
+                        new LatLng(37.118276	,127.412429	),
+                        new LatLng(37.118536	,127.412858	),
+                        new LatLng(37.119015	,127.412427	),
+                        new LatLng(37.120263	,127.413294	),
+                        new LatLng(37.120817	,127.413658	),
+                        new LatLng(37.122189	,127.414262	),
+                        new LatLng(37.122747	,127.414538	),
+                        new LatLng(37.122739	,127.415626	),
+                        new LatLng(37.122707	,127.415711	),
+                        new LatLng(37.122758	,127.416181	),
+                        new LatLng(37.122924	,127.416837	),
+                        new LatLng(37.123939	,127.417523	),
+                        new LatLng(37.124381	,127.417584	),
+                        new LatLng(37.124462	,127.417588	),
+                        new LatLng(37.124718	,127.417747	),
+                        new LatLng(37.125001	,127.419296	),
+                        new LatLng(37.125315	,127.41959	),
+                        new LatLng(37.125429	,127.419904	),
+                        new LatLng(37.125516	,127.420137	),
+                        new LatLng(37.125889	,127.420622	),
+                        new LatLng(37.126126	,127.421007	),
+                        new LatLng(37.126751	,127.421314	),
+                        new LatLng(37.127853	,127.42153	),
+                        new LatLng(37.128395	,127.42167	),
+                        new LatLng(37.13054 	,127.422323	),
+                        new LatLng(37.131152	,127.423955	),
+                        new LatLng(37.131815	,127.423874	),
+                        new LatLng(37.132677	,127.424472	),
+                        new LatLng(37.134951	,127.424841	),
+                        new LatLng(37.136721	,127.426484	),
+                        new LatLng(37.140251	,127.425789	),
+                        new LatLng(37.141111	,127.425749	),
+                        new LatLng(37.141563	,127.425601	),
+                        new LatLng(37.14364 	,127.426596	),
+                        new LatLng(37.145241	,127.42741	),
+                        new LatLng(37.146438	,127.427754	),
+                        new LatLng(37.1468  	,127.42745	),
+                        new LatLng(37.148922	,127.432367	),
+                        new LatLng(37.148214	,127.442257	),
+                        new LatLng(37.14314 	,127.449875	),
+                        new LatLng(37.13033 	,127.458465	),
+                        new LatLng(37.130701	,127.466305	),
+                        new LatLng(37.125604	,127.489039	),
+                        new LatLng(37.122965	,127.491998	),
+                        new LatLng(37.123863	,127.498131	),
+                        new LatLng(37.108211	,127.504824	),
+                        new LatLng(37.105671	,127.507709	),
+                        new LatLng(37.105687	,127.513554	),
+                        new LatLng(37.102903	,127.515436	),
+                        new LatLng(37.099783	,127.511973	),
+                        new LatLng(37.094226	,127.513353	),
+                        new LatLng(37.09397 	,127.514178	),
+                        new LatLng(37.083211	,127.514392	),
+                        new LatLng(37.081625	,127.516591	)
+                )
+                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .fillColor(colorArray[0]));
+        polygon.setClickable(true);
+        nameHashMap.put(polygon.hashCode(),name);
+        colorHashMap.put(polygon.hashCode(), colorArray[0]);
+        latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
+        iconFactory = new IconGenerator(this);
+
+        iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
+
+    }//안성시
 
     //privat inner class extending AsyncTask
     private class GetXMLTask extends AsyncTask<String, Void, Document> {
+        //첫번째 인자는 doInBackground 메서드에 선언하는 가변인수 매개변수의 타입을 정한다.
+        //두번째 인자는 onProgressUpdate 메서드에 선언하는 가변인수 매개변수의 타입을 정한다.
+        //세번째 인자는 onPostExecute 메서드에 선언하는 매개변수의 타입을 정한다.
+
         @Override
         protected Document doInBackground(String... urls) {
+            //해당 메서드가 background 스레드로 일처리를 해주는 곳이다. 보통 네트워크, 병행 일처리등을 위 메서드 공간에 작성한다.
+            //UI스레드가 어떤 일을 하고 있는지 상관없이 별개의 일을 진행한다는 점이다. 따라서 AysncTask는 비동기적으로 작동한다.
+
             URL url;
             try {
-                url = new URL(urls[0]);
+                url = new URL(urls[0]); //urls 매개변수 중 첫번째
                 DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance(); // DocumentBuilderFactory 인스턴스 생성
                 DocumentBuilder db = dbf.newDocumentBuilder(); //XML문서 빌더 객체를 생성
                 doc = db.parse(new InputSource(url.openStream())); //XML문서를 파싱한다.
-                doc.getDocumentElement().normalize();
+                doc.getDocumentElement().normalize(); // XML 구조 정규화
             } catch (Exception e) {
                 Toast.makeText(getBaseContext(), "Parsing Error", Toast.LENGTH_SHORT).show();
             }
@@ -25735,32 +26234,20 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }
 
         public void onPostExecute(Document doc) {
-            String s = "";
-            //data태그가 있는 노드를 찾아서 리스트 형태로 만들어서 반환
+            //item태그가 있는 노드를 찾아서 리스트 형태로 만들어서 반환
             NodeList nodeList = doc.getElementsByTagName("item"); // item태그이름을 가진 엘리먼트를 받아 노드리스트에 넣음
-            //data 태그를 가지는 노드를 찾음, 계층적인 노드 구조를 반환
+            //item 태그를 가지는 노드를 찾음, 계층적인 노드 구조를 반환
             for(int i = 0; i < nodeList.getLength(); i++){ //nodeList 의 길이만큼
-                s +=i+". ";
                 //날씨 데이터를 추출
                 Node node = nodeList.item(i); //item 엘리먼트 노드 한개
                 Element fstElmnt = (Element) node; // type casting Element 로 캐스팅
-                Node ch = node.getFirstChild(); // node의 첫번째 child
-
-                Log.d("log", "kbc   +++   "+ch.getNextSibling().getNodeName());
                 NodeList nameList  = fstElmnt.getElementsByTagName("stationName"); //지역명
                 NodeList pm10Value = fstElmnt.getElementsByTagName("pm10Value");   //미세먼지 지수
-                Element nameElement = (Element) nameList.item(0);
-                nameList = nameElement.getChildNodes();
-                s += ch.getNextSibling().getNodeName()+" : "+ ((Node) nameList.item(0)).getNodeValue() +" \t";
-                s += "미세먼지지수 :  "+  pm10Value.item(0).getChildNodes().item(0).getNodeValue() +"\n";
-                Log.d("log","kbc======="+((Node) nameList.item(0)).getNodeValue()+" "+pm10Value.item(0).getChildNodes().item(0).getNodeValue());
-                hmap.put(((Node) nameList.item(0)).getNodeValue(), pm10Value.item(0).getChildNodes().item(0).getNodeValue());  //(시군구 이름, 미세먼지 지수)
-//                (Node) nameList.item(0)).getNodeValue() 구이름
-//                pm10Value.item(0).getChildNodes().item(0).getNodeValue() 미세먼지 값
+                Element nameElement = (Element) nameList.item(0); //nameList 의 첫번째 엘리먼트
+                nameList = nameElement.getChildNodes(); //
+                pm10HashMap.put(((Node) nameList.item(0)).getNodeValue(), pm10Value.item(0).getChildNodes().item(0).getNodeValue());  //(시군구 이름, 미세먼지 지수)
             }
-            Log.d("log","kbc "+s);
             draw(); // 행정구역 경계 그리기
-//            super.onPostExecute(doc); // 왜 하는지 모르겠음
         }
     }//end inner class - GetXMLTask
 
@@ -25782,28 +26269,19 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }
 
         public void onPostExecute(Document doc) {
-            Log.d("tag","kbc +++++++ in onPostExecute");//12
-            String s = "";
-            //data태그가 있는 노드를 찾아서 리스트 형태로 만들어서 반환
+            //item 태그가 있는 노드를 찾아서 리스트 형태로 만들어서 반환
             NodeList nodeList = doc.getElementsByTagName("item");
-            //data 태그를 가지는 노드를 찾음, 계층적인 노드 구조를 반환
+            //item 태그를 가지는 노드를 찾음, 계층적인 노드 구조를 반환
             for(int i = 0; i < nodeList.getLength(); i++){ // 원래 i < nodeList.getLength()
-                s +=i+". ";
                 //날씨 데이터를 추출
                 Node node = nodeList.item(i); //item 엘리먼트 노드
                 Element fstElmnt = (Element) node; // type casting
-                Node ch = node.getFirstChild();
-//                Log.d("log", ch.getNextSibling().getNodeName());
                 NodeList nameList  = fstElmnt.getElementsByTagName("cityName"); // 지역명
                 NodeList pm10Value = fstElmnt.getElementsByTagName("pm10Value");   // 미세먼지 지수
-                Element nameElement = (Element) nameList.item(0);
+                Element nameElement = (Element) nameList.item(0);// nameList의 첫번째 엘리먼
                 nameList = nameElement.getChildNodes();
-                s += ch.getNextSibling().getNodeName()+" : "+ ((Node) nameList.item(0)).getNodeValue() +" \t";
-                s += "미세먼지지수 :  "+  pm10Value.item(0).getChildNodes().item(0).getNodeValue() +"\n";
-                Log.d("log","kbc       "+((Node) nameList.item(0)).getNodeValue()+" "+pm10Value.item(0).getChildNodes().item(0).getNodeValue());
-                hmap.put(((Node) nameList.item(0)).getNodeValue(), pm10Value.item(0).getChildNodes().item(0).getNodeValue());  //(시군구 이름, 미세먼지 지수)
+                pm10HashMap.put(((Node) nameList.item(0)).getNodeValue(), pm10Value.item(0).getChildNodes().item(0).getNodeValue());  //(시군구 이름, 미세먼지 지수)
             }
-            Log.d("log","kbc "+s);
             draw2();
         }
     }//end inner class - GetXMLTask
@@ -25815,8 +26293,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 icon(BitmapDescriptorFactory.fromBitmap(iconFactory.makeIcon(text))).
                 position(position).
                 anchor(iconFactory.getAnchorU(), iconFactory.getAnchorV()); // markerOptions 생성 및 설정
-        markerOptions.visible(false); //
-        marker = mMap.addMarker(markerOptions);
-        mList.add(marker);
+        markerOptions.visible(false); // 처음에는 마커 안보이게 설정
+        marker = mMap.addMarker(markerOptions); // 마커 옵션을 가진 마커 추가
+        markerList.add(marker); // marker list 에 marker 추가
     }// 어레이리스트에 마커 추가
 }
