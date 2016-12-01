@@ -1,11 +1,15 @@
 package com.mycompany.googlemaptestapp;
 
+import android.*;
 import android.app.ProgressDialog;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
+import android.support.v4.content.ContextCompat;
 import android.util.Log;
 import android.widget.Toast;
 
@@ -49,6 +53,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     ArrayList<Marker> markerList = new ArrayList<>();
     IconGenerator iconFactory ;
     String TAG = "kbc";
+    private BackPressCloseHandler backPressCloseHandler;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -57,6 +62,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
+
+        backPressCloseHandler = new BackPressCloseHandler(this);
+
     }
 
     @Override
@@ -71,7 +79,21 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         mapSettings.setZoomControlsEnabled(true);
         mapSettings.setRotateGesturesEnabled(false);
         mapSettings.setTiltGesturesEnabled(false);
+//        mMap.setMyLocationEnabled(true);
+//        mMap.getUiSettings().setMyLocationButtonEnabled(true);
+//        int permissionCheck = ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION);
+//        if(permissionCheck== PackageManager.PERMISSION_DENIED){
+//            Log.d("log","deny permission");
+//            ActivityCompat.requestPermissions(this,new String[]{android.Manifest.permission.ACCESS_FINE_LOCATION}, 1); //권한 팝업
+//            mMap.setMyLocationEnabled(true);
+//            mMap.getUiSettings().setMyLocationButtonEnabled(true);
+//        } else {
+//            Log.d("log","access permission");
+//
+//        }
+
         mMap.animateCamera(CameraUpdateFactory.zoomTo(10), 1000, null);
+
 
         airAPI("서울","경기");
 
@@ -106,6 +128,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         });
     }
 
+
+
+    @Override
+    public void onBackPressed() {
+        //super.onBackPressed();
+        backPressCloseHandler.onBackPressed();
+    }
 
     public void airAPI(String input,String input2){
         String addr, addr2;
@@ -26247,7 +26276,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     }
                 }
             }
-
             draw();
             draw2();
             asyncDialog.dismiss();
