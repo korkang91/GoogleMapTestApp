@@ -1,19 +1,17 @@
 package com.mycompany.googlemaptestapp;
 
+import android.app.Activity;
 import android.app.ProgressDialog;
 import android.content.Intent;
 import android.graphics.Color;
+import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
-import android.support.v4.app.FragmentActivity;
 import android.util.Log;
 import android.widget.Toast;
 
-import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
-import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
-import com.google.android.gms.maps.UiSettings;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
@@ -35,90 +33,56 @@ import java.util.HashMap;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 
-public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
+/**
+ * Created by manager on 2016. 11. 30..
+ */
 
-    private GoogleMap mMap;
-    Document[] doc = new Document[2];
-    Polygon polygon;
-    String name;
-    LatLng point;
-    int[] colorArray;
-    HashMap<String, String> pm10HashMap = new HashMap<String, String>();
-    HashMap<Integer, String> nameHashMap = new HashMap<Integer, String>();
-    HashMap<Integer,LatLng> latLngHashMap = new HashMap<Integer, LatLng>();
-    ArrayList<Marker> markerList = new ArrayList<>();
-    IconGenerator iconFactory ;
+public class AirApiActivity extends Activity{
+
+    private GoogleMap mMap; // 구글맵 객체
+    Document[] doc = new Document[2]; // XML 객체
+    Polygon polygon; // 폴리곤
+    String name; // 시군구 지역명
+    LatLng point; // 마커 좌표 변수
+    int[] colorArray; // 색깔 배열
+    HashMap<String, String> pm10HashMap = new HashMap<String, String>();// 행정구역 명, 미세먼지 지수
+    HashMap<Integer, String> nameHashMap = new HashMap<Integer, String>();// 폴리곤 해쉬코드, 행정구역 명
+    HashMap<Integer,LatLng> latLngHashMap = new HashMap<Integer, LatLng>();// 폴리곤 해쉬코드, LatLng
+    ArrayList<Marker> markerList = new ArrayList<>(); // 마커의 집합
+    IconGenerator iconFactory ; // IconGenerator 변수
     String TAG = "kbc";
 
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
+    public void onCreate(Bundle savedInstanceState)
+    {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_maps);
 
-        SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
-        mapFragment.getMapAsync(this);
+        Uri uri = Uri.parse("geo:38.899533,-77.036476");
+        Intent it = new Intent(Intent.ACTION_VIEW,uri);
+
+        Intent intent = getIntent(); //이 액티비티를 부른 인텐트를 받는다.
+        String a = intent.getStringExtra("a"); //"jizard"문자 받아옴
+        String b = intent.getStringExtra("b"); //"jizard"문자 받아옴
+        Log.d(TAG, a+"   "+b);
+
+//        airAPI(a,b);
+
+
+
+        finish();
     }
-
-    @Override
-    public void onMapReady(GoogleMap googleMap) {
-        mMap = googleMap;
-
-        LatLng seoul = new LatLng(37.56, 126.990786);
-        mMap.moveCamera(CameraUpdateFactory.newLatLng(seoul));
-
-        UiSettings mapSettings;
-        mapSettings = mMap.getUiSettings();
-        mapSettings.setZoomControlsEnabled(true);
-        mapSettings.setRotateGesturesEnabled(false);
-        mapSettings.setTiltGesturesEnabled(false);
-        mMap.animateCamera(CameraUpdateFactory.zoomTo(10), 1000, null);
-
-        airAPI("서울","경기");
-
-//        Intent intent = new Intent(this, AirApiActivity.class);
-//        intent.putExtra("a","서울"); //키 - 보낼 값(밸류)
-//        intent.putExtra("b","경기");
-//        startActivity(intent);
-
-
-
-        mMap.setOnPolygonClickListener(new GoogleMap.OnPolygonClickListener() {
-            @Override
-            public void onPolygonClick(final Polygon polygon) { //
-                Toast.makeText(MapsActivity.this, nameHashMap.get(polygon.hashCode())+" Clicked", Toast.LENGTH_SHORT).show();
-//                mMap.animateCamera(CameraUpdateFactory.zoomTo(12), 1000, null);
-            }
-        });
-
-        mMap.setOnCameraMoveListener(new GoogleMap.OnCameraMoveListener(){
-            @Override
-            public void onCameraMove() {
-                if(mMap.getCameraPosition().zoom > 11){
-                    for(int i = 0; i< markerList.size(); i++){
-                        markerList.get(i).setVisible(true);
-                    }
-                }else{
-                    for(int i = 0; i< markerList.size(); i++){
-                        markerList.get(i).setVisible(false);
-                    }
-                }
-            }
-        });
-    }
-
-
+    //미세먼지 API 연동 서울시
     public void airAPI(String input,String input2){
         String addr, addr2;
         String serviceKey = "jENXI1lavhLBnweHBWDKwAfCcvSEqooh5DshJSNDLGNa%2Bpsd3WMuAuswxdQydH8mbvffg3rWCcYfa5tIo7DVbw%3D%3D";
         addr = "http://openapi.airkorea.or.kr/openapi/services/rest/ArpltnInforInqireSvc/getCtprvnRltmMesureDnsty?sidoName="+input+"&pageNo=1&numOfRows=99&ServiceKey="+serviceKey+"&ver=1.3";
         addr2 = "http://openapi.airkorea.or.kr/openapi/services/rest/ArpltnInforInqireSvc/getCtprvnMesureSidoLIst?sidoName="+input2+"&searchCondition=DAILY&pageNo=1&numOfRows=31&ServiceKey="+serviceKey;
 
-        GetXMLTask task = new GetXMLTask(); // 객체 생성
+        AirApiActivity.GetXMLTask task = new AirApiActivity.GetXMLTask(); // 객체 생성
         String[] addrArray = {addr,addr2};
         task.execute(addrArray); // XML 파싱
     }
 
-
+    // 행정구역 경계 그리기
     public void draw(){
         drawPolygon143(); // 서울 성동구
         drawPolygon145();
@@ -145,7 +109,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         drawPolygon148();
         drawPolygon166();
         drawPolygon149();
-    }
+    }//서울시
     public void draw2(){
         drawPolygon41();
         drawPolygon57();
@@ -192,11 +156,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         drawPolygon42();
         drawPolygon54();
         drawPolygon35();
-    }
+    }//경기도
 
 
     public int[] checkColor(String name){
-        int[] clr = new int[2];
+        int[] clr = new int[2];// colorArray[0] : 폴리곤 색, colorArray[1]] : 마커 색
         if(pm10HashMap.get(name)==null){
             Log.d("log","kbc pm10HashMap.get(name)==null");
             clr[0] = 1;
@@ -216,7 +180,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             clr[0] = Color.argb(100,0,200,255);
             clr[1] = 4;
         }
-        return clr;
+        return clr; // 색깔 배열을 리턴
     }
     public int iconStyle(int clr){
         if(clr == 2){
@@ -233,9 +197,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
     //서울시
-    public void drawPolygon143() {
+    public void drawPolygon143() { //서울 성동구
         name = "성동구";
-        colorArray = checkColor(name);
+        colorArray = checkColor(name); // colorArray[0] 폴리곤 채우기색, colorArray[1] 아이콘색 배열
         point = new LatLng(37.551220, 127.041004);
         polygon = mMap.addPolygon(new PolygonOptions()
                 .add(
@@ -267,13 +231,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.57275246810175, 127.04241813085706))
                 .strokeColor(Color.WHITE)             .strokeWidth(2)
                 .fillColor(colorArray[0]));
-        polygon.setClickable(true);
-        nameHashMap.put(polygon.hashCode(),name);
-        
-        latLngHashMap.put(polygon.hashCode(),point);
-        iconFactory = new IconGenerator(this);
-        iconFactory.setStyle(iconStyle(colorArray[1]));
-        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
+        polygon.setClickable(true); // 폴리곤 클릭 가능 옵션
+        nameHashMap.put(polygon.hashCode(),name); // HashMap에 폴리곤 hashCode와 시군구 이름 저장
+
+        latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
+        iconFactory = new IconGenerator(this); // IconGenerator 객체 생성
+        iconFactory.setStyle(iconStyle(colorArray[1])); // iconFactory 스타일 설정
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point); // iconFactory 에 값, 좌표 넣기
     }//서울 성동구
     public void drawPolygon145() { //서울 용산
         name = "용산구";
@@ -314,7 +278,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
-        
+
         latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
         iconFactory = new IconGenerator(this);
 
@@ -384,7 +348,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
-        
+
         latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
         iconFactory = new IconGenerator(this);
 
@@ -431,7 +395,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
-        
+
         latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
         iconFactory = new IconGenerator(this);
 
@@ -569,7 +533,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
-        
+
         latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
         iconFactory = new IconGenerator(this);
 
@@ -869,7 +833,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
-        
+
         latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
         iconFactory = new IconGenerator(this);
 
@@ -1662,7 +1626,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
-        
+
         latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
         iconFactory = new IconGenerator(this);
 
@@ -1706,7 +1670,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
-        
+
         latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
         iconFactory = new IconGenerator(this);
 
@@ -1891,7 +1855,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
-        
+
         latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
         iconFactory = new IconGenerator(this);
 
@@ -2217,7 +2181,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
-        
+
         latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
         iconFactory = new IconGenerator(this);
 
@@ -2366,7 +2330,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
-        
+
         latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
         iconFactory = new IconGenerator(this);
 
@@ -2465,7 +2429,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
-        
+
         latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
         iconFactory = new IconGenerator(this);
 
@@ -2542,7 +2506,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
-        
+
         latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
         iconFactory = new IconGenerator(this);
 
@@ -2658,7 +2622,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
-        
+
         latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
         iconFactory = new IconGenerator(this);
 
@@ -2741,7 +2705,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
-        
+
         latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
         iconFactory = new IconGenerator(this);
 
@@ -3109,7 +3073,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
-        
+
         latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
         iconFactory = new IconGenerator(this);
 
@@ -3630,7 +3594,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
-        
+
         latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
         iconFactory = new IconGenerator(this);
 
@@ -3888,7 +3852,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
-        
+
         latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
         iconFactory = new IconGenerator(this);
 
@@ -4294,7 +4258,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
-        
+
         latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
         iconFactory = new IconGenerator(this);
 
@@ -4491,7 +4455,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
-        
+
         latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
         iconFactory = new IconGenerator(this);
 
@@ -4628,7 +4592,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
-        
+
         latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
         iconFactory = new IconGenerator(this);
 
@@ -4698,7 +4662,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
-        
+
         latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
         iconFactory = new IconGenerator(this);
 
@@ -4951,7 +4915,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
-        
+
         latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
         iconFactory = new IconGenerator(this);
 
@@ -5100,7 +5064,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
-        
+
         latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
         iconFactory = new IconGenerator(this);
 
@@ -5175,7 +5139,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
-        
+
         latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
         iconFactory = new IconGenerator(this);
 
@@ -5425,7 +5389,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
-        
+
         latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
         iconFactory = new IconGenerator(this);
 
@@ -5654,7 +5618,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
-        
+
         latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
         iconFactory = new IconGenerator(this);
 
@@ -5886,7 +5850,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
-        
+
         latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
         iconFactory = new IconGenerator(this);
 
@@ -6075,7 +6039,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
-        
+
         latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
         iconFactory = new IconGenerator(this);
 
@@ -6604,7 +6568,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
-        
+
         latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
         iconFactory = new IconGenerator(this);
 
@@ -6977,7 +6941,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
-        
+
         latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
         iconFactory = new IconGenerator(this);
 
@@ -7820,7 +7784,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
-        
+
         latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
         iconFactory = new IconGenerator(this);
 
@@ -8035,7 +7999,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
-        
+
         latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
         iconFactory = new IconGenerator(this);
 
@@ -8419,7 +8383,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
-        
+
         latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
         iconFactory = new IconGenerator(this);
 
@@ -8864,7 +8828,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
-        
+
         latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
         iconFactory = new IconGenerator(this);
 
@@ -9040,7 +9004,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
-        
+
         latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
         iconFactory = new IconGenerator(this);
 
@@ -9119,7 +9083,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
-        
+
         latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
         iconFactory = new IconGenerator(this);
 
@@ -9172,7 +9136,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
-        
+
         latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
         iconFactory = new IconGenerator(this);
 
@@ -9406,7 +9370,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
-        
+
         latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
         iconFactory = new IconGenerator(this);
 
@@ -10126,7 +10090,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
-        
+
         latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
         iconFactory = new IconGenerator(this);
 
@@ -10278,7 +10242,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
-        
+
         latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
         iconFactory = new IconGenerator(this);
 
@@ -10354,7 +10318,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
-        
+
         latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
         iconFactory = new IconGenerator(this);
 
@@ -10426,7 +10390,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
-        
+
         latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
         iconFactory = new IconGenerator(this);
 
@@ -10480,7 +10444,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
-        
+
         latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
         iconFactory = new IconGenerator(this);
 
@@ -11220,7 +11184,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
-        
+
         latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
         iconFactory = new IconGenerator(this);
 
@@ -11497,7 +11461,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
-        
+
         latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
         iconFactory = new IconGenerator(this);
 
@@ -11693,7 +11657,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
-        
+
         latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
         iconFactory = new IconGenerator(this);
 
@@ -11768,7 +11732,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
-        
+
         latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
         iconFactory = new IconGenerator(this);
 
@@ -11819,7 +11783,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
-        
+
         latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
         iconFactory = new IconGenerator(this);
 
@@ -11994,7 +11958,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
-        
+
         latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
         iconFactory = new IconGenerator(this);
 
@@ -12204,7 +12168,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
-        
+
         latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
         iconFactory = new IconGenerator(this);
 
@@ -12600,7 +12564,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
-        
+
         latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
         iconFactory = new IconGenerator(this);
 
@@ -12683,7 +12647,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
-        
+
         latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
         iconFactory = new IconGenerator(this);
 
@@ -13053,7 +13017,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
-        
+
         latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
         iconFactory = new IconGenerator(this);
 
@@ -13440,7 +13404,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
-        
+
         latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
         iconFactory = new IconGenerator(this);
 
@@ -14326,7 +14290,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
-        
+
         latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
         iconFactory = new IconGenerator(this);
 
@@ -14719,7 +14683,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
-        
+
         latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
         iconFactory = new IconGenerator(this);
 
@@ -14782,7 +14746,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
-        
+
         latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
         iconFactory = new IconGenerator(this);
 
@@ -14826,7 +14790,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
-        
+
         latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
         iconFactory = new IconGenerator(this);
 
@@ -14870,7 +14834,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
-        
+
         latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
         iconFactory = new IconGenerator(this);
 
@@ -15161,7 +15125,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
-        
+
         latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
         iconFactory = new IconGenerator(this);
 
@@ -18040,7 +18004,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
-        
+
         latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
         iconFactory = new IconGenerator(this);
 
@@ -19723,7 +19687,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
-        
+
         latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
         iconFactory = new IconGenerator(this);
 
@@ -20724,7 +20688,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
-        
+
         latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
         iconFactory = new IconGenerator(this);
 
@@ -21134,7 +21098,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
-        
+
         latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
         iconFactory = new IconGenerator(this);
 
@@ -21761,7 +21725,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
-        
+
         latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
         iconFactory = new IconGenerator(this);
         iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
@@ -23380,7 +23344,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
-        
+
         latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
         iconFactory = new IconGenerator(this);
 
@@ -23799,7 +23763,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
-        
+
         latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
         iconFactory = new IconGenerator(this);
 
@@ -25029,7 +24993,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
-        
+
         latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
         iconFactory = new IconGenerator(this);
 
@@ -26184,7 +26148,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
-        
+
         latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
         iconFactory = new IconGenerator(this);
 
@@ -26194,8 +26158,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }//안성시
 
     private class GetXMLTask extends AsyncTask<String, Void, Document[]> {
+        //첫번째 인자는 doInBackground 메서드에 선언하는 가변인수 매개변수의 타입을 정한다.
+        //두번째 인자는 onProgressUpdate 메서드에 선언하는 가변인수 매개변수의 타입을 정한다.
+        //세번째 인자는 onPostExecute 메서드에 선언하는 매개변수의 타입을 정한다.
 
-        ProgressDialog asyncDialog = new ProgressDialog(MapsActivity.this);
+        ProgressDialog asyncDialog = new ProgressDialog(AirApiActivity.this);
 
         @Override
         protected void onPreExecute() {
@@ -26247,14 +26214,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     }
                 }
             }
-
+            // 행정구역 경계 그리기
             draw();
             draw2();
             asyncDialog.dismiss();
         }
-    }
-
-
+    }//end inner class - GetXMLTask
+    //아이콘 마커
     private void addIcon(IconGenerator iconFactory, String text, LatLng position) {
         Marker marker;
         MarkerOptions markerOptions = new MarkerOptions().
