@@ -81,16 +81,17 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         mapSettings.setTiltGesturesEnabled(false);
 //        mMap.setMyLocationEnabled(true);
 //        mMap.getUiSettings().setMyLocationButtonEnabled(true);
+
+
 //        int permissionCheck = ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION);
 //        if(permissionCheck== PackageManager.PERMISSION_DENIED){
 //            Log.d("log","deny permission");
 //            ActivityCompat.requestPermissions(this,new String[]{android.Manifest.permission.ACCESS_FINE_LOCATION}, 1); //권한 팝업
-//            mMap.setMyLocationEnabled(true);
-//            mMap.getUiSettings().setMyLocationButtonEnabled(true);
+//            Log.d(TAG, "kbc permission popup after ");
 //        } else {
 //            Log.d("log","access permission");
-//
 //        }
+
 
         mMap.animateCamera(CameraUpdateFactory.zoomTo(10), 1000, null);
 
