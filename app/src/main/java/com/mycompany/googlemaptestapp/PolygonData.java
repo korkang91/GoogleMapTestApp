@@ -1,37 +1,24 @@
 package com.mycompany.googlemaptestapp;
 
 import com.google.android.gms.maps.model.LatLng;
-import com.google.maps.android.ui.IconGenerator;
 
 import java.util.List;
 
 /**
- * Created by manager on 2016. 12. 1..
+ * Created by manager on 2016. 12. 5..
  */
 
 public class PolygonData {
-    private String name;
-    private LatLng point;
-    private List<LatLng> latLngs;
-    private int[] colorArray;
-    private IconGenerator iconFactory ;
 
-    public List<LatLng> getLatLngs() {
-        return latLngs;
-    }
+    String name;
+    LatLng point;
+    List<LatLng> points;
 
-    public void setLatLngs(List<LatLng> latLngs) {
-        this.latLngs = latLngs;
-    }
-
-    public PolygonData(String name, LatLng point, List<LatLng> latLngs, int[] colorArray, IconGenerator iconFactory) {
+    public PolygonData(String name, LatLng point, List points) {
         this.name = name;
         this.point = point;
-        this.latLngs = latLngs;
-        this.colorArray = colorArray;
-        this.iconFactory = iconFactory;
+        this.points = points;
     }
-
 
     public String getName() {
         return name;
@@ -49,21 +36,15 @@ public class PolygonData {
         this.point = point;
     }
 
-
-
-    public int[] getColorArray() {
-        return colorArray;
+    public List<LatLng> getPoints() {
+        return points;
     }
 
-    public void setColorArray(int[] colorArray) {
-        this.colorArray = colorArray;
+    public void setPoints(List<LatLng> points) {
+        this.points = points;
     }
 
-    public IconGenerator getIconFactory() {
-        return iconFactory;
-    }
 
-    public void setIconFactory(IconGenerator iconFactory) {
-        this.iconFactory = iconFactory;
-    }
+
+
 }
