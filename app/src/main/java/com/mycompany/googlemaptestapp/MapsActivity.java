@@ -10,11 +10,11 @@ import android.location.Location;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
-import android.provider.Settings;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
 import android.support.v4.content.ContextCompat;
 import android.util.Log;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.android.gms.common.ConnectionResult;
@@ -76,7 +76,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     ArrayList<Marker> markerList = new ArrayList<>();
 
     private BackPressCloseHandler backPressCloseHandler;
-
+    private TextView mTextView;
+    private TextView mTextView2;
+    private TextView mTextView3;
+    private TextView mTextView4;
+    private TextView mTextView5;
 
 
 
@@ -105,6 +109,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
+        mTextView = (TextView) findViewById(R.id.textView);
+        mTextView2 = (TextView) findViewById(R.id.textView2);
+        mTextView3 = (TextView) findViewById(R.id.textView3);
+        mTextView4 = (TextView) findViewById(R.id.textView4);
+        mTextView5 = (TextView) findViewById(R.id.textView5);
+
 
         LatLng seoul = new LatLng(37.56, 126.990786);
         mMap.moveCamera(CameraUpdateFactory.newLatLng(seoul));
@@ -137,7 +147,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         .create()
                         .show();
                 }
-
                 //Location Permission 이미 허용일 경우
                 buildGoogleApiClient();
                 mMap.setMyLocationEnabled(true);
@@ -201,6 +210,15 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 }
             }
         });
+        showDistance();
+    }
+
+    private void showDistance() {
+        mTextView.setText("0~30\n좋음");
+        mTextView2.setText("31~80\n보통");
+        mTextView3.setText("81~151\n나쁨");
+        mTextView4.setText("151~\n매우나쁨");
+        mTextView5.setText("-\n정보없음");
     }
 
     //permission 추가 메소드
@@ -237,13 +255,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             mCurrLocationMarker.remove();
         }
 
-        // 현재 위치 마커 설정
+        // 현재 위치
         LatLng latLng = new LatLng(location.getLatitude(), location.getLongitude());
-        MarkerOptions markerOptions = new MarkerOptions();
-        markerOptions.position(latLng);
-        markerOptions.title("Current Position");
-        markerOptions.icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_MAGENTA));
-        mCurrLocationMarker = mMap.addMarker(markerOptions);
 
         // 카메라 이동
         mMap.moveCamera(CameraUpdateFactory.newLatLng(latLng));
@@ -257,8 +270,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     public static final int MY_PERMISSIONS_REQUEST_LOCATION = 99;
 
-    private boolean chkGpsService()
-    {
+    private boolean chkGpsService() {
         String gps = android.provider.Settings.Secure.getString(getContentResolver(), android.provider.Settings.Secure.LOCATION_PROVIDERS_ALLOWED);
 
         Log.d(gps, "aaaa");
@@ -295,7 +307,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION)
                 != PackageManager.PERMISSION_GRANTED) {
             Log.d(TAG, "kbc 1");
-            // this thread waiting for the user's response.
             // 설명 후, 퍼미션 요청을 재시도.
             new AlertDialog.Builder(this)
                     .setTitle("위치 서비스 사용")
@@ -26468,28 +26479,46 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }
         @Override
         public void onPostExecute(Document[] doc) {
+            Log.d("tag","kbc +++++++ in onPostExecute");//12
+            String s = "";
             for(int j=0;j<doc.length;j++) {
                 if(j==0) {
+                    s = "";
                     NodeList nodeList = doc[j].getElementsByTagName("item");
                     for(int i = 0; i < nodeList.getLength(); i++){
+                        s +=i+". ";
                         Node node = nodeList.item(i);
                         Element fstElmnt = (Element) node;
+
+                        Node ch = node.getFirstChild();
+
                         NodeList nameList  = fstElmnt.getElementsByTagName("stationName");
                         NodeList pm10Value = fstElmnt.getElementsByTagName("pm10Value");
                         Element nameElement = (Element) nameList.item(0);
                         nameList = nameElement.getChildNodes();
                         pm10HashMap.put(( nameList.item(0)).getNodeValue(), pm10Value.item(0).getChildNodes().item(0).getNodeValue());
+
+                        s += ch.getNextSibling().getNodeName()+" : "+ ((Node) nameList.item(0)).getNodeValue() +" \t";
+                        s += "미세먼지지수 :  "+  pm10Value.item(0).getChildNodes().item(0).getNodeValue() +"\n";
                     }
                 }else {
+                    s = "";
                     NodeList nodeList = doc[j].getElementsByTagName("item");
                     for (int i = 0; i < nodeList.getLength(); i++) {
+                        s +=i+". ";
                         Node node = nodeList.item(i);
                         Element fstElmnt = (Element) node;
+
+                        Node ch = node.getFirstChild();
+
                         NodeList nameList = fstElmnt.getElementsByTagName("cityName");
                         NodeList pm10Value = fstElmnt.getElementsByTagName("pm10Value");
                         Element nameElement = (Element) nameList.item(0);
                         nameList = nameElement.getChildNodes();
                         pm10HashMap.put(( nameList.item(0)).getNodeValue(), pm10Value.item(0).getChildNodes().item(0).getNodeValue());
+
+                        s += ch.getNextSibling().getNodeName()+" : "+ ((Node) nameList.item(0)).getNodeValue() +" \t";
+                        s += "미세먼지지수 :  "+  pm10Value.item(0).getChildNodes().item(0).getNodeValue() +"\n";
                     }
                 }
             }
