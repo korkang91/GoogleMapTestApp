@@ -14,6 +14,12 @@ import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
 import android.support.v4.content.ContextCompat;
 import android.util.Log;
+import android.view.View;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
+import android.widget.Button;
+import android.widget.Spinner;
+import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -70,9 +76,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     static int[] colorArray;
     IconGenerator iconFactory ;
 
-    HashMap<String, String> pm10HashMap = new HashMap<>();
-    HashMap<Integer, String> nameHashMap = new HashMap<>();
-    HashMap<Integer,LatLng> latLngHashMap = new HashMap<>();
+    HashMap<String, String> pm10HashMap = new HashMap<>();  //지역명, pm10지수
+    HashMap<Integer, String> nameHashMap = new HashMap<>(); //폴리곤 해쉬코드, 지역명
+    HashMap<Integer,LatLng> latLngHashMap = new HashMap<>();//폴리곤 해쉬코드, 마커좌표
     ArrayList<Marker> markerList = new ArrayList<>();
 
     private BackPressCloseHandler backPressCloseHandler;
@@ -81,8 +87,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private TextView mTextView3;
     private TextView mTextView4;
     private TextView mTextView5;
-
-
 
 
     @Override
@@ -114,7 +118,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         mTextView3 = (TextView) findViewById(R.id.textView3);
         mTextView4 = (TextView) findViewById(R.id.textView4);
         mTextView5 = (TextView) findViewById(R.id.textView5);
-
 
         LatLng seoul = new LatLng(37.56, 126.990786);
         mMap.moveCamera(CameraUpdateFactory.newLatLng(seoul));
@@ -26489,18 +26492,17 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         s +=i+". ";
                         Node node = nodeList.item(i);
                         Element fstElmnt = (Element) node;
-
                         Node ch = node.getFirstChild();
-
                         NodeList nameList  = fstElmnt.getElementsByTagName("stationName");
                         NodeList pm10Value = fstElmnt.getElementsByTagName("pm10Value");
+                        NodeList pm25Value = fstElmnt.getElementsByTagName("pm25Value");
                         Element nameElement = (Element) nameList.item(0);
                         nameList = nameElement.getChildNodes();
                         pm10HashMap.put(( nameList.item(0)).getNodeValue(), pm10Value.item(0).getChildNodes().item(0).getNodeValue());
-
-                        s += ch.getNextSibling().getNodeName()+" : "+ ((Node) nameList.item(0)).getNodeValue() +" \t";
-                        s += "미세먼지지수 :  "+  pm10Value.item(0).getChildNodes().item(0).getNodeValue() +"\n";
+                        s += ch.getNextSibling().getNodeName()+" : "+ (nameList.item(0)).getNodeValue() +" \t";
+                        s += "미세먼지10지수 :  "+  pm10Value.item(0).getChildNodes().item(0).getNodeValue() +"\n";
                     }
+                    Log.d(TAG,"kbc "+s);
                 }else {
                     s = "";
                     NodeList nodeList = doc[j].getElementsByTagName("item");
@@ -26513,13 +26515,15 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
                         NodeList nameList = fstElmnt.getElementsByTagName("cityName");
                         NodeList pm10Value = fstElmnt.getElementsByTagName("pm10Value");
+                        NodeList pm25Value = fstElmnt.getElementsByTagName("pm25Value");
                         Element nameElement = (Element) nameList.item(0);
                         nameList = nameElement.getChildNodes();
                         pm10HashMap.put(( nameList.item(0)).getNodeValue(), pm10Value.item(0).getChildNodes().item(0).getNodeValue());
 
-                        s += ch.getNextSibling().getNodeName()+" : "+ ((Node) nameList.item(0)).getNodeValue() +" \t";
-                        s += "미세먼지지수 :  "+  pm10Value.item(0).getChildNodes().item(0).getNodeValue() +"\n";
+                        s += ch.getNextSibling().getNodeName()+" : "+ (nameList.item(0)).getNodeValue() +" \t";
+                        s += "미세먼지10지수 :  "+  pm10Value.item(0).getChildNodes().item(0).getNodeValue() +"\n";
                     }
+                    Log.d(TAG,"kbc "+s);
                 }
             }
             draw();
