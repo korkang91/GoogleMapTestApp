@@ -129,9 +129,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             if (ContextCompat.checkSelfPermission(this,
                     android.Manifest.permission.ACCESS_FINE_LOCATION)
                     == PackageManager.PERMISSION_GRANTED) { // 권한을 가지고 있는지 체크
-                String gps = android.provider.Settings.Secure.getString(getContentResolver(), android.provider.Settings.Secure.LOCATION_PROVIDERS_ALLOWED);//LOCATION_MODE,LOCATION_PROVIDERS_ALLOWED
-                Log.d(TAG, "onMapReady: kbc1111 "+gps);
-                if (!(gps.matches(".*gps.*") && gps.matches(".*network.*"))) {
+                int permissionCheck = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION);
+                if(permissionCheck== PackageManager.PERMISSION_DENIED) {
                 new AlertDialog.Builder(this)
                         .setTitle("위치 서비스 사용")
                         .setMessage("이 앱에서 내 위치 정보를 사용하려면 단말기의 설정에서 '위치 서비스' 사용을 허용해주세요")
@@ -155,9 +154,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             }
         }
         else {
-            String gps = android.provider.Settings.Secure.getString(getContentResolver(), android.provider.Settings.Secure.LOCATION_PROVIDERS_ALLOWED);
-            Log.d(TAG, "onMapReady: kbc2222 "+gps);
-            if (!(gps.matches(".*gps.*") && gps.matches(".*network.*"))) {
+            int permissionCheck = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION);
+            if(permissionCheck== PackageManager.PERMISSION_DENIED) {
                 new AlertDialog.Builder(this)
                         .setTitle("위치 서비스 사용")
                         .setMessage("이 앱에서 내 위치 정보를 사용하려면 단말기의 설정에서 '위치 서비스' 사용을 허용해주세요")
@@ -183,8 +181,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         mMap.setOnPolygonClickListener(new GoogleMap.OnPolygonClickListener() {
             @Override
-            public void onPolygonClick(Polygon polygon) { //
-//                Toast.makeText(MapsActivity.this, nameHashMap.get(polygon.hashCode())+" Clicked", Toast.LENGTH_SHORT).show();
+            public void onPolygonClick(Polygon polygon) {
                 mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(latLngHashMap.get(polygon.hashCode()), mMap.getCameraPosition().zoom ));
             }
         });
@@ -222,69 +219,20 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
     //permission 추가 메소드
-    protected synchronized void buildGoogleApiClient() { // synchronized 하나의 객체에 여러개의 객체가 동시에 접근 못하게 설정
-        mGoogleApiClient = new GoogleApiClient.Builder(this)
-                .addConnectionCallbacks(this)
-                .addOnConnectionFailedListener(this)
-                .addApi(LocationServices.API)
-                .build();
-        mGoogleApiClient.connect();
-    }
-
-    @Override
-    public void onConnected(Bundle bundle) {
-        mLocationRequest = new LocationRequest();
-        mLocationRequest.setInterval(1000);
-        mLocationRequest.setFastestInterval(1000);
-        mLocationRequest.setPriority(LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY);
-        if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-            LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient, mLocationRequest, this);
-        }
-    }
-
-    @Override
-    public void onConnectionSuspended(int i) {}
-
-    @Override
-    public void onConnectionFailed(ConnectionResult connectionResult) {}
-
-    @Override
-    public void onLocationChanged(Location location) {
-        mLastLocation = location;
-        if (mCurrLocationMarker != null) {
-            mCurrLocationMarker.remove();
-        }
-
-        // 현재 위치
-        LatLng latLng = new LatLng(location.getLatitude(), location.getLongitude());
-
-        // 카메라 이동
-        mMap.moveCamera(CameraUpdateFactory.newLatLng(latLng));
-        mMap.animateCamera(CameraUpdateFactory.zoomTo(11));
-
-        //위치 업데이트 멈춤
-        if (mGoogleApiClient != null) {
-            LocationServices.FusedLocationApi.removeLocationUpdates(mGoogleApiClient, this);
-        }
-    }
-
     public static final int MY_PERMISSIONS_REQUEST_LOCATION = 99;
 
     private void checkLocationPermission() {
         if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION)
                 != PackageManager.PERMISSION_GRANTED) {
-            // 설명 후, 퍼미션 요청을 재시도.
             new AlertDialog.Builder(this)
                     .setTitle("위치 서비스 사용")
                     .setMessage("이 앱에서 내 위치 정보를 사용하려면 단말기의 설정에서 '위치 서비스' 사용을 허용해주세요")
                     .setPositiveButton("OK", new DialogInterface.OnClickListener() {
                         @Override
                         public void onClick(DialogInterface dialogInterface, int i) {
-                            //Prompt the user once explanation has been shown
                             ActivityCompat.requestPermissions(MapsActivity.this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, MY_PERMISSIONS_REQUEST_LOCATION);
 
                             String gps = Settings.Secure.getString(getContentResolver(), Settings.Secure.LOCATION_PROVIDERS_ALLOWED);
-                            Log.d(TAG, "onClick: kbc3333  "+gps);
                             if (!(gps.matches(".*gps.*") && gps.matches(".*network.*"))) {
                                 Intent busi_intent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
                                 busi_intent.addCategory(Intent.CATEGORY_DEFAULT);
@@ -328,6 +276,52 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             }
         }
     }
+
+    protected synchronized void buildGoogleApiClient() { // synchronized 하나의 객체에 여러개의 객체가 동시에 접근 못하게 설정
+        mGoogleApiClient = new GoogleApiClient.Builder(this)
+                .addConnectionCallbacks(this)
+                .addOnConnectionFailedListener(this)
+                .addApi(LocationServices.API)
+                .build();
+        mGoogleApiClient.connect();
+    }
+
+    @Override
+    public void onConnected(Bundle bundle) {
+        mLocationRequest = new LocationRequest();
+        mLocationRequest.setInterval(1000);
+        mLocationRequest.setFastestInterval(1000);
+        mLocationRequest.setPriority(LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY);
+        if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient, mLocationRequest, this);
+        }
+    }
+
+    @Override
+    public void onLocationChanged(Location location) {
+        mLastLocation = location;
+        if (mCurrLocationMarker != null) {
+            mCurrLocationMarker.remove();
+        }
+
+        // 현재 위치
+        LatLng latLng = new LatLng(location.getLatitude(), location.getLongitude());
+
+        // 카메라 이동
+        mMap.moveCamera(CameraUpdateFactory.newLatLng(latLng));
+        mMap.animateCamera(CameraUpdateFactory.zoomTo(11));
+
+        //위치 업데이트 멈춤
+        if (mGoogleApiClient != null) {
+            LocationServices.FusedLocationApi.removeLocationUpdates(mGoogleApiClient, this);
+        }
+    }
+
+    @Override
+    public void onConnectionSuspended(int i) {}
+
+    @Override
+    public void onConnectionFailed(ConnectionResult connectionResult) {}
     //permission 메소드 끝
 
     @Override
@@ -426,7 +420,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     public int[] checkColor(String name){
         int[] clr = new int[2];
         if(pm10HashMap.get(name)==null){
-            Log.d("log","kbc pm10HashMap.get(name)==null");
+//            Log.d("log","kbc pm10HashMap.get(name)==null");
             clr[0] = 1;
         } else if(pm10HashMap.get(name).equals("-")){
             clr[0] = Color.argb(100,140,140,140);
@@ -26472,7 +26466,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         s += ch.getNextSibling().getNodeName()+" : "+ (nameList.item(0)).getNodeValue() +" \t";
                         s += "미세먼지10지수 :  "+  pm10Value.item(0).getChildNodes().item(0).getNodeValue() +"\n";
                     }
-                    Log.d(TAG,"kbc "+s);
+//                    Log.d(TAG,"kbc "+s);
                 }else {
                     s = "";
                     NodeList nodeList = doc[j].getElementsByTagName("item");
@@ -26489,7 +26483,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         s += ch.getNextSibling().getNodeName()+" : "+ (nameList.item(0)).getNodeValue() +" \t";
                         s += "미세먼지10지수 :  "+  pm10Value.item(0).getChildNodes().item(0).getNodeValue() +"\n";
                     }
-                    Log.d(TAG,"kbc "+s);
+//                    Log.d(TAG,"kbc "+s);
                 }
             }
             draw();
