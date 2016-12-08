@@ -1,5 +1,6 @@
 package com.mycompany.googlemaptestapp;
 
+import android.Manifest;
 import android.app.AlertDialog;
 import android.app.ProgressDialog;
 import android.content.DialogInterface;
@@ -10,18 +11,12 @@ import android.location.Location;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
+import android.provider.Settings;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
 import android.support.v4.content.ContextCompat;
 import android.util.Log;
-import android.view.View;
-import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
-import android.widget.Button;
-import android.widget.Spinner;
-import android.widget.Switch;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
@@ -128,13 +123,14 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         mapSettings.setRotateGesturesEnabled(false);
         mapSettings.setTiltGesturesEnabled(false);
 
-        //
+
         // Google Play Services 초기화
-        if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) { // 마시멜로우 버전 이상이
+        if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) { // 마시멜로우 버전 이상이면
             if (ContextCompat.checkSelfPermission(this,
                     android.Manifest.permission.ACCESS_FINE_LOCATION)
                     == PackageManager.PERMISSION_GRANTED) { // 권한을 가지고 있는지 체크
-                String gps = android.provider.Settings.Secure.getString(getContentResolver(), android.provider.Settings.Secure.LOCATION_PROVIDERS_ALLOWED);
+                String gps = android.provider.Settings.Secure.getString(getContentResolver(), android.provider.Settings.Secure.LOCATION_PROVIDERS_ALLOWED);//LOCATION_MODE,LOCATION_PROVIDERS_ALLOWED
+                Log.d(TAG, "onMapReady: kbc1111 "+gps);
                 if (!(gps.matches(".*gps.*") && gps.matches(".*network.*"))) {
                 new AlertDialog.Builder(this)
                         .setTitle("위치 서비스 사용")
@@ -142,7 +138,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         .setPositiveButton("OK", new DialogInterface.OnClickListener() {
                             @Override
                             public void onClick(DialogInterface dialogInterface, int i) {
-                                Intent busi_intent = new Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS);
+                                Intent busi_intent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
                                 busi_intent.addCategory(Intent.CATEGORY_DEFAULT);
                                 startActivity(busi_intent);
                             }
@@ -160,6 +156,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }
         else {
             String gps = android.provider.Settings.Secure.getString(getContentResolver(), android.provider.Settings.Secure.LOCATION_PROVIDERS_ALLOWED);
+            Log.d(TAG, "onMapReady: kbc2222 "+gps);
             if (!(gps.matches(".*gps.*") && gps.matches(".*network.*"))) {
                 new AlertDialog.Builder(this)
                         .setTitle("위치 서비스 사용")
@@ -178,7 +175,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             buildGoogleApiClient();
             mMap.setMyLocationEnabled(true);
         }
-        //
+
 
         mMap.animateCamera(CameraUpdateFactory.zoomTo(10), 1000, null);
 
@@ -187,7 +184,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         mMap.setOnPolygonClickListener(new GoogleMap.OnPolygonClickListener() {
             @Override
             public void onPolygonClick(Polygon polygon) { //
-                Toast.makeText(MapsActivity.this, nameHashMap.get(polygon.hashCode())+" Clicked", Toast.LENGTH_SHORT).show();
+//                Toast.makeText(MapsActivity.this, nameHashMap.get(polygon.hashCode())+" Clicked", Toast.LENGTH_SHORT).show();
                 mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(latLngHashMap.get(polygon.hashCode()), mMap.getCameraPosition().zoom ));
             }
         });
@@ -225,7 +222,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
     //permission 추가 메소드
-    protected synchronized void buildGoogleApiClient() { // synchronized 하나의 개게에 여러개의 객체가 동시에 접근 못하게 설정
+    protected synchronized void buildGoogleApiClient() { // synchronized 하나의 객체에 여러개의 객체가 동시에 접근 못하게 설정
         mGoogleApiClient = new GoogleApiClient.Builder(this)
                 .addConnectionCallbacks(this)
                 .addOnConnectionFailedListener(this)
@@ -273,43 +270,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     public static final int MY_PERMISSIONS_REQUEST_LOCATION = 99;
 
-    private boolean chkGpsService() {
-        String gps = android.provider.Settings.Secure.getString(getContentResolver(), android.provider.Settings.Secure.LOCATION_PROVIDERS_ALLOWED);
-
-        Log.d(gps, "aaaa");
-
-        if (!(gps.matches(".*gps.*") && gps.matches(".*network.*"))) {
-
-            // GPS OFF 일때 Dialog 표시
-            AlertDialog.Builder gsDialog = new AlertDialog.Builder(this);
-            gsDialog.setTitle("위치 서비스 설정");
-            gsDialog.setMessage("무선 네트워크 사용, GPS 위성 사용을 모두 체크하셔야 정확한 위치 서비스가 가능합니다.\n위치 서비스 기능을 설정하시겠습니까?");
-            gsDialog.setPositiveButton("OK", new DialogInterface.OnClickListener() {
-                public void onClick(DialogInterface dialog, int which) {
-
-                    // GPS설정 화면으로 이동
-                    Intent busi_intent = new Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS);
-                    busi_intent.addCategory(Intent.CATEGORY_DEFAULT);
-                    startActivity(busi_intent);
-
-                }
-            })
-                    .setNegativeButton("NO", new DialogInterface.OnClickListener() {
-                        public void onClick(DialogInterface dialog, int which) {
-                            return;
-                        }
-                    }).create().show();
-            return false;
-
-        } else {
-            return true;
-        }
-    }
-
     private void checkLocationPermission() {
         if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION)
                 != PackageManager.PERMISSION_GRANTED) {
-            Log.d(TAG, "kbc 1");
             // 설명 후, 퍼미션 요청을 재시도.
             new AlertDialog.Builder(this)
                     .setTitle("위치 서비스 사용")
@@ -318,11 +281,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         @Override
                         public void onClick(DialogInterface dialogInterface, int i) {
                             //Prompt the user once explanation has been shown
-                            ActivityCompat.requestPermissions(MapsActivity.this, new String[]{android.Manifest.permission.ACCESS_FINE_LOCATION}, MY_PERMISSIONS_REQUEST_LOCATION);
+                            ActivityCompat.requestPermissions(MapsActivity.this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, MY_PERMISSIONS_REQUEST_LOCATION);
 
-                            String gps = android.provider.Settings.Secure.getString(getContentResolver(), android.provider.Settings.Secure.LOCATION_PROVIDERS_ALLOWED);
+                            String gps = Settings.Secure.getString(getContentResolver(), Settings.Secure.LOCATION_PROVIDERS_ALLOWED);
+                            Log.d(TAG, "onClick: kbc3333  "+gps);
                             if (!(gps.matches(".*gps.*") && gps.matches(".*network.*"))) {
-                                Intent busi_intent = new Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS);
+                                Intent busi_intent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
                                 busi_intent.addCategory(Intent.CATEGORY_DEFAULT);
                                 startActivity(busi_intent);
                             }
@@ -349,17 +313,25 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     }
                 } else {
                     // permission 거절 시
-                    Toast.makeText(this, "permission denied", Toast.LENGTH_LONG).show();
+                    new AlertDialog.Builder(this)
+                            .setTitle("위치 서비스 사용")
+                            .setMessage("이 앱에서 내 위치 정보를 사용할 수 없습니다.")
+                            .setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                                @Override
+                                public void onClick(DialogInterface dialogInterface, int i) {
+                                }
+                            })
+                            .create()
+                            .show();
+//                    Toast.makeText(this, "permission denied", Toast.LENGTH_LONG).show();
                 }
             }
         }
     }
-
     //permission 메소드 끝
 
     @Override
     public void onBackPressed() {
-        //super.onBackPressed();
         backPressCloseHandler.onBackPressed();
     }
 
@@ -26476,13 +26448,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     doc[i].getDocumentElement().normalize();
                 }
             } catch (Exception e) {
-                Toast.makeText(getBaseContext(), "Parsing Error", Toast.LENGTH_SHORT).show();
+//                Toast.makeText(getBaseContext(), "Parsing Error", Toast.LENGTH_SHORT).show();
             }
             return doc;
         }
         @Override
         public void onPostExecute(Document[] doc) {
-            Log.d("tag","kbc +++++++ in onPostExecute");//12
             String s = "";
             for(int j=0;j<doc.length;j++) {
                 if(j==0) {
@@ -26495,7 +26466,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         Node ch = node.getFirstChild();
                         NodeList nameList  = fstElmnt.getElementsByTagName("stationName");
                         NodeList pm10Value = fstElmnt.getElementsByTagName("pm10Value");
-                        NodeList pm25Value = fstElmnt.getElementsByTagName("pm25Value");
                         Element nameElement = (Element) nameList.item(0);
                         nameList = nameElement.getChildNodes();
                         pm10HashMap.put(( nameList.item(0)).getNodeValue(), pm10Value.item(0).getChildNodes().item(0).getNodeValue());
@@ -26510,16 +26480,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         s +=i+". ";
                         Node node = nodeList.item(i);
                         Element fstElmnt = (Element) node;
-
                         Node ch = node.getFirstChild();
-
                         NodeList nameList = fstElmnt.getElementsByTagName("cityName");
                         NodeList pm10Value = fstElmnt.getElementsByTagName("pm10Value");
-                        NodeList pm25Value = fstElmnt.getElementsByTagName("pm25Value");
                         Element nameElement = (Element) nameList.item(0);
                         nameList = nameElement.getChildNodes();
                         pm10HashMap.put(( nameList.item(0)).getNodeValue(), pm10Value.item(0).getChildNodes().item(0).getNodeValue());
-
                         s += ch.getNextSibling().getNodeName()+" : "+ (nameList.item(0)).getNodeValue() +" \t";
                         s += "미세먼지10지수 :  "+  pm10Value.item(0).getChildNodes().item(0).getNodeValue() +"\n";
                     }

@@ -6,7 +6,7 @@ android {
     defaultConfig {
         applicationId "com.mycompany.googlemaptestapp"
         multiDexEnabled true
-        minSdkVersion 23
+        minSdkVersion 19
         targetSdkVersion 24
         versionCode 5
         versionName "1.80"
@@ -23,7 +23,7 @@ android {
                     output->
                         def file = output.outputFile
                         output.outputFile = new File(file.parent,
-                                file.name.replace("app", "KBC." + defaultConfig.versionName))
+                                file.name.replace("app", "서울경기미세먼지." + defaultConfig.versionName))
                 }
             }
         }

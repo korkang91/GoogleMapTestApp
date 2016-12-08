@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">KBC</string>
+    <string name="app_name">서울경기\n미세먼지</string>
     <string name="title_activity_maps">Map</string>
     <string name="title_activity_maps2">Map2</string>
     <string name="stitle">서울경기미세먼지</string>
