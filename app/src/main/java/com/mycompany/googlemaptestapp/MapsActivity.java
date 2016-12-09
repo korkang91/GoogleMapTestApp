@@ -23,6 +23,7 @@ import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.location.LocationListener;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.maps.CameraUpdate;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
@@ -30,10 +31,12 @@ import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.UiSettings;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.LatLngBounds;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.Polygon;
 import com.google.android.gms.maps.model.PolygonOptions;
+import com.google.maps.android.PolyUtil;
 import com.google.maps.android.ui.IconGenerator;
 
 import org.w3c.dom.Document;
@@ -63,6 +66,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     GoogleApiClient mGoogleApiClient;
     Location mLastLocation;
     Marker mCurrLocationMarker;
+    public static final int MY_PERMISSIONS_REQUEST_LOCATION = 99;
+
 
     Document[] doc = new Document[2];
     static Polygon polygon;
@@ -74,7 +79,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     HashMap<String, String> pm10HashMap = new HashMap<>();  //지역명, pm10지수
     HashMap<Integer, String> nameHashMap = new HashMap<>(); //폴리곤 해쉬코드, 지역명
     HashMap<Integer,LatLng> latLngHashMap = new HashMap<>();//폴리곤 해쉬코드, 마커좌표
-    ArrayList<Marker> markerList = new ArrayList<>();
+    ArrayList<Marker> markerList = new ArrayList<>(); // 서울시 행정구
+    ArrayList<Marker> markerList2 = new ArrayList<>(); // 서울시 및 경기도 시
+    ArrayList<Marker> markerList3 = new ArrayList<>(); // 서울시 및 경기도 시
 
     private BackPressCloseHandler backPressCloseHandler;
     private TextView mTextView;
@@ -82,6 +89,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private TextView mTextView3;
     private TextView mTextView4;
     private TextView mTextView5;
+
+    int seoulPm = 0;
+    int cnt = 0;
+    Polygon nowpolygon;
 
 
     @Override
@@ -119,8 +130,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             if (ContextCompat.checkSelfPermission(this,
                     android.Manifest.permission.ACCESS_FINE_LOCATION)
                     == PackageManager.PERMISSION_GRANTED) { // 권한을 가지고 있는지 체크
-                int permissionCheck = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION);
-                if(permissionCheck== PackageManager.PERMISSION_DENIED) {
+                String gps = Settings.Secure.getString(getContentResolver(), Settings.Secure.LOCATION_PROVIDERS_ALLOWED);
+                if (!(gps.matches(".*gps.*") && gps.matches(".*network.*"))) {
                 new AlertDialog.Builder(this)
                         .setTitle("위치 서비스 사용")
                         .setMessage("이 앱에서 내 위치 정보를 사용하려면 단말기의 설정에서 '위치 서비스' 사용을 허용해주세요")
@@ -144,8 +155,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             }
         }
         else {
-            int permissionCheck = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION);
-            if(permissionCheck== PackageManager.PERMISSION_DENIED) {
+            String gps = Settings.Secure.getString(getContentResolver(), Settings.Secure.LOCATION_PROVIDERS_ALLOWED);
+            if (!(gps.matches(".*gps.*") && gps.matches(".*network.*"))) {
                 new AlertDialog.Builder(this)
                         .setTitle("위치 서비스 사용")
                         .setMessage("이 앱에서 내 위치 정보를 사용하려면 단말기의 설정에서 '위치 서비스' 사용을 허용해주세요")
@@ -173,8 +184,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             @Override
             public void onPolygonClick(Polygon polygon) {
                 mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(latLngHashMap.get(polygon.hashCode()), mMap.getCameraPosition().zoom ));
+                Log.d(TAG, "onPolygonClick: 111111  "+nameHashMap.get(polygon.hashCode()));
             }
         });
+
 
         mMap.setOnMarkerClickListener(new GoogleMap.OnMarkerClickListener() {
             @Override
@@ -188,17 +201,55 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             public void onCameraMove() {
                 if(mMap.getCameraPosition().zoom > 11){
                     for(int i = 0; i< markerList.size(); i++){
-                        markerList.get(i).setVisible(true);
+                        markerList.get(i).setVisible(true);  //서울 행정구 마커 visible true
                     }
-                }else{
+                    for(int i = 0; i< markerList2.size();i++){
+                        markerList2.get(i).setVisible(true);
+                    }
+                    for(int i = 0; i<markerList3.size();i++){
+                        markerList3.get(i).setVisible(false); //서울 통합 마커 visible false
+                    }
+                }else if(mMap.getCameraPosition().zoom > 9){
                     for(int i = 0; i< markerList.size(); i++){
                         markerList.get(i).setVisible(false);
+                    }
+                    for(int i = 0; i< markerList2.size();i++){
+                        markerList2.get(i).setVisible(true);
+                    }
+                    for(int i = 0; i<markerList3.size();i++){
+                        markerList3.get(i).setVisible(true);
+                    }
+                }else {
+                    for(int i = 0; i< markerList.size(); i++){
+                        markerList.get(i).setVisible(false);
+                    }
+                    for(int i = 0; i< markerList2.size();i++){
+                        markerList2.get(i).setVisible(false);
+                    }
+                    for(int i = 0; i<markerList3.size();i++){
+                        markerList3.get(i).setVisible(false);
                     }
                 }
             }
         });
+        //
+        mMap.setOnMyLocationButtonClickListener(new GoogleMap.OnMyLocationButtonClickListener() {
+            @Override
+            public boolean onMyLocationButtonClick() {
+                moveMyLocation();
+                return true;
+            }
+        });
+        //
         showDistance();
     }
+    //내 위치 버튼 클릭시 호출 함수
+    public void moveMyLocation(){
+        Log.d(TAG, "moveMyLocation: "+mLastLocation.getLatitude()+", "+mLastLocation.getLongitude());
+        mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(mLastLocation.getLatitude(),mLastLocation.getLongitude()),13));
+    }
+
+
 
     @Override
     public void onPause() {
@@ -219,8 +270,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
     //permission 추가 메소드
-    public static final int MY_PERMISSIONS_REQUEST_LOCATION = 99;
-
     private void checkLocationPermission() {
         if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION)
                 != PackageManager.PERMISSION_GRANTED) {
@@ -304,12 +353,17 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             mCurrLocationMarker.remove();
         }
 
-        // 현재 위치
         LatLng latLng = new LatLng(location.getLatitude(), location.getLongitude());
 
-        // 카메라 이동
+
+        MarkerOptions markerOptions = new MarkerOptions();
+        markerOptions.position(latLng);
+        markerOptions.title("현재 위치");
+        markerOptions.icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE));
+        mCurrLocationMarker = mMap.addMarker(markerOptions);
+
         mMap.moveCamera(CameraUpdateFactory.newLatLng(latLng));
-        mMap.animateCamera(CameraUpdateFactory.zoomTo(11));
+        mMap.animateCamera(CameraUpdateFactory.zoomTo(10));
 
         //위치 업데이트 멈춤
         if (mGoogleApiClient != null) {
@@ -323,6 +377,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     public void onConnectionFailed(ConnectionResult connectionResult) {}
     //permission 메소드 끝
+
+
 
     @Override
     public void onBackPressed() {
@@ -367,6 +423,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         drawPolygon148();
         drawPolygon166();
         drawPolygon149();
+        drawPolygonSeoul();
     }
     public void draw2(){
         drawPolygon41();
@@ -499,7 +556,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         iconFactory = new IconGenerator(this);
         iconFactory.setStyle(iconStyle(colorArray[1]));
-        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,1);
+        if(pm10HashMap.get(name).equals("-")){
+            seoulPm += 0;
+        }else {
+            seoulPm += Integer.parseInt(pm10HashMap.get(name));
+        }
+        cnt++;
     }//서울 성동구 addAll
     public void drawPolygon145() { //서울 용산
         name = "용산구";
@@ -545,7 +608,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         iconFactory = new IconGenerator(this);
 
         iconFactory.setStyle(iconStyle(colorArray[1]));
-        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,1);
+        if(pm10HashMap.get(name).equals("-")){
+            seoulPm += 0;
+        }else {
+            seoulPm += Integer.parseInt(pm10HashMap.get(name));
+        }
+        cnt++;
     }//서울 용산구
     public void drawPolygon151() { //서울 강남구
         name = "강남구";
@@ -615,7 +684,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         iconFactory = new IconGenerator(this);
 
         iconFactory.setStyle(iconStyle(colorArray[1]));
-        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,1);
+        if(pm10HashMap.get(name).equals("-")){
+            seoulPm += 0;
+        }else {
+            seoulPm += Integer.parseInt(pm10HashMap.get(name));
+        }
+        cnt++;
     }//서울 강남구
     public void drawPolygon158() { //서울 동대문구
         name = "동대문구";
@@ -662,7 +737,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         iconFactory = new IconGenerator(this);
 
         iconFactory.setStyle(iconStyle(colorArray[1]));
-        addIcon(iconFactory, name+"\n     "+ pm10HashMap.get(name), point);
+        addIcon(iconFactory, name+"\n     "+ pm10HashMap.get(name), point,1);
+        if(pm10HashMap.get(name).equals("-")){
+            seoulPm += 0;
+        }else {
+            seoulPm += Integer.parseInt(pm10HashMap.get(name));
+        }
+        cnt++;
     }//서울 동대문구
     public void drawPolygon155() { //서울 중구
         name = "중구";
@@ -800,7 +881,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         iconFactory = new IconGenerator(this);
 
         iconFactory.setStyle(iconStyle(colorArray[1]));
-        addIcon(iconFactory, name+"\n "+ pm10HashMap.get(name), point);
+        addIcon(iconFactory, name+"\n "+ pm10HashMap.get(name), point,1);
+        if(pm10HashMap.get(name).equals("-")){
+            seoulPm += 0;
+        }else {
+            seoulPm += Integer.parseInt(pm10HashMap.get(name));
+        }
+        cnt++;
     }//서울 중구
     public void drawPolygon160() { //서울 종로구
         name = "종로구";
@@ -1100,7 +1187,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         iconFactory = new IconGenerator(this);
 
         iconFactory.setStyle(iconStyle(colorArray[1]));
-        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,1);
+        if(pm10HashMap.get(name).equals("-")){
+            seoulPm += 0;
+        }else {
+            seoulPm += Integer.parseInt(pm10HashMap.get(name));
+        }
+        cnt++;
     }//서울 종로구
     public void drawPolygon164() { //서울 성북구
         name = "성북구";
@@ -1893,7 +1986,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         iconFactory = new IconGenerator(this);
 
         iconFactory.setStyle(iconStyle(colorArray[1]));
-        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,1);
+        if(pm10HashMap.get(name).equals("-")){
+            seoulPm += 0;
+        }else {
+            seoulPm += Integer.parseInt(pm10HashMap.get(name));
+        }
+        cnt++;
     }//서울 성북구   ***
     public void drawPolygon156() { //서울 서대문구
         name = "서대문구";
@@ -1937,7 +2036,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         iconFactory = new IconGenerator(this);
 
         iconFactory.setStyle(iconStyle(colorArray[1]));
-        addIcon(iconFactory, name+"\n    "+ pm10HashMap.get(name), point);
+        addIcon(iconFactory, name+"\n    "+ pm10HashMap.get(name), point,1);
+        if(pm10HashMap.get(name).equals("-")){
+            seoulPm += 0;
+        }else {
+            seoulPm += Integer.parseInt(pm10HashMap.get(name));
+        }
+        cnt++;
     }//서울 서대문구
     public void drawPolygon153() { //서울 마포구
         name = "마포구";
@@ -2122,7 +2227,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         iconFactory = new IconGenerator(this);
 
         iconFactory.setStyle(iconStyle(colorArray[1]));
-        addIcon(iconFactory, name+"\n  "+ pm10HashMap.get(name), point);
+        addIcon(iconFactory, name+"\n  "+ pm10HashMap.get(name), point,1);
+        if(pm10HashMap.get(name).equals("-")){
+            seoulPm += 0;
+        }else {
+            seoulPm += Integer.parseInt(pm10HashMap.get(name));
+        }
+        cnt++;
     }//서울 마포구
     public void drawPolygon152() { //서울 영등포구
         name = "영등포구";
@@ -2448,7 +2559,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         iconFactory = new IconGenerator(this);
 
         iconFactory.setStyle(iconStyle(colorArray[1]));
-        addIcon(iconFactory, name+"\n    "+ pm10HashMap.get(name), point);
+        addIcon(iconFactory, name+"\n    "+ pm10HashMap.get(name), point,1);
+        if(pm10HashMap.get(name).equals("-")){
+            seoulPm += 0;
+        }else {
+            seoulPm += Integer.parseInt(pm10HashMap.get(name));
+        }
+        cnt++;
     }//서울 영등포구
     public void drawPolygon144() { //서울 동작구
         name = "동작구";
@@ -2597,7 +2714,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         iconFactory = new IconGenerator(this);
 
         iconFactory.setStyle(iconStyle(colorArray[1]));
-        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,1);
+        if(pm10HashMap.get(name).equals("-")){
+            seoulPm += 0;
+        }else {
+            seoulPm += Integer.parseInt(pm10HashMap.get(name));
+        }
+        cnt++;
     }//서울 동작구
     public void drawPolygon157() { //서울 서초구
         name = "서초구";
@@ -2696,7 +2819,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         iconFactory = new IconGenerator(this);
 
         iconFactory.setStyle(iconStyle(colorArray[1]));
-        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,1);
+        if(pm10HashMap.get(name).equals("-")){
+            seoulPm += 0;
+        }else {
+            seoulPm += Integer.parseInt(pm10HashMap.get(name));
+        }
+        cnt++;
     }//서울 서초구
     public void drawPolygon161() { //서울 송파구
         name = "송파구";
@@ -2773,7 +2902,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         iconFactory = new IconGenerator(this);
 
         iconFactory.setStyle(iconStyle(colorArray[1]));
-        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,1);
+        if(pm10HashMap.get(name).equals("-")){
+            seoulPm += 0;
+        }else {
+            seoulPm += Integer.parseInt(pm10HashMap.get(name));
+        }
+        cnt++;
     }//서울 송파구
     public void drawPolygon154() { //서울 광진구
         name = "광진구";
@@ -2889,7 +3024,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         iconFactory = new IconGenerator(this);
 
         iconFactory.setStyle(iconStyle(colorArray[1]));
-        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,1);
+        if(pm10HashMap.get(name).equals("-")){
+            seoulPm += 0;
+        }else {
+            seoulPm += Integer.parseInt(pm10HashMap.get(name));
+        }
+        cnt++;
     }//서울 광진구
     public void drawPolygon146() { //서울 강동구
         name = "강동구";
@@ -2972,7 +3113,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         iconFactory = new IconGenerator(this);
 
         iconFactory.setStyle(iconStyle(colorArray[1]));
-        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,1);
+        if(pm10HashMap.get(name).equals("-")){
+            seoulPm += 0;
+        }else {
+            seoulPm += Integer.parseInt(pm10HashMap.get(name));
+        }
+        cnt++;
     }//서울 강동구
     public void drawPolygon150() { //서울 중랑구
         name = "중랑구";
@@ -3340,7 +3487,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         iconFactory = new IconGenerator(this);
 
         iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
-        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,1);
+        if(pm10HashMap.get(name).equals("-")){
+            seoulPm += 0;
+        }else {
+            seoulPm += Integer.parseInt(pm10HashMap.get(name));
+        }
+        cnt++;
     }//서울 중랑구
     public void drawPolygon163() { //서울 노원구
         name = "노원구";
@@ -3861,7 +4014,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         iconFactory = new IconGenerator(this);
 
         iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
-        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,1);
+        if(pm10HashMap.get(name).equals("-")){
+            seoulPm += 0;
+        }else {
+            seoulPm += Integer.parseInt(pm10HashMap.get(name));
+        }
+        cnt++;
     }//서울 노원구
     public void drawPolygon147() { //서울 도봉구
         name = "도봉구";
@@ -4119,7 +4278,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         iconFactory = new IconGenerator(this);
 
         iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
-        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,1);
+        if(pm10HashMap.get(name).equals("-")){
+            seoulPm += 0;
+        }else {
+            seoulPm += Integer.parseInt(pm10HashMap.get(name));
+        }
+        cnt++;
     }//서울 도봉구
     public void drawPolygon169() { //서울 강북구
         name = "강북구";
@@ -4525,7 +4690,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         iconFactory = new IconGenerator(this);
 
         iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
-        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,1);
+        if(pm10HashMap.get(name).equals("-")){
+            seoulPm += 0;
+        }else {
+            seoulPm += Integer.parseInt(pm10HashMap.get(name));
+        }
+        cnt++;
     }//서울 강북구
     public void drawPolygon166() { //서울 관악구
         name = "관악구";
@@ -4722,7 +4893,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         iconFactory = new IconGenerator(this);
 
         iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
-        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,1);
+        if(pm10HashMap.get(name).equals("-")){
+            seoulPm += 0;
+        }else {
+            seoulPm += Integer.parseInt(pm10HashMap.get(name));
+        }
+        cnt++;
     }//서울 관악구
     public void drawPolygon148() { //서울 금천구
         name = "금천구";
@@ -4859,7 +5036,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         iconFactory = new IconGenerator(this);
 
         iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
-        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,1);
+        if(pm10HashMap.get(name).equals("-")){
+            seoulPm += 0;
+        }else {
+            seoulPm += Integer.parseInt(pm10HashMap.get(name));
+        }
+        cnt++;
     }//서울 금천구
     public void drawPolygon142() { //서울 강서구
         name = "강서구";
@@ -4929,7 +5112,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         iconFactory = new IconGenerator(this);
 
         iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
-        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,1);
+        if(pm10HashMap.get(name).equals("-")){
+            seoulPm += 0;
+        }else {
+            seoulPm += Integer.parseInt(pm10HashMap.get(name));
+        }
+        cnt++;
     }//서울 강서구
     public void drawPolygon162() { //서울 양천구
         name = "양천구";
@@ -5182,7 +5371,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         iconFactory = new IconGenerator(this);
 
         iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
-        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,1);
+        if(pm10HashMap.get(name).equals("-")){
+            seoulPm += 0;
+        }else {
+            seoulPm += Integer.parseInt(pm10HashMap.get(name));
+        }
+        cnt++;
     }//서울 양천구
     public void drawPolygon159() { //서울 구로구
         name = "구로구";
@@ -5331,7 +5526,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         iconFactory = new IconGenerator(this);
 
         iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
-        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,1);
+        if(pm10HashMap.get(name).equals("-")){
+            seoulPm += 0;
+        }else {
+            seoulPm += Integer.parseInt(pm10HashMap.get(name));
+        }
+        cnt++;
     }//서울 구로구
     public void drawPolygon149() { //서울 은평구
         name = "은평구";
@@ -5406,9 +5607,26 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         iconFactory = new IconGenerator(this);
 
         iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
-        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,1);
 
+        if(pm10HashMap.get(name).equals("-")){
+            seoulPm += 0;
+        }else {
+            seoulPm += Integer.parseInt(pm10HashMap.get(name));
+        }
+        cnt++;
     }//서울 은평구
+    public void drawPolygonSeoul(){
+        name = "서울시";
+        colorArray = checkColor(name);
+        point = new LatLng(37.551666, 126.991695);
+
+        Log.d(TAG, "drawPolygonSeoul: kbckbc    "+seoulPm / cnt);
+
+        iconFactory = new IconGenerator(this);
+        iconFactory.setStyle(iconStyle(colorArray[1]));
+        addIcon(iconFactory, name+"\n   "+ seoulPm / cnt, point,3);
+    }
     //경기
     public void drawPolygon41() { //과천시
         name = "과천시";
@@ -5656,7 +5874,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         iconFactory = new IconGenerator(this);
 
         iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
-        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,2);
     }//과천시
     public void drawPolygon57() { //구리시
         name = "구리시";
@@ -5885,7 +6103,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         iconFactory = new IconGenerator(this);
 
         iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
-        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,2);
     }//구리시
     public void drawPolygon33() { //광명시
         name = "광명시";
@@ -6117,7 +6335,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         iconFactory = new IconGenerator(this);
 
         iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
-        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,2);
     }//광명시
     public void drawPolygon47() { //하남시
         name = "하남시";
@@ -6306,7 +6524,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         iconFactory = new IconGenerator(this);
 
         iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
-        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,2);
     }//하남시
     public void drawPolygon22() { //의왕시
         name = "의왕시";
@@ -6835,7 +7053,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         iconFactory = new IconGenerator(this);
 
         iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
-        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,2);
     }//의왕시
     public void drawPolygon32() { //군포시
         name = "군포시";
@@ -7208,7 +7426,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         iconFactory = new IconGenerator(this);
 
         iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
-        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,2);
     }//군포시
     public void drawPolygon59() { //남양주시
         name = "남양주시";
@@ -8051,7 +8269,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         iconFactory = new IconGenerator(this);
 
         iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
-        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,2);
     }//남양주시       ***
     public void drawPolygon24() { //안양시
         name = "안양시";
@@ -8266,7 +8484,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         iconFactory = new IconGenerator(this);
 
         iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
-        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,2);
     }//안양시 동안구
     public void drawPolygon25() { //안양시 만안구
         name = "안양시";
@@ -8650,7 +8868,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         iconFactory = new IconGenerator(this);
 
         iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
-        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,2);
     }//안양시 만안구
     public void drawPolygon45() { //성남시 분당구
         name = "성남시";
@@ -9095,7 +9313,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         iconFactory = new IconGenerator(this);
 
         iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
-        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,2);
     }//성남시 분당구
     public void drawPolygon51() { //시흥시
         name = "시흥시";
@@ -9271,7 +9489,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         iconFactory = new IconGenerator(this);
 
         iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
-        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,2);
     }//시흥시
     public void drawPolygon46() { //성남시 수정구
         name = "성남시";
@@ -9350,7 +9568,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         iconFactory = new IconGenerator(this);
 
         iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
-        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,2);
     }//성남시 수정구
     public void drawPolygon40() { //성남시 중원구
         name = "성남시";
@@ -9403,7 +9621,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         iconFactory = new IconGenerator(this);
 
         iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
-        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,2);
     }//성남시 중원구
     public void drawPolygon50() { //의정부시
         name = "의정부시";
@@ -9637,7 +9855,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         iconFactory = new IconGenerator(this);
 
         iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
-        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,2);
     }//의정부시
     public void drawPolygon56() { //광주시
         name = "광주시";
@@ -10357,7 +10575,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         iconFactory = new IconGenerator(this);
 
         iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
-        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,2);
     }//광주시        ***
     public void drawPolygon61() { //안산시
         name = "안산시";
@@ -10509,7 +10727,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         iconFactory = new IconGenerator(this);
 
         iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
-        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,2);
     }//안산시 단원구
     public void drawPolygon612() { //
         name = "안산시";
@@ -10585,7 +10803,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         iconFactory = new IconGenerator(this);
 
         iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
-        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,2);
     }//안산시 단원구2
     public void drawPolygon23() { //수원시 장안구
         name = "수원시";
@@ -10657,7 +10875,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         iconFactory = new IconGenerator(this);
 
         iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
-        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,2);
 
     }//수원시 장안구
     public void drawPolygon19() { //수원시 팔달구
@@ -10711,7 +10929,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         iconFactory = new IconGenerator(this);
 
         iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
-        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,2);
 
     }//수원시 팔달구
     public void drawPolygon21() { //수원시 권선구
@@ -11451,7 +11669,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         iconFactory = new IconGenerator(this);
 
         iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
-        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,2);
 
     }//수원시 권선구   ***
     public void drawPolygon20() { //
@@ -11728,7 +11946,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         iconFactory = new IconGenerator(this);
 
         iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
-        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,2);
 
     }//수원시 영통구
     public void drawPolygon44() { //고양시
@@ -11924,7 +12142,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         iconFactory = new IconGenerator(this);
 
         iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
-        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,2);
 
     }//고양시 덕양구
     public void drawPolygon31() { //고양시
@@ -11999,7 +12217,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         iconFactory = new IconGenerator(this);
 
         iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
-        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,2);
 
     }//고양시 일산동구
     public void drawPolygon38() { //고양시
@@ -12050,7 +12268,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         iconFactory = new IconGenerator(this);
 
         iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
-        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,2);
 
     }//고양시 일산서구
     public void drawPolygon52() { //양주시
@@ -12225,7 +12443,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         iconFactory = new IconGenerator(this);
 
         iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
-        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,2);
 
     }//양주시
     public void drawPolygon49() { //파주시
@@ -12435,7 +12653,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         iconFactory = new IconGenerator(this);
 
         iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
-        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,2);
 
     }//파주시
     public void drawPolygon43() { //김포시
@@ -12831,7 +13049,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         iconFactory = new IconGenerator(this);
 
         iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
-        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,2);
 
     }//김포시
     public void drawPolygon29() { //동두천시
@@ -12914,7 +13132,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         iconFactory = new IconGenerator(this);
 
         iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
-        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,2);
 
     }//동두천시
     public void drawPolygon30() { //포천시
@@ -13284,7 +13502,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         iconFactory = new IconGenerator(this);
 
         iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
-        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,2);
 
     }//포천시
     public void drawPolygon28() { //가평군
@@ -13671,7 +13889,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         iconFactory = new IconGenerator(this);
 
         iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
-        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,2);
 
     }//가평군
     public void drawPolygon53() { //양평군
@@ -14557,7 +14775,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         iconFactory = new IconGenerator(this);
 
         iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
-        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,2);
     }//양평군         ***
     public void drawPolygon55() {//연천군
         name = "연천군";
@@ -14950,7 +15168,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         iconFactory = new IconGenerator(this);
 
         iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
-        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,2);
     }//연천군
     public void drawPolygon27() {//부천시
         name = "부천시";
@@ -15013,7 +15231,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         iconFactory = new IconGenerator(this);
 
         iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
-        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,2);
 
     }//부천시 소사구
     public void drawPolygon37() { //부천시
@@ -15057,7 +15275,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         iconFactory = new IconGenerator(this);
 
         iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
-        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,2);
     }//부천시 오정구
     public void drawPolygon36() { //부천시
         name = "부천시";
@@ -15101,7 +15319,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         iconFactory = new IconGenerator(this);
 
         iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
-        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,2);
     }//부천시 원미구
     public void drawPolygon34() { //안산시
         name = "안산시";
@@ -15392,7 +15610,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         iconFactory = new IconGenerator(this);
 
         iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
-        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,2);
     }//안산시 상록구
 
     public void drawPolygon48() { //화성시
@@ -18269,7 +18487,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         iconFactory = new IconGenerator(this);
 
         iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
-        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,2);
     }//화성시 addAll  ***
     public void drawPolygon26() { //여주군
         name = "여주군";
@@ -19952,7 +20170,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         iconFactory = new IconGenerator(this);
 
         iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
-        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,2);
     }//여주시         ***
     public void drawPolygon39() { //이천시
         name = "이천시";
@@ -20953,7 +21171,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         iconFactory = new IconGenerator(this);
 
         iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
-        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,2);
     }//이천시         ***
     public void drawPolygon60() { //영인시
         name = "용인시";
@@ -21363,7 +21581,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         iconFactory = new IconGenerator(this);
 
         iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
-        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,2);
     }//용인시 수지구
     public void drawPolygon62() { //용인시
         name = "용인시";
@@ -21989,7 +22207,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         latLngHashMap.put(polygon.hashCode(),point); // HashMap에 폴리곤 hashCode와 icon LatLng 좌표 저장
         iconFactory = new IconGenerator(this);
         iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
-        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,2);
     }//용인시 기흥구
     public void drawPolygon58() { //용인시
         name = "용인시";
@@ -23609,7 +23827,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         iconFactory = new IconGenerator(this);
 
         iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
-        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,2);
     }//용인시 처인구    ***
     public void drawPolygon42() {//오산시
         name = "오산시";
@@ -24028,7 +24246,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         iconFactory = new IconGenerator(this);
 
         iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
-        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,2);
     }//오산시
     public void drawPolygon54() { //평택시
         name = "평택시";
@@ -25258,7 +25476,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         iconFactory = new IconGenerator(this);
 
         iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
-        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,2);
 
     }//평택시         ***
     public void drawPolygon35() { //안성시
@@ -26413,9 +26631,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         iconFactory = new IconGenerator(this);
 
         iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
-        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point);
+        addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,2);
 
     }//안성시         ***
+
 
 
 
@@ -26493,14 +26712,25 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
 
-    private void addIcon(IconGenerator iconFactory, String text, LatLng position) {
+    private void addIcon(IconGenerator iconFactory, String text, LatLng position, int num) {
         Marker marker;
         MarkerOptions markerOptions = new MarkerOptions().
                 icon(BitmapDescriptorFactory.fromBitmap(iconFactory.makeIcon(text))).
                 position(position).
                 anchor(iconFactory.getAnchorU(), iconFactory.getAnchorV());
-        markerOptions.visible(false);
-        marker = mMap.addMarker(markerOptions);
-        markerList.add(marker);
+
+        if(num == 1){
+            markerOptions.visible(false);
+            marker = mMap.addMarker(markerOptions);
+            markerList.add(marker);
+        }else if(num == 2){
+            markerOptions.visible(true);
+            marker = mMap.addMarker(markerOptions);
+            markerList2.add(marker);
+        }else {
+            markerOptions.visible(true);
+            marker = mMap.addMarker(markerOptions);
+            markerList3.add(marker);
+        }
     }
 }
