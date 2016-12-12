@@ -206,46 +206,60 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             }
         });
 
-        mMap.setOnCameraMoveListener(new GoogleMap.OnCameraMoveListener(){
+        mMap.setOnCameraMoveListener(new GoogleMap.OnCameraMoveListener() {
             @Override
             public void onCameraMove() {
-                if(mMap.getCameraPosition().zoom > 11){
-                    for(int i = 0; i< markerList.size(); i++){
+                if (mMap.getCameraPosition().zoom >= 13) {
+                    for (int i = 0; i < markerList.size(); i++) {
                         markerList.get(i).setVisible(true);  //서울 행정구 마커 visible true
                     }
-                    for(int i = 0; i< markerList2.size();i++){
+                    for (int i = 0; i < markerList2.size(); i++) {
                         markerList2.get(i).setVisible(true);
                     }
-                    for(int i = 0; i<markerList3.size();i++){
+                    for (int i = 0; i < markerList3.size(); i++) {
                         markerList3.get(i).setVisible(false); //서울 통합 마커 visible false
                     }
-                    if(mCurrLocationMarker!=null){
-                        mCurrLocationMarker.setVisible(false);
+                    if (mCurrLocationMarker != null) {
+                        mCurrLocationMarker.setVisible(true);
+                        mCurrLocationMarker.showInfoWindow();
                     }
-                }else if(mMap.getCameraPosition().zoom > 9.5){
-                    for(int i = 0; i< markerList.size(); i++){
-                        markerList.get(i).setVisible(false);
+                } else if (mMap.getCameraPosition().zoom > 11) {
+                    for (int i = 0; i < markerList.size(); i++) {
+                        markerList.get(i).setVisible(true);  //서울 행정구 마커 visible true
                     }
-                    for(int i = 0; i< markerList2.size();i++){
+                    for (int i = 0; i < markerList2.size(); i++) {
                         markerList2.get(i).setVisible(true);
                     }
-                    for(int i = 0; i<markerList3.size();i++){
-                        markerList3.get(i).setVisible(true);
+                    for (int i = 0; i < markerList3.size(); i++) {
+                        markerList3.get(i).setVisible(false); //서울 통합 마커 visible false
                     }
-                    if(mCurrLocationMarker!=null){
+                    if (mCurrLocationMarker != null) {
                         mCurrLocationMarker.setVisible(false);
                     }
-                }else {
-                    for(int i = 0; i< markerList.size(); i++){
+                } else if (mMap.getCameraPosition().zoom > 9.5) {
+                    for (int i = 0; i < markerList.size(); i++) {
                         markerList.get(i).setVisible(false);
                     }
-                    for(int i = 0; i< markerList2.size();i++){
+                    for (int i = 0; i < markerList2.size(); i++) {
+                        markerList2.get(i).setVisible(true);
+                    }
+                    for (int i = 0; i < markerList3.size(); i++) {
+                        markerList3.get(i).setVisible(true);
+                    }
+                    if (mCurrLocationMarker != null) {
+                        mCurrLocationMarker.setVisible(false);
+                    }
+                } else {
+                    for (int i = 0; i < markerList.size(); i++) {
+                        markerList.get(i).setVisible(false);
+                    }
+                    for (int i = 0; i < markerList2.size(); i++) {
                         markerList2.get(i).setVisible(false);
                     }
-                    for(int i = 0; i<markerList3.size();i++){
+                    for (int i = 0; i < markerList3.size(); i++) {
                         markerList3.get(i).setVisible(false);
                     }
-                    if(mCurrLocationMarker !=null) {
+                    if (mCurrLocationMarker != null) {
                         mCurrLocationMarker.setVisible(true);
                         mCurrLocationMarker.showInfoWindow();
                     }
@@ -263,9 +277,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         showDistance();
     }
+
     //내 위치 버튼 클릭시 호출 함수
-    public void moveMyLocation(){
-        mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(mLastLocation.getLatitude(),mLastLocation.getLongitude()),13));
+    public void moveMyLocation() {
+        mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(mLastLocation.getLatitude(), mLastLocation.getLongitude()), 13));
         mCurrLocationMarker.setVisible(true);
         mCurrLocationMarker.showInfoWindow();
     }
@@ -389,13 +404,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             markerOptions.position(latLng);
             markerOptions.title("현재 위치 : \""+juso+"\"");
             markerOptions.snippet("현재 미세먼지 지수 : " + pm10HashMap.get(juso) +" 입니다.");
-//            markerOptions.icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE));
-//            markerOptions.InvokeIcon(BitmapDescriptorFactory.FromResource(Resource.Drawable.pin));
-            markerOptions.icon(BitmapDescriptorFactory.fromResource(R.mipmap.ic_human));
+            markerOptions.icon(BitmapDescriptorFactory.fromResource(R.mipmap.ic_hpin));
             mCurrLocationMarker = mMap.addMarker(markerOptions);
             mCurrLocationMarker.showInfoWindow();
         }
-        Log.d(TAG, "onLocationChanged: 2");
     }
 
     /* 위도와 경도 기반으로 주소를 리턴하는 메서드*/
@@ -528,7 +540,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     public int[] checkColor(String name){
         int[] clr = new int[2];
         if(pm10HashMap.get(name)==null){
-//            Log.d("log","kbc pm10HashMap.get(name)==null");
             clr[0] = 1;
         } else if(pm10HashMap.get(name).equals("-")){
             clr[0] = Color.argb(100,140,140,140);
@@ -26695,11 +26706,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             asyncDialog.setProgressStyle(ProgressDialog.STYLE_SPINNER);
             asyncDialog.setMessage("로딩중입니다..");
             asyncDialog.show();
-            Log.d(TAG, "onPreExecute: 1");
         }
         @Override
         protected Document[] doInBackground(String... urls) {
-            Log.d(TAG, "doInBackground: 1");
             URL url;
             try {
                 for(int i=0;i<urls.length;i++) {
@@ -26710,13 +26719,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     doc[i].getDocumentElement().normalize();
                 }
             } catch (Exception e) {
-//                Toast.makeText(getBaseContext(), "Parsing Error", Toast.LENGTH_SHORT).show();
             }
             return doc;
         }
         @Override
         public void onPostExecute(Document[] doc) {
-            Log.d(TAG, "onPostExecute: 1");
             String s = "";
             for(int j=0;j<doc.length;j++) {
                 if(j==0) {
@@ -26755,7 +26762,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 //                    Log.d(TAG,"kbc "+s);
                 }
             }
-            Log.d(TAG, "onPostExecute: 2");
             draw();
             draw2();
             if(mLastLocation!=null) {
