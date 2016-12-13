@@ -47,6 +47,7 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.InputSource;
 
+import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -59,7 +60,7 @@ import javax.xml.parsers.DocumentBuilderFactory;
 
 import android.location.Address;
 
-public class MapsActivity extends FragmentActivity implements OnMapReadyCallback,GoogleApiClient.ConnectionCallbacks,
+public class MapsActivity extends FragmentActivity implements OnMapReadyCallback, GoogleApiClient.ConnectionCallbacks,
         GoogleApiClient.OnConnectionFailedListener,
         LocationListener {
 
@@ -85,8 +86,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     HashMap<Integer, String> nameHashMap = new HashMap<>(); //폴리곤 해쉬코드, 지역명
     HashMap<Integer,LatLng> latLngHashMap = new HashMap<>();//폴리곤 해쉬코드, 마커좌표
     ArrayList<Marker> markerList = new ArrayList<>(); // 서울시 행정구
-    ArrayList<Marker> markerList2 = new ArrayList<>(); // 서울시 및 경기도 시
-    ArrayList<Marker> markerList3 = new ArrayList<>(); // 서울시 및 경기도 시
+    ArrayList<Marker> markerList2 = new ArrayList<>(); // 경기도 시
+    ArrayList<Marker> markerList3 = new ArrayList<>(); // 서울시
 
     private BackPressCloseHandler backPressCloseHandler;    //뒤로가기 클래스
     private TextView mTextView; //상단 바 텍스트뷰
@@ -99,6 +100,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     int cnt = 0;
     int locationMode;   //GPS모드 확인 변수
 
+    AlertDialog.Builder ab;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -130,38 +132,22 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         mapSettings.setRotateGesturesEnabled(false);
         mapSettings.setTiltGesturesEnabled(false);
 
+        ab = new AlertDialog.Builder(this);
+        ab.setTitle("위치 서비스 사용")
+                .setMessage("이 앱에서 내 위치 정보를 사용하려면 단말기의 설정에서 '위치 서비스' 사용을 허용해주세요")
+                .setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialogInterface, int i) {
+                        Intent busi_intent = new Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS);
+                        busi_intent.addCategory(Intent.CATEGORY_DEFAULT);
+                        startActivity(busi_intent);
+                    }
+                })
+                .create();
+
         // Google Play Services 초기화
         if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) { // 마시멜로우 버전 이상이면
-            if (ContextCompat.checkSelfPermission(this,
-                    android.Manifest.permission.ACCESS_FINE_LOCATION)
-                    == PackageManager.PERMISSION_GRANTED) { // 권한을 가지고 있는지 체크
-                try {
-                    locationMode = Settings.Secure.getInt(MapsActivity.this.getContentResolver(), Settings.Secure.LOCATION_MODE);
-                } catch (Settings.SettingNotFoundException e) {
-                    e.printStackTrace();
-                }
-                if(locationMode == 0){
-                new AlertDialog.Builder(this)
-                        .setTitle("위치 서비스 사용")
-                        .setMessage("이 앱에서 내 위치 정보를 사용하려면 단말기의 설정에서 '위치 서비스' 사용을 허용해주세요")
-                        .setPositiveButton("OK", new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface dialogInterface, int i) {
-                                Intent busi_intent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
-                                busi_intent.addCategory(Intent.CATEGORY_DEFAULT);
-                                startActivity(busi_intent);
-                            }
-                        })
-                        .create()
-                        .show();
-                }
-                //Location Permission 이미 허용일 경우
-                buildGoogleApiClient();
-                mMap.setMyLocationEnabled(true);
-            } else {
-                //Location Permission 필요한 경우
-                checkLocationPermission();
-            }
+            checkLocationPermission();
         }
         else {
             try {
@@ -170,19 +156,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 e.printStackTrace();
             }
             if(locationMode == 0){
-                new AlertDialog.Builder(this)
-                        .setTitle("위치 서비스 사용")
-                        .setMessage("이 앱에서 내 위치 정보를 사용하려면 단말기의 설정에서 '위치 서비스' 사용을 허용해주세요")
-                        .setPositiveButton("OK", new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface dialogInterface, int i) {
-                                Intent busi_intent = new Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS);
-                                busi_intent.addCategory(Intent.CATEGORY_DEFAULT);
-                                startActivity(busi_intent);
-                            }
-                        })
-                        .create()
-                        .show();
+                        ab.show();
             }
             buildGoogleApiClient();
             mMap.setMyLocationEnabled(true);
@@ -274,7 +248,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 return true;
             }
         });
-
         showDistance();
     }
 
@@ -285,8 +258,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         mCurrLocationMarker.showInfoWindow();
     }
 
-
-
     @Override
     public void onPause() {
         super.onPause();
@@ -295,7 +266,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             LocationServices.FusedLocationApi.removeLocationUpdates(mGoogleApiClient, this);
         }
     }
-
+    
     private void showDistance() {
         mTextView.setText("0~30\n좋음");
         mTextView2.setText("31~80\n보통");
@@ -315,7 +286,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         @Override
                         public void onClick(DialogInterface dialogInterface, int i) {
                             ActivityCompat.requestPermissions(MapsActivity.this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, MY_PERMISSIONS_REQUEST_LOCATION);
-
                             try {
                                 locationMode = Settings.Secure.getInt(MapsActivity.this.getContentResolver(), Settings.Secure.LOCATION_MODE);
                             } catch (Settings.SettingNotFoundException e) {
@@ -330,6 +300,17 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     })
                     .create()
                     .show();
+        }else {
+            try {
+                locationMode = Settings.Secure.getInt(MapsActivity.this.getContentResolver(), Settings.Secure.LOCATION_MODE);
+            } catch (Settings.SettingNotFoundException e) {
+                e.printStackTrace();
+            }
+            if(locationMode == 0){
+                ab.show();
+            }
+            buildGoogleApiClient();
+            mMap.setMyLocationEnabled(true);
         }
     }
 
@@ -359,6 +340,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                             .create()
                             .show();
                 }
+                break;
             }
         }
     }
@@ -369,7 +351,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .addOnConnectionFailedListener(this)
                 .addApi(LocationServices.API)
                 .build();
+        Log.d(TAG, "buildGoogleApiClient: asldkjasldfsdlk");
         mGoogleApiClient.connect();
+        Log.d(TAG, "buildGoogleApiClient: asasdasdssddsasds");
     }
 
     @Override
@@ -410,7 +394,14 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }
     }
 
-    /* 위도와 경도 기반으로 주소를 리턴하는 메서드*/
+    @Override
+    public void onConnectionSuspended(int i) {}
+
+    @Override
+    public void onConnectionFailed(ConnectionResult connectionResult) {}
+    //permission 메소드 끝
+
+    /* 위도와 경도 기반으로 주소를 리턴하는 메서드 */
     public String getAddress(double lat, double lng){
         String address = null;
         //위치정보를 활용하기 위한 구글 API 객체
@@ -438,12 +429,24 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         return address;
     }
 
-    @Override
-    public void onConnectionSuspended(int i) {}
-
-    @Override
-    public void onConnectionFailed(ConnectionResult connectionResult) {}
-    //permission 메소드 끝
+    /*  시군구 이름을 기반으로 Lat,Lng를 리턴하는 메서드 (서울시만 사용) */
+    private LatLng findGeoPoint(String address) {
+        Geocoder geocoder = new Geocoder(this);
+        Address addr;
+        LatLng location = null;
+        try {
+            List<Address> listAddress = geocoder.getFromLocationName(address, 1);
+            if (listAddress.size() > 0) { // 주소값이 존재 하면
+                addr = listAddress.get(0); // Address형태로
+                double lat = addr.getLatitude();
+                double lng = addr.getLongitude();
+                location = new LatLng(lat, lng);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return location;
+    }
 
     @Override
     public void onBackPressed() {
@@ -489,6 +492,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         drawPolygon149();
         drawPolygonSeoul();
     }
+
     public void draw2(){
         drawPolygon41();
         drawPolygon57();
@@ -559,6 +563,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }
         return clr;
     }
+
     public int iconStyle(int clr){
         if(clr == 2){
             return IconGenerator.STYLE_WHITE;
@@ -5680,7 +5685,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }//서울 은평구
     public void drawPolygonSeoul(){
         name = "서울시";
-        point = new LatLng(37.551666, 126.991695);
+        point = findGeoPoint(name);
         pm10HashMap.put(name,""+seoulPm/cnt);
         colorArray = checkColor(name);
 
@@ -15673,7 +15678,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
         addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,2);
     }//안산시 상록구
-
     public void drawPolygon48() { //화성시
         name = "화성시";
         colorArray = checkColor(name); // colorArray[0] 폴리곤 채우기색, colorArray[1] 아이콘색 배열
