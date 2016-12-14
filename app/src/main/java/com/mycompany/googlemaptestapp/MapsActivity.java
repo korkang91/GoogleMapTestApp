@@ -145,8 +145,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         // Google Play Services 초기화
         if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) { // 마시멜로우 버전 이상이면
             if(locationMode == 0) {
+                //gps 기능 안켜저 있을 시
                 alertDialogBuilder.show();
             }else{
+                //gps 기능 켜저 있을 시
                 checkLocationPermission();
             }
         }
