@@ -3,11 +3,10 @@ package com.mycompany.googlemaptestapp;
 import android.Manifest;
 import android.app.AlertDialog;
 import android.app.ProgressDialog;
-import android.content.Context;
 import android.content.DialogInterface;
-import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
+import android.location.Address;
 import android.location.Geocoder;
 import android.location.Location;
 import android.os.AsyncTask;
@@ -25,7 +24,6 @@ import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.location.LocationListener;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
-import com.google.android.gms.maps.CameraUpdate;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
@@ -33,12 +31,10 @@ import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.UiSettings;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
-import com.google.android.gms.maps.model.LatLngBounds;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.Polygon;
 import com.google.android.gms.maps.model.PolygonOptions;
-import com.google.maps.android.PolyUtil;
 import com.google.maps.android.ui.IconGenerator;
 
 import org.w3c.dom.Document;
@@ -57,8 +53,6 @@ import java.util.Locale;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
-
-import android.location.Address;
 
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback, GoogleApiClient.ConnectionCallbacks,
         GoogleApiClient.OnConnectionFailedListener,
@@ -137,7 +131,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         } catch (Settings.SettingNotFoundException e) {
             e.printStackTrace();
         }
-        Log.d(TAG, "onMapReady: "+locationMode);
+
         alertDialogBuilder = new AlertDialog.Builder(this)
                 .setTitle("위치 서비스 사용")
                 .setMessage("이 앱에서 내 위치 정보를 사용할 수 없습니다.")
@@ -152,7 +146,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) { // 마시멜로우 버전 이상이면
             if(locationMode == 0) {
                 alertDialogBuilder.show();
-                Log.d(TAG, "onMapReady: gps 안킴1");
             }else{
                 checkLocationPermission();
             }
@@ -160,7 +153,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         else {
             if(locationMode == 0){
                 alertDialogBuilder.show();
-                Log.d(TAG, "onMapReady: gps 안킴2");
             }else {
                 buildGoogleApiClient();
                 mMap.setMyLocationEnabled(true);
@@ -303,7 +295,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             }
             if (locationMode == 0) {
                 alertDialogBuilder.show();
-                Log.d(TAG, "checkLocationPermission: gps 안킴3");
             } else {
                 buildGoogleApiClient();
                 mMap.setMyLocationEnabled(true);
@@ -599,7 +590,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         polygon = mMap.addPolygon(new PolygonOptions()
                 .addAll(points)
                 .strokeColor(Color.WHITE)
-                .strokeWidth(2)
+                .strokeWidth(8)
                 .fillColor(colorArray[0]));
 
         polygon.setClickable(true);
@@ -652,7 +643,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.5541513366375, 126.9657135934734),
                         new LatLng(37.55566236579088, 126.9691850696746),
                         new LatLng(37.5548768201904, 126.96966524449994))
-                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .strokeColor(Color.WHITE)             .strokeWidth(8)
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
@@ -728,7 +719,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.496681, 127.094794),
                         new LatLng(37.490333, 127.10695),
                         new LatLng(37.466521, 127.124207))
-                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .strokeColor(Color.WHITE)             .strokeWidth(8)
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
@@ -781,7 +772,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.605121767227374, 127.06219611364686),
                         new LatLng(37.607062869017085, 127.07111288773496)
                 )
-                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .strokeColor(Color.WHITE)             .strokeWidth(8)
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
@@ -925,7 +916,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.565179, 127.023585),
                         new LatLng(37.563894, 127.02675)
                 )
-                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .strokeColor(Color.WHITE)             .strokeWidth(8)
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
@@ -1231,7 +1222,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.578021, 127.023139),
                         new LatLng(37.571914, 127.023365)
                 )
-                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .strokeColor(Color.WHITE)             .strokeWidth(8)
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
@@ -2030,7 +2021,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.615398, 127.070164),
                         new LatLng(37.607629, 127.071061)
                 )
-                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .strokeColor(Color.WHITE)             .strokeWidth(8)
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
@@ -2080,7 +2071,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.56582 ,126.966698),
                         new LatLng(37.561976    ,126.969464)
                 )
-                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .strokeColor(Color.WHITE)             .strokeWidth(8)
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
@@ -2271,7 +2262,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.549796,   126.963772),
                         new LatLng(37.549763,   126.963898)
                 )
-                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .strokeColor(Color.WHITE)             .strokeWidth(8)
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
@@ -2603,7 +2594,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.517514    ,126.949887 )
 
                 )
-                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .strokeColor(Color.WHITE)             .strokeWidth(8)
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
@@ -2758,7 +2749,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.499861,  126.985385)
 
                 )
-                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .strokeColor(Color.WHITE)             .strokeWidth(8)
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
@@ -2863,7 +2854,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.461004,   127.095677  )
 
                 )
-                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .strokeColor(Color.WHITE)             .strokeWidth(8)
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
@@ -2946,7 +2937,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.503179    ,127.157729 ),
                         new LatLng(37.499142    ,127.161011 )
                 )
-                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .strokeColor(Color.WHITE)             .strokeWidth(8)
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
@@ -3068,7 +3059,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.55676     ,127.115252 ),
                         new LatLng(37.55676     ,127.115253 )
                 )
-                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .strokeColor(Color.WHITE)             .strokeWidth(8)
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
@@ -3157,7 +3148,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.547748    ,127.182674 ),
                         new LatLng(37.54517     ,127.183539 )
                 )
-                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .strokeColor(Color.WHITE)             .strokeWidth(8)
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
@@ -3531,7 +3522,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.605567    ,127.118094),
                         new LatLng(37.605444    ,127.118096)
                 )
-                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .strokeColor(Color.WHITE)             .strokeWidth(8)
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
@@ -4058,7 +4049,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.637408    ,127.111951),
                         new LatLng(37.636489    ,127.112483)
                 )
-                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .strokeColor(Color.WHITE)             .strokeWidth(8)
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
@@ -4322,7 +4313,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.645951    ,127.055873 )
 
                 )
-                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .strokeColor(Color.WHITE)             .strokeWidth(8)
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
@@ -4734,7 +4725,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.624266    ,127.049737 )
 
                 )
-                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .strokeColor(Color.WHITE)             .strokeWidth(8)
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
@@ -4937,7 +4928,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.458166    ,126.988636 )
 
                 )
-                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .strokeColor(Color.WHITE)             .strokeWidth(8)
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
@@ -5080,7 +5071,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.450733    ,126.928469 )
 
                 )
-                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .strokeColor(Color.WHITE)             .strokeWidth(8)
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
@@ -5156,7 +5147,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.55031     ,126.879213),
                         new LatLng(37.548088    ,126.880792)
                 )
-                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .strokeColor(Color.WHITE)             .strokeWidth(8)
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
@@ -5415,7 +5406,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.531725    ,126.890581),
                         new LatLng(37.531656    ,126.890684)
                 )
-                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .strokeColor(Color.WHITE)             .strokeWidth(8)
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
@@ -5570,7 +5561,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.485006    ,126.90303  ),
                         new LatLng(37.485003    ,126.903199 )
                 )
-                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .strokeColor(Color.WHITE)             .strokeWidth(8)
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
@@ -5651,7 +5642,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.65386 	,126.955459	),
                         new LatLng(37.633245	,126.963329	)
                 )
-                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .strokeColor(Color.WHITE)             .strokeWidth(8)
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
@@ -5917,7 +5908,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.439004    ,127.035574  ),
                         new LatLng(37.437769    ,127.04109   ),
                         new LatLng(37.430702    ,127.047369  ))
-                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .strokeColor(Color.WHITE)             .strokeWidth(8)
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
@@ -6146,7 +6137,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.586772	,127.16049),
                         new LatLng(37.581029	,127.170598)
                 )
-                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .strokeColor(Color.WHITE)             .strokeWidth(8)
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
@@ -6378,7 +6369,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.434995	,126.89961	),
                         new LatLng(37.434827	,126.899841	)
                 )
-                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .strokeColor(Color.WHITE)             .strokeWidth(8)
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
@@ -6567,7 +6558,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.516628	,127.285591	),
                         new LatLng(37.514398	,127.285701	)
                 )
-                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .strokeColor(Color.WHITE)             .strokeWidth(8)
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
@@ -7096,7 +7087,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.414308	,127.0449	),
                         new LatLng(37.413748	,127.046843	)
                 )
-                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .strokeColor(Color.WHITE)             .strokeWidth(8)
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
@@ -7469,7 +7460,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.362702	,126.960843	),
                         new LatLng(37.361942	,126.962794	)
                 )
-                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .strokeColor(Color.WHITE)             .strokeWidth(8)
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
@@ -8312,7 +8303,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.676101	,127.378294	),
                         new LatLng(37.677263	,127.380986	)
                 )
-                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .strokeColor(Color.WHITE)             .strokeWidth(8)
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
@@ -8527,7 +8518,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.396167	,126.97975	),
                         new LatLng(37.394807	,126.982732	)
                 )
-                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .strokeColor(Color.WHITE)             .strokeWidth(8)
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
@@ -8911,7 +8902,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.43863 	,126.948155	),
                         new LatLng(37.42207 	,126.948462	)
                 )
-                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .strokeColor(Color.WHITE)             .strokeWidth(8)
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
@@ -9356,7 +9347,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.392633	,127.168245	),
                         new LatLng(37.387099	,127.177235	)
                 )
-                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .strokeColor(Color.WHITE)             .strokeWidth(8)
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
@@ -9532,7 +9523,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.378903	,126.881151	),
                         new LatLng(37.377583	,126.881266	)
                 )
-                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .strokeColor(Color.WHITE)             .strokeWidth(8)
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
@@ -9611,7 +9602,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.468773	,127.16778	),
                         new LatLng(37.471958	,127.175615	)
                 )
-                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .strokeColor(Color.WHITE)             .strokeWidth(8)
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
@@ -9664,7 +9655,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.457033	,127.191664	),
                         new LatLng(37.451171	,127.194842	)
                 )
-                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .strokeColor(Color.WHITE)             .strokeWidth(8)
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
@@ -9898,7 +9889,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.753744	,127.146615	),
                         new LatLng(37.752015	,127.147246	)
                 )
-                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .strokeColor(Color.WHITE)             .strokeWidth(8)
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
@@ -10618,7 +10609,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.380674	,127.446154	),
                         new LatLng(37.380456	,127.446638	)
                 )
-                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .strokeColor(Color.WHITE)             .strokeWidth(8)
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
@@ -10770,7 +10761,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.213177	,126.6517	),
                         new LatLng(37.211753	,126.653752	)
                 )
-                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .strokeColor(Color.WHITE)             .strokeWidth(8)
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
@@ -10846,7 +10837,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.333549	,126.841801	),
                         new LatLng(37.315989	,126.843011	)
                 )
-                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .strokeColor(Color.WHITE)             .strokeWidth(8)
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
@@ -10918,7 +10909,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.321968	,127.039452	),
                         new LatLng(37.321097	,127.039754	)
                 )
-                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .strokeColor(Color.WHITE)             .strokeWidth(8)
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
@@ -10972,7 +10963,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.282717	,127.041816	),
                         new LatLng(37.27429 	,127.045965	)
                 )
-                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .strokeColor(Color.WHITE)             .strokeWidth(8)
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
@@ -11712,7 +11703,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.256521	,127.036676	),
                         new LatLng(37.250981	,127.042171	)
                 )
-                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .strokeColor(Color.WHITE)             .strokeWidth(8)
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
@@ -11989,7 +11980,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.298622	,127.085841	),
                         new LatLng(37.298258	,127.089632	)
                 )
-                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .strokeColor(Color.WHITE)             .strokeWidth(8)
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
@@ -12185,7 +12176,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.672761	,126.994074	),
                         new LatLng(37.669811	,126.994351	)
                 )
-                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .strokeColor(Color.WHITE)             .strokeWidth(8)
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
@@ -12260,7 +12251,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.701086	,126.847927	),
                         new LatLng(37.694087	,126.855969	)
                 )
-                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .strokeColor(Color.WHITE)             .strokeWidth(8)
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
@@ -12311,7 +12302,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.703871	,126.773418	),
                         new LatLng(37.699112	,126.781796	)
                 )
-                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .strokeColor(Color.WHITE)             .strokeWidth(8)
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
@@ -12486,7 +12477,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.834561	,127.117182),
                         new LatLng(37.828304	,127.121794)
                 )
-                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .strokeColor(Color.WHITE)             .strokeWidth(8)
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
@@ -12696,7 +12687,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.992772	,127.014844	),
                         new LatLng(37.986963	,127.017107	)
                 )
-                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .strokeColor(Color.WHITE)             .strokeWidth(8)
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
@@ -13092,7 +13083,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.629693	,126.75952	),
                         new LatLng(37.605033	,126.802581	)
                 )
-                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .strokeColor(Color.WHITE)             .strokeWidth(8)
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
@@ -13175,7 +13166,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.895606	,127.1552	),
                         new LatLng(37.895624	,127.155371	)
                 )
-                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .strokeColor(Color.WHITE)             .strokeWidth(8)
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
@@ -13545,7 +13536,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(38.051797	,127.445997	),
                         new LatLng(38.051214	,127.446239	)
                 )
-                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .strokeColor(Color.WHITE)             .strokeWidth(8)
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
@@ -13932,7 +13923,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.920924	,127.612138	),
                         new LatLng(37.906362	,127.617141	)
                 )
-                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .strokeColor(Color.WHITE)             .strokeWidth(8)
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
@@ -14818,7 +14809,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.552447	,127.848004	),
                         new LatLng(37.552302	,127.848076	)
                 )
-                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .strokeColor(Color.WHITE)             .strokeWidth(8)
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
@@ -15211,7 +15202,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(38.091576	,127.184096	),
                         new LatLng(38.08338 	,127.192093	)
                 )
-                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .strokeColor(Color.WHITE)             .strokeWidth(8)
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
@@ -15274,7 +15265,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.475184	,126.819311	),
                         new LatLng(37.477246	,126.833052	)
                 )
-                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .strokeColor(Color.WHITE)             .strokeWidth(8)
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
@@ -15318,7 +15309,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.534903	,126.821868	),
                         new LatLng(37.526516	,126.828837	)
                 )
-                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .strokeColor(Color.WHITE)             .strokeWidth(8)
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
@@ -15362,7 +15353,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.506679	,126.790878	),
                         new LatLng(37.506114	,126.822383	)
                 )
-                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .strokeColor(Color.WHITE)             .strokeWidth(8)
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
@@ -15653,7 +15644,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.295567	,126.939596	),
                         new LatLng(37.295446	,126.939607	)
                 )
-                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .strokeColor(Color.WHITE)             .strokeWidth(8)
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
@@ -18529,7 +18520,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 new LatLng(37.190897	,127.16134	));
         polygon = mMap.addPolygon(new PolygonOptions()
                 .addAll(points)
-                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .strokeColor(Color.WHITE)             .strokeWidth(8)
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
@@ -20212,7 +20203,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.310744	,127.766806	),
                         new LatLng(37.308313	,127.768412	)
                 )
-                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .strokeColor(Color.WHITE)             .strokeWidth(8)
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
@@ -21213,7 +21204,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.151724	,127.627455	),
                         new LatLng(37.14119 	,127.637768	)
                 )
-                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .strokeColor(Color.WHITE)             .strokeWidth(8)
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
@@ -21623,7 +21614,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.336618	,127.142262	),
                         new LatLng(37.325707	,127.142444	)
                 )
-                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .strokeColor(Color.WHITE)             .strokeWidth(8)
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
@@ -22250,7 +22241,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.28956 	,127.174461	),
                         new LatLng(37.282258	,127.177128	)
                 )
-                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .strokeColor(Color.WHITE)             .strokeWidth(8)
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
@@ -23869,7 +23860,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.146973	,127.426969	),
                         new LatLng(37.146438	,127.427754	)
                 )
-                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .strokeColor(Color.WHITE)             .strokeWidth(8)
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
@@ -24288,7 +24279,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.158915	,127.094369	),
                         new LatLng(37.143863	,127.103038	)
                 )
-                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .strokeColor(Color.WHITE)             .strokeWidth(8)
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
@@ -25518,7 +25509,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(36.997737	,127.154094	),
                         new LatLng(36.997692	,127.154273	)
                 )
-                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .strokeColor(Color.WHITE)             .strokeWidth(8)
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
@@ -26673,7 +26664,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new LatLng(37.083211	,127.514392	),
                         new LatLng(37.081625	,127.516591	)
                 )
-                .strokeColor(Color.WHITE)             .strokeWidth(2)
+                .strokeColor(Color.WHITE)             .strokeWidth(8)
                 .fillColor(colorArray[0]));
         polygon.setClickable(true);
         nameHashMap.put(polygon.hashCode(),name);
