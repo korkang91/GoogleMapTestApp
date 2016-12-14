@@ -5,4 +5,5 @@
     <string name="stitle">서울경기미세먼지</string>
     <string name="loading">Loading...</string>
     <string name="pmspinner">미세먼지 지수</string>
+    <string name="alertdialogtitle">위치 서비스 사용</string>
 </resources>
