@@ -99,8 +99,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     int seoulPm = 0;
     int cnt = 0;
     int locationMode;   //GPS모드 확인 변수
+    AlertDialog alertDialogBuilder;
 
-    AlertDialog.Builder ab;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -132,34 +132,39 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         mapSettings.setRotateGesturesEnabled(false);
         mapSettings.setTiltGesturesEnabled(false);
 
-        ab = new AlertDialog.Builder(this);
-        ab.setTitle("위치 서비스 사용")
-                .setMessage("이 앱에서 내 위치 정보를 사용하려면 단말기의 설정에서 '위치 서비스' 사용을 허용해주세요")
+        try {
+            locationMode = Settings.Secure.getInt(MapsActivity.this.getContentResolver(), Settings.Secure.LOCATION_MODE);
+        } catch (Settings.SettingNotFoundException e) {
+            e.printStackTrace();
+        }
+        Log.d(TAG, "onMapReady: "+locationMode);
+        alertDialogBuilder = new AlertDialog.Builder(this)
+                .setTitle("위치 서비스 사용")
+                .setMessage("이 앱에서 내 위치 정보를 사용할 수 없습니다.")
                 .setPositiveButton("OK", new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialogInterface, int i) {
-                        Intent busi_intent = new Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS);
-                        busi_intent.addCategory(Intent.CATEGORY_DEFAULT);
-                        startActivity(busi_intent);
                     }
                 })
                 .create();
 
         // Google Play Services 초기화
         if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) { // 마시멜로우 버전 이상이면
-            checkLocationPermission();
+            if(locationMode == 0) {
+                alertDialogBuilder.show();
+                Log.d(TAG, "onMapReady: gps 안킴1");
+            }else{
+                checkLocationPermission();
+            }
         }
         else {
-            try {
-                locationMode = Settings.Secure.getInt(MapsActivity.this.getContentResolver(), Settings.Secure.LOCATION_MODE);
-            } catch (Settings.SettingNotFoundException e) {
-                e.printStackTrace();
-            }
             if(locationMode == 0){
-                        ab.show();
+                alertDialogBuilder.show();
+                Log.d(TAG, "onMapReady: gps 안킴2");
+            }else {
+                buildGoogleApiClient();
+                mMap.setMyLocationEnabled(true);
             }
-            buildGoogleApiClient();
-            mMap.setMyLocationEnabled(true);
         }
 
 
@@ -286,31 +291,23 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         @Override
                         public void onClick(DialogInterface dialogInterface, int i) {
                             ActivityCompat.requestPermissions(MapsActivity.this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, MY_PERMISSIONS_REQUEST_LOCATION);
-                            try {
-                                locationMode = Settings.Secure.getInt(MapsActivity.this.getContentResolver(), Settings.Secure.LOCATION_MODE);
-                            } catch (Settings.SettingNotFoundException e) {
-                                e.printStackTrace();
-                            }
-                             if(locationMode == 0){
-                                Intent busi_intent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
-                                busi_intent.addCategory(Intent.CATEGORY_DEFAULT);
-                                startActivity(busi_intent);
-                            }
                         }
                     })
                     .create()
                     .show();
-        }else {
+        } else {
             try {
                 locationMode = Settings.Secure.getInt(MapsActivity.this.getContentResolver(), Settings.Secure.LOCATION_MODE);
             } catch (Settings.SettingNotFoundException e) {
                 e.printStackTrace();
             }
-            if(locationMode == 0){
-                ab.show();
+            if (locationMode == 0) {
+                alertDialogBuilder.show();
+                Log.d(TAG, "checkLocationPermission: gps 안킴3");
+            } else {
+                buildGoogleApiClient();
+                mMap.setMyLocationEnabled(true);
             }
-            buildGoogleApiClient();
-            mMap.setMyLocationEnabled(true);
         }
     }
 
@@ -329,16 +326,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     }
                 } else {
                     // permission 거절 시
-                    new AlertDialog.Builder(this)
-                            .setTitle("위치 서비스 사용")
-                            .setMessage("이 앱에서 내 위치 정보를 사용할 수 없습니다.")
-                            .setPositiveButton("OK", new DialogInterface.OnClickListener() {
-                                @Override
-                                public void onClick(DialogInterface dialogInterface, int i) {
-                                }
-                            })
-                            .create()
-                            .show();
+                    alertDialogBuilder.show();
                 }
                 break;
             }
@@ -351,9 +339,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .addOnConnectionFailedListener(this)
                 .addApi(LocationServices.API)
                 .build();
-        Log.d(TAG, "buildGoogleApiClient: asldkjasldfsdlk");
         mGoogleApiClient.connect();
-        Log.d(TAG, "buildGoogleApiClient: asasdasdssddsasds");
     }
 
     @Override

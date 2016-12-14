@@ -13,6 +13,7 @@ import android.util.Log;
 public class SplashActivity extends Activity {
     AlertDialog.Builder ab;
     int locationMode;   //GPS모드 확인 변수
+    String TAG = "kbc";
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -26,7 +27,7 @@ public class SplashActivity extends Activity {
                 .setPositiveButton("OK", new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialogInterface, int i) {
-                        Intent busi_intent = new Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS);
+                        Intent busi_intent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
                         busi_intent.addCategory(Intent.CATEGORY_DEFAULT);
                         startActivity(busi_intent);
                     }
@@ -41,8 +42,6 @@ public class SplashActivity extends Activity {
         }
         if (locationMode == 0) {
             ab.show();
-            Log.d("kbc", "onCreate: asdfsadfadsf");
-
         } else {
             int secondsDelayed = 1;
             new Handler().postDelayed(new Runnable() {
@@ -52,7 +51,24 @@ public class SplashActivity extends Activity {
                 }
             }, secondsDelayed * 1000);
         }
+
+
+    }
+    @Override
+    public void onPause() {
+        super.onPause();
     }
 
+    @Override
+    public void onResume() {
+        super.onResume();
+    }
+
+    @Override
+    public void onRestart() {
+        super.onRestart();
+        startActivity(new Intent(SplashActivity.this, MapsActivity.class));
+        finish();
+    }
 
 }
