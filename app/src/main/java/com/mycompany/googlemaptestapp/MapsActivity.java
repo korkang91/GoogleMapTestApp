@@ -119,12 +119,16 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         LatLng seoul = new LatLng(37.56, 126.990786);
         mMap.moveCamera(CameraUpdateFactory.newLatLng(seoul));
+        mMap.setMinZoomPreference(8.5f);
+
+
 
         UiSettings mapSettings;
         mapSettings = mMap.getUiSettings();
         mapSettings.setZoomControlsEnabled(true);
         mapSettings.setRotateGesturesEnabled(false);
         mapSettings.setTiltGesturesEnabled(false);
+        mapSettings.setMapToolbarEnabled(false);
 
         try {
             locationMode = Settings.Secure.getInt(MapsActivity.this.getContentResolver(), Settings.Secure.LOCATION_MODE);
@@ -133,8 +137,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }
 
         alertDialogBuilder = new AlertDialog.Builder(this)
-                .setTitle("위치 서비스 사용")
-                .setMessage("이 앱에서 내 위치 정보를 사용할 수 없습니다.")
+                .setTitle(R.string.alertdialogtitle)
+                .setMessage(R.string.alertdialogtext)
                 .setPositiveButton("OK", new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialogInterface, int i) {
@@ -161,6 +165,14 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             }
         }
 
+        mMap.setOnMapClickListener(new GoogleMap.OnMapClickListener(){
+            @Override
+            public void onMapClick(LatLng point){
+                if (mCurrLocationMarker != null) {
+                    mCurrLocationMarker.showInfoWindow();
+                }
+            }
+        });
 
         mMap.animateCamera(CameraUpdateFactory.zoomTo(9), 1000, null);
 
@@ -168,6 +180,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             @Override
             public void onPolygonClick(Polygon polygon) {
                 mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(latLngHashMap.get(polygon.hashCode()), mMap.getCameraPosition().zoom ));
+                if (mCurrLocationMarker != null) {
+                    mCurrLocationMarker.showInfoWindow();
+                }
             }
         });
 
@@ -182,6 +197,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         mMap.setOnCameraMoveListener(new GoogleMap.OnCameraMoveListener() {
             @Override
             public void onCameraMove() {
+//                Log.d(TAG, "onCameraMove: "+mMap.getCameraPosition().zoom);
+//                if(mMap.getCameraPosition().zoom <=8.5){
+//                    mMap.moveCamera(CameraUpdateFactory.zoomTo(8.5f));
+//                }
                 if (mMap.getCameraPosition().zoom >= 13) {
                     for (int i = 0; i < markerList.size(); i++) {
                         markerList.get(i).setVisible(true);  //서울 행정구 마커 visible true
@@ -265,13 +284,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             LocationServices.FusedLocationApi.removeLocationUpdates(mGoogleApiClient, this);
         }
     }
-    
+
     private void showDistance() {
-        mTextView.setText("0~30\n좋음");
-        mTextView2.setText("31~80\n보통");
-        mTextView3.setText("81~151\n나쁨");
-        mTextView4.setText("151~\n매우나쁨");
-        mTextView5.setText("-\n정보없음");
+        mTextView.setText("0~30\n"+getResources().getString(R.string.value1));
+        mTextView2.setText("31~80\n"+getResources().getString(R.string.value2));
+        mTextView3.setText("81~151\n"+getResources().getString(R.string.value3));
+        mTextView4.setText("151~\n"+getResources().getString(R.string.value4));
+        mTextView5.setText("-\n"+getResources().getString(R.string.value5));
     }
 
     //permission 추가 메소드
@@ -279,8 +298,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION)
                 != PackageManager.PERMISSION_GRANTED) {
             new AlertDialog.Builder(this)
-                    .setTitle("위치 서비스 사용")
-                    .setMessage("이 앱에서 내 위치 정보를 사용하려면 단말기의 설정에서 '위치 서비스' 사용을 허용해주세요")
+                    .setTitle(R.string.alertdialogtitle)
+                    .setMessage(R.string.alertdialoggps)
                     .setPositiveButton("OK", new DialogInterface.OnClickListener() {
                         @Override
                         public void onClick(DialogInterface dialogInterface, int i) {
@@ -290,17 +309,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     .create()
                     .show();
         } else {
-            try {
-                locationMode = Settings.Secure.getInt(MapsActivity.this.getContentResolver(), Settings.Secure.LOCATION_MODE);
-            } catch (Settings.SettingNotFoundException e) {
-                e.printStackTrace();
-            }
-            if (locationMode == 0) {
-                alertDialogBuilder.show();
-            } else {
-                buildGoogleApiClient();
-                mMap.setMyLocationEnabled(true);
-            }
+            buildGoogleApiClient();
+            mMap.setMyLocationEnabled(true);
         }
     }
 
@@ -26702,6 +26712,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     doc[i].getDocumentElement().normalize();
                 }
             } catch (Exception e) {
+                e.printStackTrace();
             }
             return doc;
         }
@@ -26751,7 +26762,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 String juso = getAddress(mLastLocation.getLatitude(), mLastLocation.getLongitude());
                 mCurrLocationMarker.setSnippet("현재 미세먼지 지수 : " + pm10HashMap.get(juso) +" 입니다.");
                 mCurrLocationMarker.setVisible(false);
-                if(mCurrLocationMarker.isVisible()==false) {
+                if(!mCurrLocationMarker.isVisible()) {
                     mCurrLocationMarker.setVisible(true);
                     mCurrLocationMarker.showInfoWindow();
                 }

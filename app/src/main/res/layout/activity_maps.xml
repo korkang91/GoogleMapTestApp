@@ -11,35 +11,35 @@
         android:layout_height="35sp">
 
         <TextView
-            android:layout_width="0dp"
+            android:layout_width="0sp"
             android:layout_height="match_parent"
             android:layout_weight="1"
             android:gravity="center_horizontal"
             android:id="@+id/textView"
             android:background="#24FCFF" />
         <TextView
-            android:layout_width="0dp"
+            android:layout_width="0sp"
             android:layout_height="match_parent"
             android:layout_weight="1"
             android:gravity="center_horizontal"
             android:id="@+id/textView2"
             android:background="#1DDB16" />
         <TextView
-            android:layout_width="0dp"
+            android:layout_width="0sp"
             android:layout_height="match_parent"
             android:layout_weight="1"
             android:gravity="center_horizontal"
             android:id="@+id/textView3"
             android:background="#FFE400" />
         <TextView
-            android:layout_width="0dp"
+            android:layout_width="0sp"
             android:layout_height="match_parent"
             android:layout_weight="1"
             android:gravity="center_horizontal"
             android:id="@+id/textView4"
             android:background="#FF0000" />
         <TextView
-            android:layout_width="0dp"
+            android:layout_width="0sp"
             android:layout_height="match_parent"
             android:layout_weight="1"
             android:gravity="center_horizontal"

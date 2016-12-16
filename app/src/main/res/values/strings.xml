@@ -6,4 +6,14 @@
     <string name="loading">Loading...</string>
     <string name="pmspinner">미세먼지 지수</string>
     <string name="alertdialogtitle">위치 서비스 사용</string>
+    <string name="value1">좋음</string>
+    <string name="value2">보통</string>
+    <string name="value3">나쁨</string>
+    <string name="value4">매우나쁨</string>
+    <string name="value5">정보없음</string>
+    <string name="alertdialogtext">이 앱에서 내 위치 정보를 사용할 수 없습니다.</string>
+    <string name="alertdialoggps">이 앱에서 내 위치 정보를 사용하려면 단말기의 설정에서 \'위치 서비스\' 사용을 허용해주세요.</string>
+    <string name="marker_text1">현재 위치</string>
+    <string name="marker_text2">현재 미세먼지 지수</string>
+    <string name="marker_text3">입니다.</string>
 </resources>
