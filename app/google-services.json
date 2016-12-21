@@ -1,0 +1,42 @@
+{
+  "project_info": {
+    "project_number": "254786461692",
+    "firebase_url": "https://woven-mapper-149804.firebaseio.com",
+    "project_id": "woven-mapper-149804",
+    "storage_bucket": "woven-mapper-149804.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:254786461692:android:10a3b4179be4b60d",
+        "android_client_info": {
+          "package_name": "com.mycompany.googlemaptestapp"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "254786461692-gvpg5suugkhfkhcfukpkssmml767qmir.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDOMHmk60acqN2jgVDP-Z4Yx90Cao-oAjY"
+        }
+      ],
+      "services": {
+        "analytics_service": {
+          "status": 1
+        },
+        "appinvite_service": {
+          "status": 1,
+          "other_platform_oauth_client": []
+        },
+        "ads_service": {
+          "status": 2
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
