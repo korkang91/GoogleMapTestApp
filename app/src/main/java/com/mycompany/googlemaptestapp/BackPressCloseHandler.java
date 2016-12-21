@@ -7,15 +7,29 @@ package com.mycompany.googlemaptestapp;
 import android.app.Activity;
 import android.widget.Toast;
 
+import com.google.android.gms.ads.AdRequest;
+import com.google.android.gms.ads.InterstitialAd;
+
 public class BackPressCloseHandler {
 
     private long backKeyPressedTime = 0;
     private Toast toast;
 
     private Activity activity;
+    private InterstitialAd interstitialAd;
+    String TAG = "kbc";
 
     public BackPressCloseHandler(Activity context) {
         this.activity = context;
+        Start();
+    }
+    void Start(){
+        interstitialAd = new InterstitialAd(this.activity);
+        interstitialAd.setAdUnitId("ca-app-pub-8149923844085303/2365120078");
+        //Create an empty ad request.
+        AdRequest request = new AdRequest.Builder().build();
+        //Load the Ads with the request.
+        interstitialAd.loadAd(request);
     }
 
     public void onBackPressed() {
@@ -25,8 +39,12 @@ public class BackPressCloseHandler {
             return;
         }
         if (System.currentTimeMillis() <= backKeyPressedTime + 2000) {
-            activity.finish();
             toast.cancel();
+
+            if(interstitialAd != null){
+                interstitialAd.show();
+            }
+            activity.finish();
         }
     }
 
