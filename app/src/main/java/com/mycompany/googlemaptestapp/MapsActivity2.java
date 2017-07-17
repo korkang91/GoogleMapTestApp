@@ -469,7 +469,7 @@ public class MapsActivity2 extends FragmentActivity implements OnMapReadyCallbac
         Retrofit client = new Retrofit.Builder()
                 .baseUrl("http://openapi.airkorea.or.kr")
                 .client(new OkHttpClient())
-                .addConverterFactory(SimpleXmlConverterFactory.create())
+//                .addConverterFactory(SimpleXmlConverterFactory.create())
                 .build();
         ApiInterface service = client.create(ApiInterface.class);
         Call<Repo> call = service.repo();
