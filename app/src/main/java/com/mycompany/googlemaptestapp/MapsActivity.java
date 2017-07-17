@@ -18,6 +18,7 @@ import android.support.v4.app.FragmentActivity;
 import android.support.v4.content.ContextCompat;
 import android.util.Log;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.google.android.gms.ads.AdRequest;
 import com.google.android.gms.ads.AdView;
@@ -112,6 +113,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         backPressCloseHandler = new BackPressCloseHandler(this);
         airAPI("서울", "경기");
+
     }
 
     @Override
@@ -127,7 +129,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         mMap.moveCamera(CameraUpdateFactory.newLatLng(seoul));
         mMap.setMinZoomPreference(8.5f);
 
-
+        Toast.makeText(MapsActivity.this, "현지사정이나 수신상태에 의해 차이가 발생할 수 있습니다. 제공(환경부/한국환경공단)", Toast.LENGTH_SHORT).show();
 
         UiSettings mapSettings;
         mapSettings = mMap.getUiSettings();
