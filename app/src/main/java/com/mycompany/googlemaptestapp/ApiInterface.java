@@ -14,9 +14,9 @@ public interface ApiInterface {
     //Call<Repo> repo(@Path("lat") String lat, @Path("lon") String lon);
 
     //http://openapi.airkorea.or.kr/openapi/services/rest/ArpltnInforInqireSvc/getCtprvnRltmMesureDnsty?sidoName=서울&pageNo=1&numOfRows=10&ServiceKey=서비스키&ver=1.3
-    @GET("/openapi/services/rest/ArpltnInforInqireSvc/getCtprvnRltmMesureDnsty")
-    Call<Repo> repo(@Query("serviceKey") String serviceKey, @Query("lat") double lat, @Query("lon") double lon);
+//    @GET("/openapi/services/rest/ArpltnInforInqireSvc/getCtprvnRltmMesureDnsty")
+//    Call<Repo> repo(@Query("serviceKey") String serviceKey, @Query("lat") double lat, @Query("lon") double lon);
 
-    @GET("/openapi/services/rest/ArpltnInforInqireSvc/getCtprvnMesureSidoLIst")
-    Call<Repo> repo2(@Query("appid") String appid, @Query("lat") double lat, @Query("lon") double lon);
+//    @GET("/openapi/services/rest/ArpltnInforInqireSvc/getCtprvnMesureSidoLIst")
+//    Call<Repo> repo2(@Query("appid") String appid, @Query("lat") double lat, @Query("lon") double lon);
 }
