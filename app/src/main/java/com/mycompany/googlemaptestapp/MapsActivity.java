@@ -57,6 +57,14 @@ import java.util.Locale;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 
+import okhttp3.OkHttpClient;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.GsonConverterFactory;
+import retrofit2.Response;
+import retrofit2.Retrofit;
+import retrofit2.converter.simplexml.SimpleXmlConverterFactory;
+
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback, GoogleApiClient.ConnectionCallbacks,
         GoogleApiClient.OnConnectionFailedListener,
         LocationListener {
@@ -112,8 +120,83 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         mAdView.loadAd(adRequest);
 
         backPressCloseHandler = new BackPressCloseHandler(this);
-        airAPI("서울", "경기");
+//        airAPI("서울", "경기");
+        airAPI2("서울", "경기");
 
+    }
+
+    public void airAPI2(String input,String input2){
+        String addr, addr2;
+        final String serviceKey = "jENXI1lavhLBnweHBWDKwAfCcvSEqooh5DshJSNDLGNa%2Bpsd3WMuAuswxdQydH8mbvffg3rWCcYfa5tIo7DVbw%3D%3D";
+        String serviceKey2 = "jENXI1lavhLBnweHBWDKwAfCcvSEqooh5DshJSNDLGNa%2Bpsd3WMuAuswxdQydH8mbvffg3rWCcYfa5tIo7DVbw%3D%3D";
+        addr = "http://openapi.airkorea.or.kr/openapi/services/rest/ArpltnInforInqireSvc/getCtprvnRltmMesureDnsty?sidoName="+input+"&pageNo=1&numOfRows=99&ServiceKey="+serviceKey+"&ver=1.3";
+        addr2 = "http://openapi.airkorea.or.kr/openapi/services/rest/ArpltnInforInqireSvc/getCtprvnMesureSidoLIst?sidoName="+input2+"&searchCondition=DAILY&pageNo=1&numOfRows=31&ServiceKey="+serviceKey;
+
+//        GetXMLTask task = new GetXMLTask(); // 객체 생성
+//        String[] addrArray = {addr,addr2};
+//        task.execute(addrArray); // XML 파싱
+
+        Retrofit client = new Retrofit.Builder()
+                                .baseUrl("http://openapi.airkorea.or.kr")
+                                .client(new OkHttpClient())
+                                .addConverterFactory(SimpleXmlConverterFactory.create())
+                                .build();
+
+        ApiInterface service = client.create(ApiInterface.class);
+
+        Call<Repo> call = service.repo(input,1,99,ApiInterface.API_KEY,1.3);
+
+//        Log.e(TAG, "airAPI2: " + call.request().toString() );
+
+        call.enqueue(new Callback<Repo>() {
+            @Override
+            public void onResponse(Call<Repo> call, Response<Repo> response) {
+
+                Log.e(TAG, "onResponse: " + response.raw());        //Response{protocol.....
+                Log.e(TAG, "onResponse: " + response.message());    //OK
+                Log.e(TAG, "onResponse: " + response.code());       //200
+//                try {
+                    if (response.isSuccessful()) {
+                        Repo repo = response.body();
+                        Log.e(TAG, "onResponse: " + repo);
+
+//                        Log.e(TAG, "onResponse: " + repo.item[0].stationName);
+//                        Log.e(TAG, "onResponse: " + repo.item[0].stationName.toString());
+//                                                  naverRepo.getFaces()[0].getCelebrity().getValue()
+//                        Log.e(TAG, "onResponse: " + repo.getItem().length );
+//                        Log.e(TAG, "onResponse: " + repo.getItem()[0].getStationName());
+//                        Log.e(TAG, "onResponse: " + repo.getItem()[0].getStationName().toString());
+
+//                    Log.e(TAG, "onResponse: if");
+//                    Log.e(TAG, "onResponse: " + response.body().item.toString() );
+//                    Log.e(TAG, "onResponse: " + response.body().getItem() );
+
+//                    Log.e(TAG, "onResponse: " + response.body().getResultCode() );
+//                    Log.e(TAG, "onResponse: " + response.body().toString() );
+//                    Log.e(TAG, "onResponse: " + response.body() );
+//                    Log.e(TAG, "onResponse: " + response.headers().size() );
+//                    Log.e(TAG, "onResponse: " + response.headers().values("resultCode") );
+                        Toast toast = Toast.makeText(MapsActivity.this, "데이터 로드 완료 ", Toast.LENGTH_SHORT);
+                        toast.show();
+                    } else {
+                        Log.e(TAG, "onResponse else : else");
+                        ;
+                    }
+//                }catch (IOException e) {
+//                    Log.e("LOG", "Exeption: " + e);
+//                }
+            }
+
+            @Override
+            public void onFailure(Call<Repo> call, Throwable t) {
+                Log.e(TAG, "onFailure: getStackTrace   " + t.getStackTrace());
+                Log.e(TAG, "onFailure: toString        " + t.toString());
+                Log.e(TAG, "onFailure: getMessage      " + t.getMessage());
+                Toast toast = Toast.makeText(MapsActivity.this, "잘못 입력 하셨습니다.", Toast.LENGTH_SHORT);
+                toast.show();
+                Log.e(TAG, "onFailure!!!!!!!!!!!!");;
+            }
+        });
     }
 
     @Override
@@ -26764,8 +26847,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 //                    Log.d(TAG,"kbc "+s);
                 }
             }
-            draw();
-            draw2();
+//            draw();
+//            draw2();
             if(mLastLocation!=null) {
                 String juso = getAddress(mLastLocation.getLatitude(), mLastLocation.getLongitude());
                 mCurrLocationMarker.setSnippet("현재 미세먼지 지수 : " + pm10HashMap.get(juso) +" 입니다.");
