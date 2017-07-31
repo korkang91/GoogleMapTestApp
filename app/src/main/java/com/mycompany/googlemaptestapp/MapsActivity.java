@@ -48,8 +48,11 @@ import org.xml.sax.InputSource;
 
 import java.io.IOException;
 import java.net.URL;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -120,6 +123,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         mAdView.loadAd(adRequest);
 
         backPressCloseHandler = new BackPressCloseHandler(this);
+
 //        airAPI("서울", "경기");
         airAPI2("서울", "경기");
 
@@ -132,9 +136,24 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         addr = "http://openapi.airkorea.or.kr/openapi/services/rest/ArpltnInforInqireSvc/getCtprvnRltmMesureDnsty?sidoName="+input+"&pageNo=1&numOfRows=99&ServiceKey="+serviceKey+"&ver=1.3";
         addr2 = "http://openapi.airkorea.or.kr/openapi/services/rest/ArpltnInforInqireSvc/getCtprvnMesureSidoLIst?sidoName="+input2+"&searchCondition=DAILY&pageNo=1&numOfRows=31&ServiceKey="+serviceKey;
 
-//        GetXMLTask task = new GetXMLTask(); // 객체 생성
-//        String[] addrArray = {addr,addr2};
-//        task.execute(addrArray); // XML 파싱
+//        String currentDateTimeString = DateFormat.getDateTimeInstance().format(new Date());  //2017-07-28 09:00
+//        Log.e(TAG, "airAPI2: " + currentDateTimeString);
+//
+//        long now = System.currentTimeMillis();
+//        Date date = new Date(now);
+//        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd hh:mm");
+//        SimpleDateFormat sdf2 = new SimpleDateFormat("yyyy-MM-dd hh:00");
+//        String getTime = sdf.format(date);
+//        Log.e(TAG, "airAPI2: " + getTime);
+//        String getTime2 = sdf2.format(date);
+//        Log.e(TAG, "airAPI2: " + getTime2);
+
+
+        final ProgressDialog asyncDialog = new ProgressDialog(MapsActivity.this);
+
+        asyncDialog.setProgressStyle(ProgressDialog.STYLE_SPINNER);
+        asyncDialog.setMessage("로딩중입니다..");
+        asyncDialog.show();
 
         Retrofit client = new Retrofit.Builder()
                                 .baseUrl("http://openapi.airkorea.or.kr")
@@ -144,59 +163,214 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         ApiInterface service = client.create(ApiInterface.class);
 
-        Call<Repo> call = service.repo(input,1,99,ApiInterface.API_KEY,1.3);
-
-//        Log.e(TAG, "airAPI2: " + call.request().toString() );
+//        Call<Repo> call = service.repo(input,1,99,ApiInterface.API_KEY,1.3);
+        Call<Repo> call = service.repo2(input,"HOUR",1,25,ApiInterface.API_KEY);
 
         call.enqueue(new Callback<Repo>() {
             @Override
             public void onResponse(Call<Repo> call, Response<Repo> response) {
+                Log.e(TAG, "onResponse1: totalcount1   " + response.body().getTotalCount());       //
+//                Log.e(TAG, "onResponse1: " + response.raw());        //Response{protocol.....
+//                Log.e(TAG, "onResponse1: " + response.message());    //OK
+//                Log.e(TAG, "onResponse1: " + response.code());       //200
+//                Log.e(TAG, "onResponse1: " + response.body().getResultCode() );      //00
+//                Log.e(TAG, "onResponse1: " + response.body().getResultMsg() );       //NORMAL SERVICE
+//                Log.e(TAG, "onResponse1: " + response.body().getItems().size() );    //39
+                try{
+                    for(int i=0;i<response.body().getItems().size();i++){
+//                        Log.e(TAG, "onResponse: " + response.body().getStationName(i) );
+//                        Log.e(TAG, "onResponse1: " + response.body().getMangName(i) );
+//                        Log.e(TAG, "onResponse: " + response.body().getDataTime(i) );
+//                        Log.e(TAG, "onResponse: " + response.body().getSo2Value(i) );
+//                        Log.e(TAG, "onResponse: " + response.body().getCoValue(i) );
+//                        Log.e(TAG, "onResponse: " + response.body().getO3Value(i) );
+//                        Log.e(TAG, "onResponse: " + response.body().getNo2Value(i) );
+//                        Log.e(TAG, "onResponse: " + response.body().getPm10Value(i) );
+//                        Log.e(TAG, "onResponse: " + response.body().getPm10Value24(i) );
+//                        Log.e(TAG, "onResponse: " + response.body().getPm25Value(i) );
+//                        Log.e(TAG, "onResponse: " + response.body().getPm25Value24(i) );
+//                        Log.e(TAG, "onResponse: " + response.body().getKhaiValue(i) );
+//                        Log.e(TAG, "onResponse: " + response.body().getKhaiGrade(i) );
+//                        Log.e(TAG, "onResponse: " + response.body().getSo2Grade(i) );
+//                        Log.e(TAG, "onResponse: " + response.body().getCoGrade(i) );
+//                        Log.e(TAG, "onResponse: " + response.body().getO3Grade(i) );
+//                        Log.e(TAG, "onResponse: " + response.body().getNo2Grade(i) );
+//                        Log.e(TAG, "onResponse: " + response.body().getPm10Grade(i) );
+//                        Log.e(TAG, "onResponse: " + response.body().getPm25Grade(i) );
+//                        Log.e(TAG, "onResponse: " + response.body().getPm10Grade1h(i) );
+//                        Log.e(TAG, "onResponse: " + response.body().getPm25Grade1h(i) );
+//                        pm10HashMap.put( response.body().getStationName(i), response.body().getPm10Value(i));
+//                        Log.e(TAG, "onResponse: " + response.body().getStationName(i) + "    " + response.body().getPm10Value(i) );
+                        pm10HashMap.put( response.body().getCityName(i), response.body().getPm10Value(i));
+                        Log.e(TAG, "onResponse: " + i + "    " + response.body().getCityName(i) + "  " + response.body().getPm10Value(i) );
+                    }
 
-                Log.e(TAG, "onResponse: " + response.raw());        //Response{protocol.....
-                Log.e(TAG, "onResponse: " + response.message());    //OK
-                Log.e(TAG, "onResponse: " + response.code());       //200
-//                try {
                     if (response.isSuccessful()) {
-                        Repo repo = response.body();
-                        Log.e(TAG, "onResponse: " + repo);
+                        onLocationChanged(mLastLocation);
 
-//                        Log.e(TAG, "onResponse: " + repo.item[0].stationName);
-//                        Log.e(TAG, "onResponse: " + repo.item[0].stationName.toString());
-//                                                  naverRepo.getFaces()[0].getCelebrity().getValue()
-//                        Log.e(TAG, "onResponse: " + repo.getItem().length );
-//                        Log.e(TAG, "onResponse: " + repo.getItem()[0].getStationName());
-//                        Log.e(TAG, "onResponse: " + repo.getItem()[0].getStationName().toString());
-
-//                    Log.e(TAG, "onResponse: if");
-//                    Log.e(TAG, "onResponse: " + response.body().item.toString() );
-//                    Log.e(TAG, "onResponse: " + response.body().getItem() );
-
-//                    Log.e(TAG, "onResponse: " + response.body().getResultCode() );
-//                    Log.e(TAG, "onResponse: " + response.body().toString() );
-//                    Log.e(TAG, "onResponse: " + response.body() );
-//                    Log.e(TAG, "onResponse: " + response.headers().size() );
-//                    Log.e(TAG, "onResponse: " + response.headers().values("resultCode") );
-                        Toast toast = Toast.makeText(MapsActivity.this, "데이터 로드 완료 ", Toast.LENGTH_SHORT);
+                        draw();
+                        asyncDialog.dismiss();
+                        Toast toast = Toast.makeText(MapsActivity.this, "데이터 로드 완료", Toast.LENGTH_SHORT);
                         toast.show();
                     } else {
-                        Log.e(TAG, "onResponse else : else");
-                        ;
+                        asyncDialog.dismiss();
+                        Log.e(TAG, "onResponse else : else1");
                     }
-//                }catch (IOException e) {
-//                    Log.e("LOG", "Exeption: " + e);
-//                }
+                }catch (Exception e) {
+                    asyncDialog.dismiss();
+                    Log.e("LOG", "Exeption1: " + e);
+                }
             }
 
             @Override
             public void onFailure(Call<Repo> call, Throwable t) {
-                Log.e(TAG, "onFailure: getStackTrace   " + t.getStackTrace());
-                Log.e(TAG, "onFailure: toString        " + t.toString());
-                Log.e(TAG, "onFailure: getMessage      " + t.getMessage());
-                Toast toast = Toast.makeText(MapsActivity.this, "잘못 입력 하셨습니다.", Toast.LENGTH_SHORT);
+//                Log.e(TAG, "onFailure: " + call.toString() );
+//                Log.e(TAG, "onFailure: getStackTrace   " + t.getStackTrace());
+//                Log.e(TAG, "onFailure: toString        " + t.toString());
+//                Log.e(TAG, "onFailure: getMessage      " + t.getMessage());
+                pm10HashMap.put( "강남구", "-");
+                pm10HashMap.put( "강동구", "-");
+                pm10HashMap.put( "강북구", "-");
+                pm10HashMap.put( "강서구", "-");
+                pm10HashMap.put( "관악구", "-");
+                pm10HashMap.put( "광진구", "-");
+                pm10HashMap.put( "구로구", "-");
+                pm10HashMap.put( "금천구", "-");
+                pm10HashMap.put( "노원구", "-");
+                pm10HashMap.put( "도봉구", "-");
+                pm10HashMap.put( "동대문구", "-");
+                pm10HashMap.put( "동작구", "-");
+                pm10HashMap.put( "마포구", "-");
+                pm10HashMap.put( "서대문구", "-");
+                pm10HashMap.put( "서초구", "-");
+                pm10HashMap.put( "성동구", "-");
+                pm10HashMap.put( "성북구", "-");
+                pm10HashMap.put( "송파구", "-");
+                pm10HashMap.put( "양천구", "-");
+                pm10HashMap.put( "영등포구", "-");
+                pm10HashMap.put( "용산구", "-");
+                pm10HashMap.put( "은평구", "-");
+                pm10HashMap.put( "종로구", "-");
+                pm10HashMap.put( "중구", "-");
+                pm10HashMap.put( "중랑구", "-");
+                Toast toast = Toast.makeText(MapsActivity.this, "공공데이터 API에서 오류가 발생하였습니다.", Toast.LENGTH_SHORT);
                 toast.show();
-                Log.e(TAG, "onFailure!!!!!!!!!!!!");;
+                Log.e(TAG, "onFailure1!!!!!!!!!!!!");;
+                draw();
+                asyncDialog.dismiss();
             }
         });
+
+//        Log.e(TAG, "airAPI2: ");
+
+        Call<Repo> call2 = service.repo2(input2,"HOUR",1,31,ApiInterface.API_KEY);
+
+        call2.enqueue(new Callback<Repo>() {
+            @Override
+            public void onResponse(Call<Repo> call, Response<Repo> response) {
+                Log.e(TAG, "onResponse2: totalcount2   " + response.body().getTotalCount());
+//                Log.e(TAG, "onResponse2: **************************call2call2");
+//                Log.e(TAG, "onResponse2: " + response.raw());        //Response{protocol.....
+//                Log.e(TAG, "onResponse2: " + response.message());    //OK
+//                Log.e(TAG, "onResponse2: " + response.code());       //200
+//                Log.e(TAG, "onResponse2: " + response.body().getResultCode() );      //00
+//                Log.e(TAG, "onResponse2: " + response.body().getResultMsg() );       //NORMAL SERVICE
+//                Log.e(TAG, "onResponse2: " + response.body().getItems().size() );    //39
+                try{
+                    for(int i=0;i<response.body().getItems().size();i++){
+//                        Log.e(TAG, "onResponse: " + response.body().getStationName(i) );
+//                        Log.e(TAG, "onResponse2: " + response.body().getMangName(i) );
+//                        Log.e(TAG, "onResponse: " + response.body().getDataTime(i) );
+//                        Log.e(TAG, "onResponse: " + response.body().getSo2Value(i) );
+//                        Log.e(TAG, "onResponse: " + response.body().getCoValue(i) );
+//                        Log.e(TAG, "onResponse: " + response.body().getO3Value(i) );
+//                        Log.e(TAG, "onResponse: " + response.body().getNo2Value(i) );
+//                        Log.e(TAG, "onResponse: " + response.body().getPm10Value(i) );
+//                        Log.e(TAG, "onResponse: " + response.body().getPm10Value24(i) );
+//                        Log.e(TAG, "onResponse: " + response.body().getPm25Value(i) );
+//                        Log.e(TAG, "onResponse: " + response.body().getPm25Value24(i) );
+//                        Log.e(TAG, "onResponse: " + response.body().getKhaiValue(i) );
+//                        Log.e(TAG, "onResponse: " + response.body().getKhaiGrade(i) );
+//                        Log.e(TAG, "onResponse: " + response.body().getSo2Grade(i) );
+//                        Log.e(TAG, "onResponse: " + response.body().getCoGrade(i) );
+//                        Log.e(TAG, "onResponse: " + response.body().getO3Grade(i) );
+//                        Log.e(TAG, "onResponse: " + response.body().getNo2Grade(i) );
+//                        Log.e(TAG, "onResponse: " + response.body().getPm10Grade(i) );
+//                        Log.e(TAG, "onResponse: " + response.body().getPm25Grade(i) );
+//                        Log.e(TAG, "onResponse: " + response.body().getPm10Grade1h(i) );
+//                        Log.e(TAG, "onResponse: " + response.body().getPm25Grade1h(i) );
+                        pm10HashMap.put( response.body().getCityName(i), response.body().getPm10Value(i));
+                        Log.e(TAG, "onResponse: " + i + "  " + response.body().getCityName(i) + "  " + response.body().getPm10Value(i) );
+                    }
+
+                    if (response.isSuccessful()) {
+//                        Log.e(TAG, "onResponse: in Successful" );
+                        onLocationChanged(mLastLocation);
+
+                        draw2();
+                        asyncDialog.dismiss();
+                        Toast toast = Toast.makeText(MapsActivity.this, "데이터 로드 완료 ", Toast.LENGTH_SHORT);
+                        toast.show();
+                    } else {
+                        asyncDialog.dismiss();
+                        Log.e(TAG, "onResponse else : else2");
+                    }
+                }catch (Exception e) {
+                    Toast toast = Toast.makeText(MapsActivity.this, "데이터 오류 ", Toast.LENGTH_SHORT);
+                    toast.show();
+                    Log.e("LOG", "Exeption2: " + e);
+                    asyncDialog.dismiss();
+                }
+            }
+
+            @Override
+            public void onFailure(Call<Repo> call, Throwable t) {
+//                Log.e(TAG, "onFailure: " + call.toString() );
+//                Log.e(TAG, "onFailure: getStackTrace   " + t.getStackTrace());
+//                Log.e(TAG, "onFailure: toString        " + t.toString());
+//                Log.e(TAG, "onFailure: getMessage      " + t.getMessage());
+                pm10HashMap.put("가평군", "-");
+                pm10HashMap.put("고양시", "-");
+                pm10HashMap.put("과천시", "-");
+                pm10HashMap.put("광명시", "-");
+                pm10HashMap.put("광주시", "-");
+                pm10HashMap.put("구리시", "-");
+                pm10HashMap.put("군포시", "-");
+                pm10HashMap.put("김포시", "-");
+                pm10HashMap.put("남양주시", "-");
+                pm10HashMap.put("동두천시", "-");
+                pm10HashMap.put("부천시", "-");
+                pm10HashMap.put("성남시", "-");
+                pm10HashMap.put("수원시", "-");
+                pm10HashMap.put("시흥시", "-");
+                pm10HashMap.put("안산시", "-");
+                pm10HashMap.put("안성시", "-");
+                pm10HashMap.put("안양시", "-");
+                pm10HashMap.put("양주시", "-");
+                pm10HashMap.put("양평군", "-");
+                pm10HashMap.put("여주군", "-");
+                pm10HashMap.put("연천군", "-");
+                pm10HashMap.put("오산시", "-");
+                pm10HashMap.put("용인시", "-");
+                pm10HashMap.put("의왕시", "-");
+                pm10HashMap.put("의정부시", "-");
+                pm10HashMap.put("이천시", "-");
+                pm10HashMap.put("파주시", "-");
+                pm10HashMap.put("평택시", "-");
+                pm10HashMap.put("포천시", "-");
+                pm10HashMap.put("하남시", "-");
+                pm10HashMap.put("화성시", "-");
+
+                Toast toast = Toast.makeText(MapsActivity.this, "공공데이터 API에서 오류가 발생하였습니다.", Toast.LENGTH_SHORT);
+                toast.show();
+                Log.e(TAG, "onFailure2!!!!!!!!!!!!");
+                draw2();
+                asyncDialog.dismiss();
+            }
+        });
+
+
+
     }
 
     @Override
@@ -454,13 +628,16 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             mCurrLocationMarker.remove();
         }
 
-        LatLng latLng = new LatLng(location.getLatitude(), location.getLongitude());
-
-        mMap.moveCamera(CameraUpdateFactory.newLatLng(latLng));
-        mMap.animateCamera(CameraUpdateFactory.zoomTo(9));
-
         //위치 업데이트 멈춤
-        if (mGoogleApiClient != null) {
+        if (mGoogleApiClient != null && mLastLocation != null) {
+//            Log.e(TAG, "onLocationChanged: " + mLastLocation.toString() );
+//            Log.e(TAG, "onLocationChanged: " + mLastLocation.getAltitude() );
+//            Log.e(TAG, "onLocationChanged: " + location.getAltitude() );
+            LatLng latLng = new LatLng(location.getLatitude(), location.getLongitude());
+
+            mMap.moveCamera(CameraUpdateFactory.newLatLng(latLng));
+            mMap.animateCamera(CameraUpdateFactory.zoomTo(9));
+
             LocationServices.FusedLocationApi.removeLocationUpdates(mGoogleApiClient, this);
             String juso = getAddress(mLastLocation.getLatitude(), mLastLocation.getLongitude());
 
@@ -533,16 +710,17 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         backPressCloseHandler.onBackPressed();
     }
 
-    public void airAPI(String input,String input2){
+    /*public void airAPI(String input,String input2){
         String addr, addr2;
         String serviceKey = "jENXI1lavhLBnweHBWDKwAfCcvSEqooh5DshJSNDLGNa%2Bpsd3WMuAuswxdQydH8mbvffg3rWCcYfa5tIo7DVbw%3D%3D";
         addr = "http://openapi.airkorea.or.kr/openapi/services/rest/ArpltnInforInqireSvc/getCtprvnRltmMesureDnsty?sidoName="+input+"&pageNo=1&numOfRows=99&ServiceKey="+serviceKey+"&ver=1.3";
         addr2 = "http://openapi.airkorea.or.kr/openapi/services/rest/ArpltnInforInqireSvc/getCtprvnMesureSidoLIst?sidoName="+input2+"&searchCondition=DAILY&pageNo=1&numOfRows=31&ServiceKey="+serviceKey;
+//        http://openapi.airkorea.or.kr/openapi/services/rest/ArpltnInforInqireSvc/getCtprvnMesureSidoLIst?sidoName=경기&searchCondition=DAILY&pageNo=1&numOfRows=31&ServiceKey=jENXI1lavhLBnweHBWDKwAfCcvSEqooh5DshJSNDLGNa%2Bpsd3WMuAuswxdQydH8mbvffg3rWCcYfa5tIo7DVbw%3D%3D
 
         GetXMLTask task = new GetXMLTask(); // 객체 생성
         String[] addrArray = {addr,addr2};
         task.execute(addrArray); // XML 파싱
-    }
+    }*/
 
     public void draw(){
         drawPolygon143(); // 서울 성동구
@@ -623,7 +801,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     public int[] checkColor(String name){
         int[] clr = new int[2];
-        if(pm10HashMap.get(name)==null){
+        if(pm10HashMap.get(name)==null || pm10HashMap.get(name).equals("")){
             clr[0] = 1;
         } else if(pm10HashMap.get(name).equals("-")){
             clr[0] = Color.argb(100,140,140,140);
@@ -704,7 +882,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         iconFactory = new IconGenerator(this);
         iconFactory.setStyle(iconStyle(colorArray[1]));
         addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,1);
-        if(pm10HashMap.get(name).equals("-")){
+
+        if(pm10HashMap.get(name) == null || pm10HashMap.get(name).equals("-") || pm10HashMap.get(name).isEmpty() || pm10HashMap.get(name).equals("")){
             seoulPm += 0;
         }else {
             seoulPm += Integer.parseInt(pm10HashMap.get(name));
@@ -756,7 +935,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         iconFactory.setStyle(iconStyle(colorArray[1]));
         addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,1);
-        if(pm10HashMap.get(name).equals("-")){
+        if(pm10HashMap.get(name) == null || pm10HashMap.get(name).equals("-") || pm10HashMap.get(name).isEmpty() || pm10HashMap.get(name).equals("")){
             seoulPm += 0;
         }else {
             seoulPm += Integer.parseInt(pm10HashMap.get(name));
@@ -832,7 +1011,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         iconFactory.setStyle(iconStyle(colorArray[1]));
         addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,1);
-        if(pm10HashMap.get(name).equals("-")){
+        if(pm10HashMap.get(name) == null || pm10HashMap.get(name).equals("-") || pm10HashMap.get(name).isEmpty() || pm10HashMap.get(name).equals("")){
             seoulPm += 0;
         }else {
             seoulPm += Integer.parseInt(pm10HashMap.get(name));
@@ -885,7 +1064,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         iconFactory.setStyle(iconStyle(colorArray[1]));
         addIcon(iconFactory, name+"\n     "+ pm10HashMap.get(name), point,1);
-        if(pm10HashMap.get(name).equals("-")){
+        if(pm10HashMap.get(name) == null || pm10HashMap.get(name).equals("-") || pm10HashMap.get(name).isEmpty() || pm10HashMap.get(name).equals("")){
             seoulPm += 0;
         }else {
             seoulPm += Integer.parseInt(pm10HashMap.get(name));
@@ -1029,7 +1208,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         iconFactory.setStyle(iconStyle(colorArray[1]));
         addIcon(iconFactory, name+"\n "+ pm10HashMap.get(name), point,1);
-        if(pm10HashMap.get(name).equals("-")){
+        if(pm10HashMap.get(name) == null || pm10HashMap.get(name).equals("-") || pm10HashMap.get(name).isEmpty() || pm10HashMap.get(name).equals("")){
             seoulPm += 0;
         }else {
             seoulPm += Integer.parseInt(pm10HashMap.get(name));
@@ -1335,7 +1514,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         iconFactory.setStyle(iconStyle(colorArray[1]));
         addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,1);
-        if(pm10HashMap.get(name).equals("-")){
+        if(pm10HashMap.get(name) == null || pm10HashMap.get(name).equals("-") || pm10HashMap.get(name).isEmpty() || pm10HashMap.get(name).equals("")){
             seoulPm += 0;
         }else {
             seoulPm += Integer.parseInt(pm10HashMap.get(name));
@@ -2134,7 +2313,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         iconFactory.setStyle(iconStyle(colorArray[1]));
         addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,1);
-        if(pm10HashMap.get(name).equals("-")){
+        if(pm10HashMap.get(name) == null || pm10HashMap.get(name).equals("-") || pm10HashMap.get(name).isEmpty() || pm10HashMap.get(name).equals("")){
             seoulPm += 0;
         }else {
             seoulPm += Integer.parseInt(pm10HashMap.get(name));
@@ -2184,7 +2363,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         iconFactory.setStyle(iconStyle(colorArray[1]));
         addIcon(iconFactory, name+"\n    "+ pm10HashMap.get(name), point,1);
-        if(pm10HashMap.get(name).equals("-")){
+        if(pm10HashMap.get(name) == null || pm10HashMap.get(name).equals("-") || pm10HashMap.get(name).isEmpty() || pm10HashMap.get(name).equals("")){
             seoulPm += 0;
         }else {
             seoulPm += Integer.parseInt(pm10HashMap.get(name));
@@ -2375,7 +2554,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         iconFactory.setStyle(iconStyle(colorArray[1]));
         addIcon(iconFactory, name+"\n  "+ pm10HashMap.get(name), point,1);
-        if(pm10HashMap.get(name).equals("-")){
+        if(pm10HashMap.get(name) == null || pm10HashMap.get(name).equals("-") || pm10HashMap.get(name).isEmpty() || pm10HashMap.get(name).equals("")){
             seoulPm += 0;
         }else {
             seoulPm += Integer.parseInt(pm10HashMap.get(name));
@@ -2707,7 +2886,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         iconFactory.setStyle(iconStyle(colorArray[1]));
         addIcon(iconFactory, name+"\n    "+ pm10HashMap.get(name), point,1);
-        if(pm10HashMap.get(name).equals("-")){
+        if(pm10HashMap.get(name) == null || pm10HashMap.get(name).equals("-") || pm10HashMap.get(name).isEmpty() || pm10HashMap.get(name).equals("")){
             seoulPm += 0;
         }else {
             seoulPm += Integer.parseInt(pm10HashMap.get(name));
@@ -2862,7 +3041,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         iconFactory.setStyle(iconStyle(colorArray[1]));
         addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,1);
-        if(pm10HashMap.get(name).equals("-")){
+        if(pm10HashMap.get(name) == null || pm10HashMap.get(name).equals("-") || pm10HashMap.get(name).isEmpty() || pm10HashMap.get(name).equals("")){
             seoulPm += 0;
         }else {
             seoulPm += Integer.parseInt(pm10HashMap.get(name));
@@ -2967,7 +3146,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         iconFactory.setStyle(iconStyle(colorArray[1]));
         addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,1);
-        if(pm10HashMap.get(name).equals("-")){
+        if(pm10HashMap.get(name) == null || pm10HashMap.get(name).equals("-") || pm10HashMap.get(name).isEmpty() || pm10HashMap.get(name).equals("")){
             seoulPm += 0;
         }else {
             seoulPm += Integer.parseInt(pm10HashMap.get(name));
@@ -3050,7 +3229,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         iconFactory.setStyle(iconStyle(colorArray[1]));
         addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,1);
-        if(pm10HashMap.get(name).equals("-")){
+        if(pm10HashMap.get(name) == null || pm10HashMap.get(name).equals("-") || pm10HashMap.get(name).isEmpty() || pm10HashMap.get(name).equals("")){
             seoulPm += 0;
         }else {
             seoulPm += Integer.parseInt(pm10HashMap.get(name));
@@ -3172,7 +3351,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         iconFactory.setStyle(iconStyle(colorArray[1]));
         addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,1);
-        if(pm10HashMap.get(name).equals("-")){
+        if(pm10HashMap.get(name) == null || pm10HashMap.get(name).equals("-") || pm10HashMap.get(name).isEmpty() || pm10HashMap.get(name).equals("")){
             seoulPm += 0;
         }else {
             seoulPm += Integer.parseInt(pm10HashMap.get(name));
@@ -3261,7 +3440,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         iconFactory.setStyle(iconStyle(colorArray[1]));
         addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,1);
-        if(pm10HashMap.get(name).equals("-")){
+        if(pm10HashMap.get(name) == null || pm10HashMap.get(name).equals("-") || pm10HashMap.get(name).isEmpty() || pm10HashMap.get(name).equals("")){
             seoulPm += 0;
         }else {
             seoulPm += Integer.parseInt(pm10HashMap.get(name));
@@ -3635,7 +3814,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
         addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,1);
-        if(pm10HashMap.get(name).equals("-")){
+        if(pm10HashMap.get(name) == null || pm10HashMap.get(name).equals("-") || pm10HashMap.get(name).isEmpty() || pm10HashMap.get(name).equals("")){
             seoulPm += 0;
         }else {
             seoulPm += Integer.parseInt(pm10HashMap.get(name));
@@ -4162,7 +4341,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
         addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,1);
-        if(pm10HashMap.get(name).equals("-")){
+        if(pm10HashMap.get(name) == null || pm10HashMap.get(name).equals("-") || pm10HashMap.get(name).isEmpty() || pm10HashMap.get(name).equals("")){
             seoulPm += 0;
         }else {
             seoulPm += Integer.parseInt(pm10HashMap.get(name));
@@ -4426,7 +4605,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
         addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,1);
-        if(pm10HashMap.get(name).equals("-")){
+        if(pm10HashMap.get(name) == null || pm10HashMap.get(name).equals("-") || pm10HashMap.get(name).isEmpty() || pm10HashMap.get(name).equals("")){
             seoulPm += 0;
         }else {
             seoulPm += Integer.parseInt(pm10HashMap.get(name));
@@ -4838,7 +5017,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
         addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,1);
-        if(pm10HashMap.get(name).equals("-")){
+        if(pm10HashMap.get(name) == null || pm10HashMap.get(name).equals("-") || pm10HashMap.get(name).isEmpty() || pm10HashMap.get(name).equals("")){
             seoulPm += 0;
         }else {
             seoulPm += Integer.parseInt(pm10HashMap.get(name));
@@ -5041,7 +5220,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
         addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,1);
-        if(pm10HashMap.get(name).equals("-")){
+        if(pm10HashMap.get(name) == null || pm10HashMap.get(name).equals("-") || pm10HashMap.get(name).isEmpty() || pm10HashMap.get(name).equals("")){
             seoulPm += 0;
         }else {
             seoulPm += Integer.parseInt(pm10HashMap.get(name));
@@ -5184,7 +5363,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
         addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,1);
-        if(pm10HashMap.get(name).equals("-")){
+        if(pm10HashMap.get(name) == null || pm10HashMap.get(name).equals("-") || pm10HashMap.get(name).isEmpty() || pm10HashMap.get(name).equals("")){
             seoulPm += 0;
         }else {
             seoulPm += Integer.parseInt(pm10HashMap.get(name));
@@ -5260,7 +5439,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
         addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,1);
-        if(pm10HashMap.get(name).equals("-")){
+        if(pm10HashMap.get(name) == null || pm10HashMap.get(name).equals("-") || pm10HashMap.get(name).isEmpty() || pm10HashMap.get(name).equals("")){
             seoulPm += 0;
         }else {
             seoulPm += Integer.parseInt(pm10HashMap.get(name));
@@ -5519,7 +5698,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
         addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,1);
-        if(pm10HashMap.get(name).equals("-")){
+        if(pm10HashMap.get(name) == null || pm10HashMap.get(name).equals("-") || pm10HashMap.get(name).isEmpty() || pm10HashMap.get(name).equals("")){
             seoulPm += 0;
         }else {
             seoulPm += Integer.parseInt(pm10HashMap.get(name));
@@ -5674,7 +5853,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
         addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,1);
-        if(pm10HashMap.get(name).equals("-")){
+        if(pm10HashMap.get(name) == null || pm10HashMap.get(name).equals("-") || pm10HashMap.get(name).isEmpty() || pm10HashMap.get(name).equals("")){
             seoulPm += 0;
         }else {
             seoulPm += Integer.parseInt(pm10HashMap.get(name));
@@ -5756,7 +5935,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         iconFactory.setStyle(iconStyle(colorArray[1])); // colorArray[1] 아이콘색
         addIcon(iconFactory, name+"\n   "+ pm10HashMap.get(name), point,1);
 
-        if(pm10HashMap.get(name).equals("-")){
+        if(pm10HashMap.get(name) == null || pm10HashMap.get(name).equals("-") || pm10HashMap.get(name).isEmpty() || pm10HashMap.get(name).equals("")){
             seoulPm += 0;
         }else {
             seoulPm += Integer.parseInt(pm10HashMap.get(name));
@@ -26780,7 +26959,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     }//안성시         ***
 
-    private class GetXMLTask extends AsyncTask<String, Void, Document[]> {
+    /*private class GetXMLTask extends AsyncTask<String, Void, Document[]> {
 
         ProgressDialog asyncDialog = new ProgressDialog(MapsActivity.this);
 
@@ -26860,7 +27039,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             }
             asyncDialog.dismiss();
         }
-    }
+    }*/
 
     private void addIcon(IconGenerator iconFactory, String text, LatLng position, int num) {
         Marker marker;

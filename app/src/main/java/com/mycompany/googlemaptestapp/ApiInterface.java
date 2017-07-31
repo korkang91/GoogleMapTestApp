@@ -22,9 +22,10 @@ public interface ApiInterface {
 //    Call<Repo> repo(@Field("sidoName") String sidoName, @Field("pageNo") int pageNo, @Field("numOfRows") int numOfRows, @Field("serviceKey") String serviceKey, @Field("ver") double ver);
 
 //    @GET("/openapi/services/rest/ArpltnInforInqireSvc/getCtprvnRltmMesureDnsty")
-//    Call<Repo> repo2(@QueryMap map<String, String>;
+//    Call<Repo> repo2(@Query("sidoName") String sidoName, @Query("pageNo") int pageNo, @Query("numOfRows") int numOfRows, @Query(value="serviceKey", encoded=true) String serviceKey, @Query("ver") double ver>;
 
+//http://openapi.airkorea.or.kr/openapi/services/rest/ArpltnInforInqireSvc/getCtprvnMesureSidoLIst?sidoName="+input2+"&searchCondition=DAILY&pageNo=1&numOfRows=31&ServiceKey="+serviceKey
+    @GET("/openapi/services/rest/ArpltnInforInqireSvc/getCtprvnMesureSidoLIst")
+    Call<Repo> repo2(@Query("sidoName") String sidoName, @Query("searchCondition") String searchCondition, @Query("pageNo") int pageNo, @Query("numOfRows") int numOfRows, @Query(value="serviceKey", encoded=true) String serviceKey);
 
-//    @GET("/openapi/services/rest/ArpltnInforInqireSvc/getCtprvnMesureSidoLIst")
-//    Call<Repo> repo2(@Query("appid") String appid, @Query("lat") double lat, @Query("lon") double lon);
 }
